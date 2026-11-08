@@ -1,6 +1,6 @@
 import { Shape, Placement } from './types';
-import { gcd, lcm, reduceRational, ratioToValue } from './rational';
-import { dToFreq, freqToD } from './axis';
+import { gcd, lcm, reduceRational } from './rational';
+import { freqToD } from './axis';
 import { evaluatePlacedShape } from './shape';
 
 /**

@@ -1,4 +1,4 @@
-import { Shape, Placement, PartialComponent, BandFilter } from './types';
+import { Shape, Placement, BandFilter } from './types';
 import { ratioToValue, primeFactors } from './rational';
 import { dToFreq } from './axis';
 

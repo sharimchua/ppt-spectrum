@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { freqToD, dToFreq, periodMsToD, dToPeriodMs, bpmToD, dToBpm, resolveDuPeriodAddress } from '../axis';
+import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain } from '../shape';
