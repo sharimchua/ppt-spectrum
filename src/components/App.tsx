@@ -27,6 +27,8 @@ import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
 
+const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
+
 // Helper to extract layout slug from URL query or hash
 function extractLayoutSlugFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
@@ -41,6 +43,35 @@ function extractLayoutSlugFromUrl(): string | null {
   return null;
 }
 
+function loadInitialLayout(): LayoutDefinition {
+  // 1. URL parameter takes highest precedence (for deep links)
+  const slug = extractLayoutSlugFromUrl();
+  if (slug) {
+    const decoded = decodeLayoutFromSlug(slug);
+    if (decoded) return decoded.layout;
+  }
+
+  // 2. Persisted last selected layout in localStorage
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY_LAYOUT);
+      if (saved) {
+        if (PRESET_LAYOUTS[saved]) {
+          return PRESET_LAYOUTS[saved];
+        }
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.root) {
+          return parsed as LayoutDefinition;
+        }
+      }
+    } catch {
+      // Fall through to default
+    }
+  }
+
+  return PRESET_SOLO;
+}
+
 export const App: React.FC = () => {
   const [scene, setScene] = useState<Scene>(() => loadSavedScene() || DEFAULT_SCENE);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -49,15 +80,8 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
 
-  // Initialize layout from URL slug if present, otherwise default to PRESET_SOLO
-  const [layout, setLayout] = useState<LayoutDefinition>(() => {
-    const slug = extractLayoutSlugFromUrl();
-    if (slug) {
-      const decoded = decodeLayoutFromSlug(slug);
-      if (decoded) return decoded.layout;
-    }
-    return PRESET_SOLO;
-  });
+  // Initialize layout from URL slug, last saved layout, or default to PRESET_SOLO
+  const [layout, setLayout] = useState<LayoutDefinition>(loadInitialLayout);
 
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
 
@@ -82,6 +106,17 @@ export const App: React.FC = () => {
     audioEngine.updateScene(scene);
     saveScene(scene);
   }, [scene, coordinator, audioEngine]);
+
+  // Persist last selected layout to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(layout));
+      } catch (err) {
+        console.warn('[Layout] Failed to save last layout:', err);
+      }
+    }
+  }, [layout]);
 
   // Handle URL hash changes dynamically (#layout=<slug>)
   useEffect(() => {
@@ -351,6 +386,7 @@ export const App: React.FC = () => {
         onToggleFullscreen={handleToggleFullscreen}
         onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
+        onToggleFilter={() => setScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
       />

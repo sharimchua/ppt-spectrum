@@ -11,6 +11,7 @@ import {
   Lock,
   User,
   Copy,
+  RotateCcw,
 } from 'lucide-react';
 import { ratioToValue } from '../core/rational';
 
@@ -128,7 +129,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
       const copy: Shape = {
         ...shape,
         id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-        name: `${shape.name} (Custom)`,
+        name: isPreset ? `${shape.name} (Custom)` : `${shape.name} (Copy)`,
         origin: 'user',
         partials: shape.partials.map((p) => ({
           ...p,
@@ -169,15 +170,17 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   return (
     <div className="space-y-3.5 text-xs text-slate-200 overflow-x-hidden">
       {/* Top Header & Detailed Shape Selector */}
-      <div className="flex flex-col gap-2 pb-2.5 border-b border-slate-800">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+      <div className="flex flex-col gap-2.5 pb-2.5 border-b border-slate-800">
+        {/* ROW 1: Shape Selector & Library Actions */}
+        <div className="flex items-center gap-2">
+          {/* Shape Selector Dropdown */}
+          <div className="relative flex-1 min-w-0">
             {onSelectShape && allShapes.length > 0 ? (
-              <div className="relative min-w-0 max-w-[240px]">
+              <>
                 <select
                   value={shape.id}
                   onChange={(e) => onSelectShape(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1 text-xs font-bold text-white focus:outline-none focus:border-red-500 cursor-pointer pr-7 appearance-none truncate w-full"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500 cursor-pointer pr-7 appearance-none truncate"
                 >
                   <optgroup label="── Built-in Presets ──" className="bg-slate-900 text-slate-400 font-semibold">
                     {presetShapes.map((s) => (
@@ -196,35 +199,45 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
                     </optgroup>
                   )}
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2 pointer-events-none" />
-              </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
+              </>
             ) : (
-              <span className="font-bold text-sm text-white truncate">{shape.name}</span>
+              <span className="font-bold text-sm text-white truncate block">{shape.name}</span>
             )}
+          </div>
 
-            {/* Fork/Customise button when on built-in preset */}
+          {/* Action Buttons cluster */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {isPreset ? (
               <button
                 onClick={handleDuplicateCurrentShape}
-                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 text-[10px] font-semibold cursor-pointer whitespace-nowrap transition shrink-0"
-                title="Duplicate to User Library to customise"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer whitespace-nowrap transition shadow-sm"
+                title="Fork to User Library to customise"
               >
-                <Copy className="w-3 h-3 text-cyan-400" />
-                <span>Customise</span>
+                <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Fork</span>
               </button>
             ) : (
-              <div className="flex items-center gap-1 min-w-0">
+              <div className="flex items-center gap-1">
                 <input
                   type="text"
                   value={shape.name}
                   onChange={(e) => onUpdateShape({ ...shape, name: e.target.value })}
-                  className="bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-2 py-0.5 text-xs font-semibold text-white focus:outline-none w-28 truncate"
+                  className="bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-2 py-1 text-xs font-semibold text-white focus:outline-none w-28 truncate"
                   title="Rename custom shape"
+                  placeholder="Shape name"
                 />
+                <button
+                  onClick={handleDuplicateCurrentShape}
+                  className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 cursor-pointer"
+                  title="Duplicate this custom shape"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
                 {onDeleteShape && (
                   <button
                     onClick={() => onDeleteShape(shape.id)}
-                    className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-950/40 transition cursor-pointer shrink-0"
+                    className="p-1.5 rounded bg-slate-800 hover:bg-red-950/60 border border-slate-700 text-slate-400 hover:text-red-400 transition cursor-pointer"
                     title="Delete custom shape"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -236,11 +249,33 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
             {/* Create new blank shape button */}
             <button
               onClick={handleCreateNewShape}
-              className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 hover:text-emerald-300 transition cursor-pointer shrink-0"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-950/60 hover:bg-emerald-900/70 border border-emerald-600/50 text-emerald-300 transition cursor-pointer font-semibold text-xs whitespace-nowrap shadow-sm"
               title="Create New Custom Shape"
             >
               <Plus className="w-3.5 h-3.5" />
+              <span>New</span>
             </button>
+          </div>
+        </div>
+
+        {/* ROW 2: Status Indicator & Navigation Tabs */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Origin Status Indicator */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {isPreset ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/60 shrink-0">
+                <Lock className="w-3 h-3" />
+                <span>Preset (Read-only)</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 shrink-0">
+                <User className="w-3 h-3" />
+                <span>User Library</span>
+              </span>
+            )}
+            <span className="text-[10px] text-slate-500 font-mono truncate hidden sm:inline">
+              {isPreset ? 'Edits automatically create a custom shape' : 'Managed in your personal library'}
+            </span>
           </div>
 
           {/* Navigation Tabs */}
@@ -256,28 +291,14 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
             <button
               onClick={() => setActiveTab('filter')}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 whitespace-nowrap ${
-                activeTab === 'filter' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
+                activeTab === 'filter' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
+              title="Acoustic Lens & Formant Aperture View"
             >
               <Filter className="w-3 h-3" />
-              <span>Band Filter</span>
+              <span>Filter View</span>
             </button>
           </div>
-        </div>
-
-        {/* Origin Status Indicator */}
-        <div className="flex items-center justify-between text-[10px]">
-          {isPreset ? (
-            <div className="flex items-center gap-1 text-amber-400 font-medium">
-              <Lock className="w-3 h-3" />
-              <span>Built-in Preset (Read-only) — edits fork into your User Library</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 text-cyan-400 font-medium">
-              <User className="w-3 h-3" />
-              <span>User Library Shape (Customised)</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -453,13 +474,16 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         </div>
       )}
 
-      {/* TAB 2: SPECTRAL BAND FILTER CONTROLS */}
+      {/* TAB 2: NON-DESTRUCTIVE ACOUSTIC APERTURE FILTER VIEW */}
       {activeTab === 'filter' && filter && onUpdateFilter && (
-        <div className="space-y-3.5 p-3 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
+        <div className="space-y-3.5 p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-ppt-do" />
-              <span className="font-semibold text-white">Spectral Band Filter</span>
+              <Filter className="w-4 h-4 text-cyan-400" />
+              <div>
+                <span className="font-semibold text-white block">Acoustic Formant Lens</span>
+                <span className="text-[9px] text-cyan-400 font-mono">Non-destructive view aperture</span>
+              </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -468,17 +492,17 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
                 onChange={(e) => onUpdateFilter({ ...filter, enabled: e.target.checked })}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+              <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
             </label>
           </div>
 
-          <div className="text-[10px] text-slate-400 leading-relaxed">
-            Raised-cosine window filter applied across the continuous DuPeriod continuum to sculpt harmonic amplitudes and model physical resonant cavities.
+          <div className="text-[10px] text-slate-400 leading-relaxed bg-slate-950/40 p-2 rounded border border-slate-800/80">
+            A temporary raised-cosine frequency aperture that sculpts perceived acoustics and resonance cavities in real-time without modifying your shape’s stored harmonic partials. Visible on the <strong className="text-cyan-300">Spectrum Ruler</strong>.
           </div>
 
           {/* Filter Mode */}
           <div className="space-y-1">
-            <span className="text-[11px] text-slate-300 font-medium">Filter Mode:</span>
+            <span className="text-[11px] text-slate-300 font-medium">Aperture Mode:</span>
             <div className="grid grid-cols-3 gap-1.5">
               {(['band-pass', 'low-pass', 'high-pass'] as const).map((mode) => (
                 <button
@@ -486,7 +510,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
                   onClick={() => onUpdateFilter({ ...filter, mode })}
                   className={`py-1.5 rounded text-center text-xs font-semibold capitalize transition border cursor-pointer whitespace-nowrap ${
                     filter.mode === mode
-                      ? 'bg-red-600 border-red-500 text-white'
+                      ? 'bg-cyan-600 border-cyan-400 text-white shadow-sm'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
                   }`}
                 >
@@ -499,7 +523,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
           {/* Filter Centre d */}
           <div className="space-y-1">
             <div className="flex justify-between text-[11px]">
-              <span className="text-slate-300">Filter Centre (d):</span>
+              <span className="text-slate-300">Aperture Centre (d):</span>
               <span className="font-mono text-cyan-300">{filter.centreD.toFixed(2)}</span>
             </div>
             <input
@@ -516,7 +540,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
           {/* Filter Width d */}
           <div className="space-y-1">
             <div className="flex justify-between text-[11px]">
-              <span className="text-slate-300">Filter Width (DuPeriods / Octaves):</span>
+              <span className="text-slate-300">Aperture Width (DuPeriods / Octaves):</span>
               <span className="font-mono text-cyan-300">{filter.widthD.toFixed(2)} oct</span>
             </div>
             <input
@@ -533,7 +557,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
           {/* Filter Edge Softness */}
           <div className="space-y-1">
             <div className="flex justify-between text-[11px]">
-              <span className="text-slate-300">Edge Softness (Raised-Cosine):</span>
+              <span className="text-slate-300">Skirt Softness (Raised-Cosine):</span>
               <span className="font-mono text-cyan-300">{filter.softnessD.toFixed(2)}</span>
             </div>
             <input
@@ -545,6 +569,17 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
               onChange={(e) => onUpdateFilter({ ...filter, softnessD: parseFloat(e.target.value) })}
               className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-cyan-500"
             />
+          </div>
+
+          {/* Reset Aperture Button */}
+          <div className="pt-1">
+            <button
+              onClick={() => onUpdateFilter({ ...filter, enabled: false, centreD: 0, widthD: 4, softnessD: 1 })}
+              className="w-full py-1.5 rounded border border-slate-800 bg-slate-950/60 hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Reset & Bypass Filter View</span>
+            </button>
           </div>
         </div>
       )}

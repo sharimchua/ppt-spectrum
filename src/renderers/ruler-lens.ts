@@ -1,5 +1,5 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape } from '../core/shape';
+import { evaluatePlacedShape, calculateFilterGain } from '../core/shape';
 import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
@@ -35,6 +35,10 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     const dToX = (d: number): number => {
       // Faster / negative d to the right (x = -d)
       return width / 2 - (d / (dSpan / 2)) * (width * 0.45);
+    };
+
+    const xToD = (x: number): number => {
+      return ((width / 2 - x) / (width * 0.45)) * (dSpan / 2);
     };
 
     const baselineY = height * 0.72;
@@ -94,6 +98,84 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       ctx.fillText(addr.formatted, tx, baselineY + 22);
     }
     ctx.restore();
+
+    // 2b. Visual Band Filter / Acoustic Aperture Overlay (when filter enabled)
+    if (scene.filter && scene.filter.enabled) {
+      ctx.save();
+      const filter = scene.filter;
+      const apertureMaxH = height * 0.56;
+
+      // Draw shaded transmission aperture polygon
+      ctx.beginPath();
+      ctx.moveTo(0, baselineY);
+
+      const step = 3;
+      for (let x = 0; x <= width; x += step) {
+        const d = xToD(x);
+        const gain = calculateFilterGain(d, filter);
+        const fy = baselineY - gain * apertureMaxH;
+        ctx.lineTo(x, fy);
+      }
+      ctx.lineTo(width, baselineY);
+      ctx.closePath();
+
+      // Semi-transparent cyan acoustic aperture fill
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+      ctx.fill();
+
+      // Transmission envelope stroke
+      ctx.beginPath();
+      let started = false;
+      for (let x = 0; x <= width; x += step) {
+        const d = xToD(x);
+        const gain = calculateFilterGain(d, filter);
+        const fy = baselineY - gain * apertureMaxH;
+        if (!started) {
+          ctx.moveTo(x, fy);
+          started = true;
+        } else {
+          ctx.lineTo(x, fy);
+        }
+      }
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Aperture Center Landmark line
+      const filterCenterX = dToX(filter.centreD);
+      if (filterCenterX >= 0 && filterCenterX <= width) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(filterCenterX, baselineY);
+        ctx.lineTo(filterCenterX, baselineY - apertureMaxH - 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Filter Mode Badge
+      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} (d=${filter.centreD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct)`;
+      ctx.font = 'bold 8px JetBrains Mono, monospace';
+      const bWidth = ctx.measureText(badgeText).width;
+      const badgeX = Math.max(bWidth / 2 + 10, Math.min(width - bWidth / 2 - 10, filterCenterX));
+      const badgeY = baselineY - apertureMaxH - 8;
+
+      ctx.fillStyle = 'rgba(11, 14, 23, 0.9)';
+      ctx.fillRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, badgeX, badgeY);
+
+      ctx.restore();
+    }
 
     // 3. Render placed shapes & partials
     for (const placement of scene.placements) {
@@ -157,7 +239,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       }
 
       for (const p of partials) {
-        if (p.filteredAmp <= 0.001) continue;
+        if (p.filteredAmp <= 0.001 && p.amp <= 0.001) continue;
 
         const px = dToX(p.d);
         if (px < 0 || px > width) continue;
@@ -168,10 +250,29 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
         const maxH = height * 0.45;
         const barH = p.filteredAmp * maxH;
+        const rawBarH = p.amp * maxH;
         const py = baselineY - barH;
+        const pyRaw = baselineY - rawBarH;
 
         ctx.save();
-        // Partial line
+
+        // If filter attenuated this partial, draw unattenuated ghosted extent
+        if (scene.filter && scene.filter.enabled && rawBarH > barH + 2) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px, pyRaw);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Ghosted cap marker at original unattenuated amplitude
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fillRect(px - 2, pyRaw - 1, 4, 2);
+        }
+
+        // Active filtered partial bar
         ctx.strokeStyle = col;
         ctx.lineWidth = 2.5;
         ctx.beginPath();

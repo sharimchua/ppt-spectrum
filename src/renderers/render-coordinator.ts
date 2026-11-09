@@ -189,7 +189,25 @@ export class RenderCoordinator {
       ctx.restore();
 
       if (renderer.getDynamicLights) {
-        dynamicLights.push(...renderer.getDynamicLights());
+        const rawLights = renderer.getDynamicLights();
+        if (rawLights.length > 0) {
+          // Translate cell-local canvas coordinates to viewport post-processing space
+          const cellRect = canvas.getBoundingClientRect();
+          const ppRect = this.postProcessingCanvas
+            ? this.postProcessingCanvas.getBoundingClientRect()
+            : { left: 0, top: 0 };
+          const offsetX = cellRect.left - ppRect.left;
+          const offsetY = cellRect.top - ppRect.top;
+
+          for (const l of rawLights) {
+            dynamicLights.push({
+              x: l.x + offsetX,
+              y: l.y + offsetY,
+              velocity: l.velocity,
+              colorHex: l.colorHex,
+            });
+          }
+        }
       }
     }
 

@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Settings,
   SlidersHorizontal,
+  Filter,
 } from 'lucide-react';
 
 interface ControlToolbarProps {
@@ -35,6 +36,7 @@ interface ControlToolbarProps {
   onToggleFullscreen?: () => void;
   onToggleSettings?: () => void;
   onToggleShapeEditor?: () => void;
+  onToggleFilter?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
 }
@@ -56,6 +58,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleFullscreen,
   onToggleSettings,
   onToggleShapeEditor,
+  onToggleFilter,
   onOpenCapture,
   onOpenInfo,
 }) => {
@@ -81,10 +84,10 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
     <header className="flex flex-col border-b border-slate-800 bg-[#080b12]/95 backdrop-blur-md z-40 select-none">
       {/* Primary Top Bar */}
       <div className="flex h-14 w-full items-center justify-between px-3 sm:px-4 gap-2">
-        {/* Left Group: Branding, App Name & Help */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Left Group: Branding, App Name, Playback & Shape Library */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Unified Branding Icon & Title */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-0.5">
             <img
               src="/logo.svg"
               alt="PPT Logo"
@@ -113,15 +116,32 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           {/* Audio Play/Pause Button */}
           <button
             onClick={onTogglePlay}
-            className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border transition cursor-pointer shadow-md ${
+            className={`flex h-8 sm:h-9 px-2.5 sm:px-3 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
               isPlaying
-                ? 'border-red-500 bg-red-600/30 text-red-400 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
+                ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
                 : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
             }`}
             title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5 fill-current" />}
+            <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
+
+          {/* Shape Library & Synthesiser Button (Prominent, High Priority) */}
+          {onToggleShapeEditor && (
+            <button
+              onClick={onToggleShapeEditor}
+              className={`flex items-center gap-1.5 h-8 sm:h-9 px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
+                isShapeEditorOpen
+                  ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
+                  : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
+              }`}
+              title="Open Shape Synthesiser & User Library"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do" />
+              <span>Library</span>
+            </button>
+          )}
         </div>
 
         {/* Center: Continuum Timeline Slider & Parameter Readouts */}
@@ -269,18 +289,20 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Shape Synthesiser Inspector Button */}
-          {onToggleShapeEditor && (
+          {/* Quick Band Filter Lens View Toggle */}
+          {onToggleFilter && (
             <button
-              onClick={onToggleShapeEditor}
-              className={`p-1.5 rounded-md border transition cursor-pointer ${
-                isShapeEditorOpen
-                  ? 'bg-red-600/30 border-red-500 text-red-300 shadow-[0_0_8px_rgba(225,54,16,0.4)]'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              onClick={onToggleFilter}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+                scene.filter?.enabled
+                  ? 'border-cyan-500 bg-cyan-950/70 text-cyan-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Shape Partial Inspector & Inharmonicity Macros"
+              title="Toggle Non-Destructive Band Filter Aperture View"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <Filter className="w-3 h-3 text-cyan-400" />
+              <span className="hidden md:inline">Filter:</span>
+              <span>{scene.filter?.enabled ? 'ON' : 'OFF'}</span>
             </button>
           )}
 
