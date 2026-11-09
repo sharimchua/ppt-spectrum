@@ -190,6 +190,33 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                   <span className="text-[9px] text-slate-400">Acoustic ADSR trigger</span>
                 </div>
               </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  A / B
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Jump to Bookmark</span>
+                  <span className="text-[9px] text-slate-400">Anchor A or Anchor B</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  ← / →
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Step 1 Octave</span>
+                  <span className="text-[9px] text-slate-400">±1 DuMetric Octave</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  Shift+← / →
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Step 1/2 Octave</span>
+                  <span className="text-[9px] text-slate-400">±0.5 Octave (Tritone)</span>
+                </div>
+              </div>
             </div>
           </div>
 

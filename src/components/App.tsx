@@ -230,6 +230,10 @@ export const App: React.FC = () => {
   // - 's' / 'S': toggles continuum sweep oscillation
   // - 'f' / 'F': toggles band filter aperture
   // - 't' / 'T': triggers/strikes acoustic ADSR note
+  // - 'a' / 'A': jump fundamental to Bookmark A
+  // - 'b' / 'B': jump fundamental to Bookmark B
+  // - Left/Right (or Down/Up) arrows: step fundamental by 1 DuMetric octave
+  // - Shift + Left/Right arrows: step fundamental by 0.5 DuMetric octave (tritone)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -243,7 +247,7 @@ export const App: React.FC = () => {
         return;
       }
 
-      // Ignore modifier keys so browser shortcuts (e.g. Ctrl+S, Ctrl+F) are preserved
+      // Ignore browser modifier combinations (e.g. Ctrl+S, Ctrl+A, Alt+F)
       if (e.ctrlKey || e.altKey || e.metaKey) {
         return;
       }
@@ -266,12 +270,54 @@ export const App: React.FC = () => {
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         handleTriggerNote();
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        const targetD = bookmarks.a.d;
+        setScene((prev) => ({
+          ...prev,
+          placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+        }));
+        handleTriggerNote();
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        const targetD = bookmarks.b.d;
+        setScene((prev) => ({
+          ...prev,
+          placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+        }));
+        handleTriggerNote();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        // Move UP in frequency / pitch (decrease d)
+        e.preventDefault();
+        const step = e.shiftKey ? 0.5 : 1.0;
+        setScene((prev) => {
+          const curD = prev.placements[0]?.d ?? 0;
+          const targetD = Math.max(-7, Math.min(7, curD - step));
+          return {
+            ...prev,
+            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+          };
+        });
+        handleTriggerNote();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        // Move DOWN in frequency / pitch (increase d)
+        e.preventDefault();
+        const step = e.shiftKey ? 0.5 : 1.0;
+        setScene((prev) => {
+          const curD = prev.placements[0]?.d ?? 0;
+          const targetD = Math.max(-7, Math.min(7, curD + step));
+          return {
+            ...prev,
+            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+          };
+        });
+        handleTriggerNote();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handleTriggerNote]);
+  }, [isPlaying, handleTriggerNote, bookmarks]);
 
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
