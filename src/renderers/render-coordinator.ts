@@ -11,7 +11,15 @@ export interface CachedRect {
 
 export interface RegisteredLensRenderer {
   id: string;
-  render: (ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene, transportTime: number) => void;
+  render: (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    scene: Scene,
+    transportTime: number,
+    audioPhase?: number,
+    isAudioActive?: boolean
+  ) => void;
   getDynamicLights?: () => PostProcessingLight[];
 }
 
@@ -35,6 +43,10 @@ export class RenderCoordinator {
   // Governor & Focus management
   private consecutiveSlowFrames: number = 0;
   private isFocused: boolean = true;
+
+  // Audio Sync Telemetry
+  private audioPhaseProvider: ((shapeId: string) => number) | null = null;
+  private isAudioActiveProvider: (() => boolean) | null = null;
 
   constructor(initialScene: Scene) {
     this.scene = initialScene;
@@ -80,6 +92,14 @@ export class RenderCoordinator {
 
   public unregisterLens(id: string): void {
     this.registeredLenses.delete(id);
+  }
+
+  public setAudioPhaseProvider(provider: ((shapeId: string) => number) | null): void {
+    this.audioPhaseProvider = provider;
+  }
+
+  public setIsAudioActiveProvider(provider: (() => boolean) | null): void {
+    this.isAudioActiveProvider = provider;
   }
 
   public setScene(scene: Scene): void {
@@ -134,6 +154,9 @@ export class RenderCoordinator {
     this.cosmeticsEngine.update(dtMs);
 
     const dynamicLights: PostProcessingLight[] = [];
+    const primaryShapeId = this.scene.placements[0]?.shapeId;
+    const audioPhase = (primaryShapeId && this.audioPhaseProvider) ? this.audioPhaseProvider(primaryShapeId) : 0;
+    const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
 
     // Render each lens cell
     for (const { canvas, ctx, renderer } of this.registeredLenses.values()) {
@@ -144,7 +167,7 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
-      renderer.render(ctx, w, h, this.scene, transportTime);
+      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive);
       ctx.restore();
 
       if (renderer.getDynamicLights) {

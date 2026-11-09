@@ -2,6 +2,11 @@ import { Scene } from '../core/types';
 import { ratioToValue } from '../core/rational';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
 
+export interface AudioTelemetryData {
+  phases: Record<string, { masterPhase: number; f0: number; smoothedD: number }>;
+  currentTime: number;
+}
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
@@ -10,6 +15,8 @@ export class AudioEngine {
   private isMutedForFocus: boolean = false;
 
   private scene: Scene;
+  private latestTelemetry: AudioTelemetryData | null = null;
+  private latestTelemetryTime: number = 0;
 
   constructor(initialScene: Scene) {
     this.scene = initialScene;
@@ -47,6 +54,13 @@ export class AudioEngine {
         this.workletNode = new AudioWorkletNode(this.ctx, 'spectrum-synth-processor', {
           outputChannelCount: [2],
         });
+
+        this.workletNode.port.onmessage = (event) => {
+          if (event.data?.type === 'AUDIO_SYNC') {
+            this.latestTelemetry = event.data.payload;
+            this.latestTelemetryTime = performance.now();
+          }
+        };
 
         this.masterGainNode = this.ctx.createGain();
         this.masterGainNode.gain.setValueAtTime(this.scene.audio.masterGain, this.ctx.currentTime);
@@ -116,6 +130,25 @@ export class AudioEngine {
 
   public getContext(): AudioContext | null {
     return this.ctx;
+  }
+
+  public getAudioTelemetry(): AudioTelemetryData | null {
+    return this.latestTelemetry;
+  }
+
+  public getMasterPhase(shapeId: string): number {
+    if (!this.isUnlocked || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
+      return 0.0;
+    }
+    const shapeData = this.latestTelemetry?.phases?.[shapeId];
+    if (!shapeData) return 0.0;
+
+    const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
+    return (shapeData.masterPhase + shapeData.f0 * dt) % 1.0;
+  }
+
+  public isAudioActive(): boolean {
+    return this.isUnlocked && !this.isMutedForFocus && this.scene.audio.masterGain > 0.0001;
   }
 
   public isReady(): boolean {

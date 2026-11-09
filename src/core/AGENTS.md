@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `src/core` domain contains all pure TypeScript data structures, mathematical functions, rational arithmetic, axis conversions, prime harmonic profiles, and scene serialisation. It has **zero DOM, window, or Web Audio dependencies** and is strictly testable in pure Node/Vitest environments.
+The `src/core` domain contains all pure TypeScript data structures, mathematical functions, rational arithmetic, axis conversions, prime harmonic profiles, scene serialisation, and modular layout tree manipulation algorithms. It has **zero DOM, window, or Web Audio dependencies** and is strictly testable in pure Node/Vitest environments.
 
 ## Ownership
 
@@ -12,13 +12,18 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
 - `src/core/alignment.ts` — Ghost fundamental, coincidence counting, Plomp-Levelt roughness curves, and Tenney complexity.
-- `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar, Polyrhythms).
+- `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Duple 1:2, Quadruple 1:4, Hemiola 3:2, Polyrhythms 4:3 & 5:4, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar).
 - `src/core/config.ts` — Default application configuration, sanitisation, and localStorage persistence.
-- `src/core/layout-models.ts` — Modular layout tree models and presets.
-- `src/core/scene-codec.ts` — Compact versioned URL hash encoder/decoder.
+- `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialization for deep linking.
+- `src/core/decompose.ts` — Dynamic 11-limit DuPeriod interval quantisation for tapped rhythm inputs.
+
+## Shared Library Architecture Note
+
+The layout tree structures and algorithms in `layout-models.ts` (`splitCellInTree`, `removeCellFromTree`, `duplicateCellInTree`, `moveCellInTree`, `addCellToTree`, `encodeLayoutToSlug`, `decodeLayoutFromSlug`) are designed with pure mathematical purity and zero DOM dependencies. They form an identical contract to `ppt-visualiser`, providing a direct path to extraction into a shared library package (`@ppt/layout` or `@ppt/core`) across the Midlife Muso PPT ecosystem.
 
 ## Local Contracts
 
 - Functions must be deterministic, pure, and free of side effects.
 - Australian English spelling must be maintained in all comments and documentation.
 - Round-trip conversions between $d$, $f$, period, and BPM must be tested to high precision.
+- Layout slug roundtrips (`encodeLayoutToSlug` <-> `decodeLayoutFromSlug`) must produce structurally identical layout trees.

@@ -1,5 +1,10 @@
 import React from 'react';
-import { LayoutNode, SpectrumLensType } from '../core/layout-models';
+import {
+  LayoutNode,
+  LayoutCellNode,
+  LayoutFlexDirection,
+  SpectrumLensType,
+} from '../core/layout-models';
 import { Scene } from '../core/types';
 import { RenderCoordinator } from '../renderers/render-coordinator';
 import { CellViewport } from './CellViewport';
@@ -8,14 +13,25 @@ interface FlexLayoutRendererProps {
   node: LayoutNode;
   scene: Scene;
   coordinator: RenderCoordinator;
-  onUpdateCellModule?: (cellId: string, module: SpectrumLensType) => void;
+  onUpdateCell?: (updated: LayoutCellNode) => void;
+  // Layout Edit Mode Props
+  isEditMode?: boolean;
+  canDelete?: boolean;
+  onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
+  onRemoveCell?: (targetCellId: string) => void;
+  onDuplicateCell?: (targetCellId: string) => void;
 }
 
 export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   node,
   scene,
   coordinator,
-  onUpdateCellModule,
+  onUpdateCell,
+  isEditMode = false,
+  canDelete = false,
+  onSplitCell,
+  onRemoveCell,
+  onDuplicateCell,
 }) => {
   if (node.type === 'cell') {
     return (
@@ -29,7 +45,12 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           cell={node}
           scene={scene}
           coordinator={coordinator}
-          onUpdateCellModule={onUpdateCellModule}
+          onUpdateCell={onUpdateCell}
+          isEditMode={isEditMode}
+          canDelete={canDelete}
+          onSplitCell={onSplitCell}
+          onRemoveCell={onRemoveCell}
+          onDuplicateCell={onDuplicateCell}
         />
       </div>
     );
@@ -53,7 +74,12 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           node={child}
           scene={scene}
           coordinator={coordinator}
-          onUpdateCellModule={onUpdateCellModule}
+          onUpdateCell={onUpdateCell}
+          isEditMode={isEditMode}
+          canDelete={canDelete}
+          onSplitCell={onSplitCell}
+          onRemoveCell={onRemoveCell}
+          onDuplicateCell={onDuplicateCell}
         />
       ))}
     </div>

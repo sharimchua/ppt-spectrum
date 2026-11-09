@@ -13,7 +13,15 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene, transportTime: number): void {
+  public render(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    scene: Scene,
+    transportTime: number,
+    audioPhase: number = 0,
+    isAudioActive: boolean = false
+  ): void {
     this.dynamicLights = [];
 
     const placement = scene.placements[0];
@@ -25,10 +33,19 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     const splitX = width * 0.65;
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
 
-    // Dynamic rotation angle: for high audio frequencies (>30Hz), clamp rotation to visually pleasing cadence (1.5 rev/sec)
-    // so it doesn't alias into a blur; for rhythm rates (<30Hz), rotate strictly at f0 rate.
-    const effectiveVisualRate = f0 > 30 ? 1.5 : f0;
-    const rotationTurns = transportTime * effectiveVisualRate;
+    // Audio-visual phase synchronization:
+    // In rhythmic regime (f0 <= 25.8 Hz) when audio is running,
+    // rotation turns lock directly to the worklet's master phase.
+    // For high audio frequencies (> 25.8 Hz), rotate at 1.5 rev/sec to avoid optical Nyquist aliasing.
+    // When audio is stopped, rotation parks cleanly.
+    let rotationTurns = 0;
+    if (isAudioActive) {
+      if (f0 <= 25.8) {
+        rotationTurns = audioPhase % 1.0;
+      } else {
+        rotationTurns = (transportTime * 1.5) % 1.0;
+      }
+    }
 
     // 1. Composite Waveform (Left 65% of viewport)
     ctx.save();

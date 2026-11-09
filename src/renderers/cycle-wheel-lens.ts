@@ -14,7 +14,15 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene, transportTime: number): void {
+  public render(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    scene: Scene,
+    transportTime: number,
+    audioPhase: number = 0,
+    isAudioActive: boolean = false
+  ): void {
     this.dynamicLights = [];
 
     const centerX = width / 2;
@@ -31,11 +39,19 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     const ghost = calculateGhostFundamental(shape, f0);
     const partials = evaluatePlacedShape(shape, primaryPlacement, scene.filter);
 
-    // Ghost fundamental rotation rate:
-    // When in rhythm (<10Hz), rotates exactly at cycle rate f_ghost.
-    // When in pitch (>30Hz), scales gracefully to ~0.75-1.5 rev/sec so the eye can follow cyclical alignment.
-    const effectiveGhostRate = ghost.ghostFreqHz > 25 ? 1.0 : ghost.ghostFreqHz;
-    const playheadAngleTurns = (transportTime * effectiveGhostRate) % 1.0;
+    // Audio-visual phase synchronization:
+    // When audio is actively synthesizing and in rhythmic/metric regime (<= 25.8 Hz),
+    // the playhead locks 1:1 with the AudioWorklet's master phase.
+    // For audible pitch (> 25.8 Hz), clamp rotation to ~1 rev/sec to prevent 60 FPS strobing.
+    // When audio is stopped/muted, the playhead remains stationary at the 12 o'clock coincidence marker.
+    let playheadAngleTurns = 0;
+    if (isAudioActive) {
+      if (f0 <= 25.8) {
+        playheadAngleTurns = audioPhase % 1.0;
+      } else {
+        playheadAngleTurns = (transportTime * 1.0) % 1.0;
+      }
+    }
     const playheadAngleRad = playheadAngleTurns * Math.PI * 2 - Math.PI / 2;
 
     // 1. Ghost fundamental cycle boundary (the "Sam" / common bar)

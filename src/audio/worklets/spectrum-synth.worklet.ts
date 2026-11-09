@@ -12,6 +12,9 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     // Poetic voice envelopes & triggers
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz }
 
+    // Message throttle counter (~30-60 Hz telemetry back to render thread)
+    this.telemetryCounter = 0;
+
     this.port.onmessage = (event) => {
       const { type, payload } = event.data;
       if (type === 'UPDATE_SCENE') {
@@ -41,6 +44,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     if (this.masterGain <= 0.0001 || this.shapes.length === 0) {
       return true;
     }
+
+    const phaseTelemetry = {};
 
     for (const shape of this.shapes) {
       if (shape.mute || shape.gain <= 0.0001) continue;
@@ -74,7 +79,6 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           const partialPhase = (masterPhase * ratioVal + p.phaseOffset) % 1.0;
 
           // Perceptual regime weights across 10 - 40 Hz
-          // toneWeight = 0 below 10Hz, smoothly ramps to 1 at 40Hz
           let toneWeight = 0.0;
           if (partialFreq >= 40.0) {
             toneWeight = 1.0;
@@ -93,13 +97,12 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           let eventSample = 0;
           if (eventWeight > 0.001) {
             if (this.audioMode === 'literal') {
-              // Narrow raised-cosine grain / windowed impulse
               const pulseW = 0.08;
               if (partialPhase < pulseW) {
                 eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (partialPhase / pulseW))) * p.amp * eventWeight;
               }
             } else {
-              // Poetic Mode: pitched click / transient on cycle wrap
+              // Poetic Mode: pitched click on cycle wrap
               const wrapped = (partialPhase < 0.1 && (prevPhase * ratioVal) % 1.0 > 0.8);
               const voiceKey = shapeId + '_' + pIdx;
               let vState = this.voiceStates.get(voiceKey);
@@ -126,7 +129,6 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           }
 
           const combined = (toneSample + eventSample) * shape.gain;
-          // Simple stereo spread across partial index
           const pan = Math.sin(pIdx * 1.2) * 0.35;
           sampleValL += combined * (0.5 - pan * 0.5);
           sampleValR += combined * (0.5 + pan * 0.5);
@@ -137,6 +139,20 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       }
 
       this.masterPhases.set(shapeId, masterPhase);
+      phaseTelemetry[shapeId] = { masterPhase, f0, smoothedD: currentD };
+    }
+
+    // Post telemetry to main thread approximately every 20-30ms (~12-16 quantums of 128 samples)
+    this.telemetryCounter++;
+    if (this.telemetryCounter >= 12) {
+      this.telemetryCounter = 0;
+      this.port.postMessage({
+        type: 'AUDIO_SYNC',
+        payload: {
+          phases: phaseTelemetry,
+          currentTime: currentTime,
+        }
+      });
     }
 
     return true;
