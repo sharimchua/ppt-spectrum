@@ -11,6 +11,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
   private afterglowIntensity: number = 0;
   private afterglowY: number = 0;
   private lastTransportTime: number = 0;
+  private lastDistToEnd: number = 999;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -81,6 +82,34 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
 
     const waveWidth = splitX - 40;
     const numCyclesDrawn = 2.5;
+    const xEnd = 20 + waveWidth;
+    const yTop = waveCenterY - waveAmpScale - 16;
+    const yBottom = waveCenterY + waveAmpScale + 16;
+
+    // 1a. Terminus Horizon Boundary Line (Right Edge - Always clearly visible)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(xEnd, yTop);
+    ctx.lineTo(xEnd, yBottom);
+    ctx.stroke();
+
+    // Terminus notch brackets
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.beginPath();
+    ctx.moveTo(xEnd - 5, yTop);
+    ctx.lineTo(xEnd, yTop);
+    ctx.moveTo(xEnd - 5, yBottom);
+    ctx.lineTo(xEnd, yBottom);
+    ctx.stroke();
+
+    // Terminus landmark label
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 7px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('TERMINUS ▌', xEnd - 6, yTop + 2);
+    ctx.restore();
 
     for (let x = 0; x <= waveWidth; x += 2) {
       const t = (x / waveWidth) * numCyclesDrawn;
@@ -126,23 +155,27 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         }
         const samY = waveCenterY - (samNorm > 0 ? (samYSum / samNorm) * waveAmpScale : 0);
 
-        // Detect when the Sam boundary line approaches or strikes the right edge
-        const distToEnd = (20 + waveWidth) - bx;
-        const isApproachingWall = distToEnd >= 0 && distToEnd <= 25;
-        const lineImpactIntensity = isApproachingWall ? Math.max(0, 1 - distToEnd / 25) : 0;
+        const distToEnd = xEnd - bx;
 
-        if (distToEnd >= 0 && distToEnd <= 18 && isAudioActive) {
+        // Detect collision strictly when reaching the terminus line (within 4px or crosses it)
+        const isTouchingTerminus = isAudioActive && (
+          (distToEnd <= 4 && distToEnd >= -7) ||
+          (this.lastDistToEnd > 0 && distToEnd <= 0)
+        );
+
+        if (isTouchingTerminus) {
           currentFrameHitWall = true;
           hitWallY = samY;
         }
+        this.lastDistToEnd = distToEnd;
 
-        const effectiveFlash = Math.max(lineImpactIntensity, this.afterglowIntensity);
+        const isAtContact = distToEnd >= 0 && distToEnd <= 4;
 
         // Vertical boundary line
         ctx.save();
-        if (effectiveFlash > 0.05) {
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + 0.6 * effectiveFlash})`;
-          ctx.lineWidth = 1.5 + effectiveFlash * 1.5;
+        if (isAtContact) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.lineWidth = 2.0;
         } else {
           ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
           ctx.lineWidth = 1.5;
@@ -155,30 +188,18 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         ctx.setLineDash([]);
 
         // Sam marker label
-        ctx.fillStyle = effectiveFlash > 0.2 ? '#ffffff' : '#E13610';
+        ctx.fillStyle = isAtContact ? '#ffffff' : '#E13610';
         ctx.font = 'bold 8px JetBrains Mono, monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`SAM / CYCLE`, bx, waveCenterY - waveAmpScale - 18);
 
-        // Waveform node with soft luminous halo (smooth afterglow, no tacky starburst rays)
-        const nodeRadius = 4.5 + effectiveFlash * 2.0;
-        if (effectiveFlash > 0.05) {
-          const haloRadius = nodeRadius * 2.6;
-          const haloGrad = ctx.createRadialGradient(bx, samY, 0, bx, samY, haloRadius);
-          haloGrad.addColorStop(0, `rgba(255, 255, 255, ${0.8 * effectiveFlash})`);
-          haloGrad.addColorStop(0.45, `rgba(255, 77, 77, ${0.45 * effectiveFlash})`);
-          haloGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
-          ctx.fillStyle = haloGrad;
-          ctx.beginPath();
-          ctx.arc(bx, samY, haloRadius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        ctx.fillStyle = effectiveFlash > 0.1 ? '#ffffff' : '#FF4D4D';
+        // Traveling waveform node (clean, solid dot without premature radial burst)
+        const nodeRadius = isAtContact ? 5.5 : 4.5;
+        ctx.fillStyle = isAtContact ? '#ffffff' : '#FF4D4D';
         ctx.beginPath();
         ctx.arc(bx, samY, nodeRadius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = effectiveFlash > 0.1 ? '#FF4D4D' : '#ffffff';
+        ctx.strokeStyle = isAtContact ? '#FF4D4D' : '#ffffff';
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
@@ -186,8 +207,8 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         this.dynamicLights.push({
           x: bx,
           y: samY,
-          velocity: effectiveFlash > 0.2 ? 1.0 : 0.95,
-          colorHex: effectiveFlash > 0.2 ? '#FFFFFF' : '#FF4D4D',
+          velocity: isAtContact ? 1.0 : 0.8,
+          colorHex: isAtContact ? '#FFFFFF' : '#FF4D4D',
         });
       }
     }
@@ -197,26 +218,25 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       this.afterglowY = hitWallY;
     }
 
-    // 1c. Persistent Onset Horizon Afterglow at Waveform End Wall
+    // 1c. Persistent Onset Horizon Afterglow Blooming OUT FROM THE TERMINUS LINE
     if (this.afterglowIntensity > 0.02) {
-      const xEnd = 20 + waveWidth;
       const glowY = this.afterglowY || waveCenterY;
       const glowAmt = this.afterglowIntensity;
 
       ctx.save();
-      // Luminous end-wall line with smooth decaying afterglow
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.85 * glowAmt})`;
-      ctx.lineWidth = 2 + glowAmt * 3;
+      // Glowing terminus line with smooth decaying afterglow
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * glowAmt})`;
+      ctx.lineWidth = 2.0 + glowAmt * 3.0;
       ctx.beginPath();
-      ctx.moveTo(xEnd, waveCenterY - waveAmpScale - 16);
-      ctx.lineTo(xEnd, waveCenterY + waveAmpScale + 16);
+      ctx.moveTo(xEnd, yTop);
+      ctx.lineTo(xEnd, yBottom);
       ctx.stroke();
 
-      // Soft phosphorescent radial afterglow aura along the wall
+      // Soft phosphorescent radial afterglow aura blooming OUT FROM THE TERMINUS LINE
       const auraRadius = 14 + glowAmt * 28;
       const auraGrad = ctx.createRadialGradient(xEnd, glowY, 0, xEnd, glowY, auraRadius);
-      auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.65 * glowAmt})`);
-      auraGrad.addColorStop(0.4, `rgba(255, 77, 77, ${0.45 * glowAmt})`);
+      auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.75 * glowAmt})`);
+      auraGrad.addColorStop(0.35, `rgba(255, 77, 77, ${0.5 * glowAmt})`);
       auraGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
       ctx.fillStyle = auraGrad;
       ctx.beginPath();
@@ -224,7 +244,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       ctx.fill();
       ctx.restore();
 
-      // Dynamic light for WebGL post-processing optical bloom
+      // Dynamic light for WebGL post-processing optical bloom centered right at terminus
       this.dynamicLights.push({
         x: xEnd,
         y: glowY,
