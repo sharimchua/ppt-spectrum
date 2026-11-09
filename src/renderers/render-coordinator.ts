@@ -21,7 +21,8 @@ export interface RegisteredLensRenderer {
     audioPhase?: number,
     isAudioActive?: boolean,
     labelMode?: LensLabelMode,
-    configOverrides?: Record<string, unknown>
+    configOverrides?: Record<string, unknown>,
+    noteAge?: number
   ) => void;
   getDynamicLights?: () => PostProcessingLight[];
 }
@@ -60,6 +61,8 @@ export class RenderCoordinator {
   // Audio Sync Telemetry
   private audioPhaseProvider: ((shapeId: string) => number) | null = null;
   private isAudioActiveProvider: (() => boolean) | null = null;
+  private noteAgeProvider: ((shapeId: string) => number) | null = null;
+  private internalNoteAge: number = 0;
 
   constructor(initialScene: Scene) {
     this.scene = initialScene;
@@ -119,6 +122,14 @@ export class RenderCoordinator {
 
   public setIsAudioActiveProvider(provider: (() => boolean) | null): void {
     this.isAudioActiveProvider = provider;
+  }
+
+  public setNoteAgeProvider(provider: ((shapeId: string) => number) | null): void {
+    this.noteAgeProvider = provider;
+  }
+
+  public triggerNoteStrike(): void {
+    this.internalNoteAge = 0;
   }
 
   public setScene(scene: Scene): void {
@@ -189,6 +200,9 @@ export class RenderCoordinator {
     const audioPhase = (primaryShapeId && this.audioPhaseProvider) ? this.audioPhaseProvider(primaryShapeId) : 0;
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
 
+    this.internalNoteAge += dtMs / 1000;
+    const noteAge = (primaryShapeId && this.noteAgeProvider) ? this.noteAgeProvider(primaryShapeId) : this.internalNoteAge;
+
     // Render each lens cell
     for (const { canvas, ctx, renderer, labelMode, configOverrides } of this.registeredLenses.values()) {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -198,7 +212,7 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
-      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, configOverrides);
+      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, configOverrides, noteAge);
       ctx.restore();
 
       if (renderer.getDynamicLights) {

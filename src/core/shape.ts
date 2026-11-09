@@ -1,6 +1,34 @@
-import { Shape, Placement, BandFilter } from './types';
+import { Shape, Placement, BandFilter, ADSREnvelope } from './types';
 import { ratioToValue, primeFactors } from './rational';
 import { dToFreq } from './axis';
+
+/**
+ * Evaluates the dynamic amplitude multiplier (0.0 to 1.0) for a harmonic partial at a given note age.
+ * Takes into account the physical harmonic damping factor which causes higher overtones
+ * to dissipate exponentially faster than the fundamental.
+ */
+export function evaluatePartialAdsr(
+  adsr: ADSREnvelope | undefined,
+  ratioVal: number,
+  noteAge: number
+): number {
+  if (!adsr) return 1.0;
+  const att = Math.max(0.001, adsr.attack);
+  const dec = Math.max(0.01, adsr.decay);
+  const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
+  const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
+
+  if (noteAge < att) {
+    const aRatio = Math.max(0, noteAge) / att;
+    return aRatio * aRatio * (3.0 - 2.0 * aRatio); // smooth Hermite attack ramp
+  } else {
+    const decayElapsed = noteAge - att;
+    // Higher partials decay faster via harmonic damping: tau_k = dec / (1 + damp * (ratio - 1))
+    const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
+    const expDecay = Math.exp(-decayElapsed / Math.max(0.005, tau));
+    return sus + (1.0 - sus) * expDecay;
+  }
+}
 
 export interface EvaluatedPartial {
   id: string;

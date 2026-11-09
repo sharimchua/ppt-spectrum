@@ -1,5 +1,5 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape, calculateFilterGain } from '../core/shape';
+import { evaluatePlacedShape, calculateFilterGain, evaluatePartialAdsr } from '../core/shape';
 import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
@@ -23,7 +23,9 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     _transportTime: number = 0,
     _audioPhase: number = 0,
     _isAudioActive: boolean = false,
-    labelMode: LensLabelMode = 'duperiod'
+    labelMode: LensLabelMode = 'duperiod',
+    _configOverrides?: Record<string, unknown>,
+    noteAge: number = 0
   ): void {
     this.dynamicLights = [];
 
@@ -245,6 +247,9 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         });
       }
 
+      const inPitchSpace = f0 > 25.8;
+      const adsr = shape?.adsr;
+
       for (const p of partials) {
         if (p.filteredAmp <= 0.001 && p.amp <= 0.001) continue;
 
@@ -256,30 +261,55 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
 
         const maxH = height * 0.45;
-        const barH = p.filteredAmp * maxH;
+        const ceilingBarH = p.filteredAmp * maxH;
         const rawBarH = p.amp * maxH;
-        const py = baselineY - barH;
+
+        // Dynamic ADSR envelope evaluation with physical harmonic damping in pitch space
+        let adsrMultiplier = 1.0;
+        if (inPitchSpace && adsr) {
+          adsrMultiplier = evaluatePartialAdsr(adsr, p.ratioValue, noteAge);
+        }
+
+        const dynamicBarH = ceilingBarH * adsrMultiplier;
+        const py = baselineY - dynamicBarH;
+        const pyCeiling = baselineY - ceilingBarH;
         const pyRaw = baselineY - rawBarH;
 
         ctx.save();
 
-        // If filter attenuated this partial, draw unattenuated ghosted extent
-        if (scene.filter && scene.filter.enabled && rawBarH > barH + 2) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-          ctx.lineWidth = 1.5;
+        // 1. If filter attenuated this partial, draw unattenuated ghosted extent
+        if (scene.filter && scene.filter.enabled && rawBarH > ceilingBarH + 2) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+          ctx.lineWidth = 1.0;
           ctx.setLineDash([2, 3]);
           ctx.beginPath();
-          ctx.moveTo(px, py);
+          ctx.moveTo(px, pyCeiling);
           ctx.lineTo(px, pyRaw);
           ctx.stroke();
           ctx.setLineDash([]);
 
           // Ghosted cap marker at original unattenuated amplitude
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.fillRect(px - 2, pyRaw - 1, 4, 2);
         }
 
-        // Active filtered partial bar
+        // 2. If ADSR envelope is active and decaying below resting peak ceiling
+        if (inPitchSpace && adsr && ceilingBarH > dynamicBarH + 2) {
+          ctx.strokeStyle = 'rgba(245, 158, 11, 0.28)';
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([1, 2]);
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px, pyCeiling);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Envelope ceiling cap tick
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.55)';
+          ctx.fillRect(px - 3, pyCeiling - 1, 6, 2);
+        }
+
+        // 3. Active dynamic partial bar
         ctx.strokeStyle = col;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -287,10 +317,11 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.lineTo(px, py);
         ctx.stroke();
 
-        // Tip circle
+        // 4. Tip circle moving dynamically with the envelope
+        const tipRadius = 3.5 + adsrMultiplier * 2.0;
         ctx.fillStyle = neonCol;
         ctx.beginPath();
-        ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+        ctx.arc(px, py, tipRadius, 0, Math.PI * 2);
         ctx.fill();
 
         // Label formatted according to active labelMode
@@ -315,7 +346,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         this.dynamicLights.push({
           x: px,
           y: py,
-          velocity: p.filteredAmp,
+          velocity: dynamicBarH / maxH,
           colorHex: neonCol,
         });
       }

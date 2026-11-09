@@ -102,6 +102,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     coordinator.setAudioPhaseProvider((shapeId) => audioEngine.getMasterPhase(shapeId));
     coordinator.setIsAudioActiveProvider(() => audioEngine.isAudioActive());
+    coordinator.setNoteAgeProvider((shapeId) => audioEngine.getNoteAge(shapeId));
   }, [coordinator, audioEngine]);
 
   // Sync state updates to audio engine and persistence (debounced to avoid localStorage thrash during 60 FPS sweep)
@@ -204,14 +205,19 @@ export const App: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
+  const handleTriggerNote = useCallback((shapeId?: string) => {
+    audioEngine.triggerNote(shapeId);
+    coordinator.triggerNoteStrike();
+    coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
+  }, [audioEngine, coordinator]);
+
   const handleTogglePlay = async () => {
     if (!isPlaying) {
       const ok = await audioEngine.play();
       if (ok) {
         setIsPlaying(true);
-        audioEngine.triggerNote();
+        handleTriggerNote();
         coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
-        coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#FF4D4D', 1.0, 24);
       }
     } else {
       audioEngine.pause();
@@ -259,14 +265,13 @@ export const App: React.FC = () => {
         }));
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        audioEngine.triggerNote();
-        coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
+        handleTriggerNote();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, audioEngine, coordinator]);
+  }, [isPlaying, handleTriggerNote]);
 
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -557,7 +562,7 @@ export const App: React.FC = () => {
         onDuplicateShape={handleDuplicateShape}
         onDeleteShape={handleDeleteUserShape}
         onCreateShape={handleCreateShape}
-        onTriggerNote={() => audioEngine.triggerNote()}
+        onTriggerNote={() => handleTriggerNote()}
       />
 
       <MusicalBookmarksModal
@@ -572,7 +577,7 @@ export const App: React.FC = () => {
         }}
         isOscillating={isOscillating}
         onToggleOscillate={() => setIsOscillating((prev) => !prev)}
-        onTriggerNote={() => audioEngine.triggerNote()}
+        onTriggerNote={() => handleTriggerNote()}
       />
 
       <SettingsDrawer

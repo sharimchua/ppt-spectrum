@@ -85,12 +85,25 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       let masterPhase = this.masterPhases.get(shapeId) || 0.0;
       const adsr = shape.adsr;
 
+      // Idiomatic ADSR playback in pitch space:
+      // Decaying shapes (piano, pluck, bell) ring out full sustain/decay, pause briefly, and auto-restrike.
+      // Infinitely sustained shapes (sine, square, saw, drone) sustain without auto-restrike.
+      const isPitchSpace = f0 > 25.8;
+      const isDecayingShape = adsr && (adsr.sustain < 0.7 || adsr.decay < 1.5);
+      const autoStrikePeriod = isDecayingShape
+        ? Math.max(1.0, adsr.attack + adsr.decay * 1.35 + 0.4)
+        : 1e9;
+
       for (let s = 0; s < numSamples; s++) {
         const sampleDt = 1.0 / sampleRate;
         const masterPhaseIncrement = f0 * sampleDt;
         const prevPhase = masterPhase;
         masterPhase = (masterPhase + masterPhaseIncrement) % 1.0;
         nState.noteAge += sampleDt;
+
+        if (isPitchSpace && isDecayingShape && nState.noteAge >= autoStrikePeriod) {
+          nState.noteAge = 0; // Automatically strike again after full ring-out and brief pause
+        }
         const noteAge = nState.noteAge;
 
         let sampleValL = 0;
@@ -185,7 +198,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       }
 
       this.masterPhases.set(shapeId, masterPhase);
-      phaseTelemetry[shapeId] = { masterPhase, f0, smoothedD: currentD };
+      phaseTelemetry[shapeId] = { masterPhase, f0, smoothedD: currentD, noteAge: nState.noteAge };
     }
 
     // Post telemetry to main thread approximately every 20-30ms (~12-16 quantums of 128 samples)

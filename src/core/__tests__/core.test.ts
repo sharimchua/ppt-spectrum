@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit, ratioToValue } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
-import { calculateFilterGain } from '../shape';
+import { calculateFilterGain, evaluatePartialAdsr } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
 import { loadSavedScene, saveScene, STORAGE_KEY_GRAPHICS_PROFILE, DEFAULT_SCENE } from '../config';
@@ -279,5 +279,31 @@ describe('Graphics Profile Persistence & Restoration', () => {
 
     const restored = loadSavedScene();
     expect(restored.cosmetics.performanceProfile).toBe('none');
+  });
+
+  it('evaluates dynamic partial ADSR envelopes with harmonic damping', () => {
+    const adsr = {
+      attack: 0.01,
+      decay: 1.0,
+      sustain: 0.2,
+      release: 0.3,
+      damping: 0.5,
+    };
+
+    // At t = 0, envelope is 0
+    expect(evaluatePartialAdsr(adsr, 1.0, 0.0)).toBeCloseTo(0.0, 4);
+
+    // At t = attack (0.01s), envelope reaches peak (1.0)
+    expect(evaluatePartialAdsr(adsr, 1.0, 0.01)).toBeCloseTo(1.0, 3);
+    expect(evaluatePartialAdsr(adsr, 4.0, 0.01)).toBeCloseTo(1.0, 3);
+
+    // After attack, harmonic damping causes higher partial (r=4) to decay faster than fundamental (r=1)
+    const fundAt05s = evaluatePartialAdsr(adsr, 1.0, 0.5);
+    const harmonicAt05s = evaluatePartialAdsr(adsr, 4.0, 0.5);
+    expect(fundAt05s).toBeGreaterThan(harmonicAt05s);
+
+    // Undamped envelope with sustain 1.0 remains at 1.0
+    const organAdsr = { attack: 0.01, decay: 0.5, sustain: 1.0, release: 0.1, damping: 0.0 };
+    expect(evaluatePartialAdsr(organAdsr, 1.0, 2.0)).toBeCloseTo(1.0, 3);
   });
 });

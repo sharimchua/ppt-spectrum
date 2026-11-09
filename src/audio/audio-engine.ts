@@ -147,10 +147,43 @@ export class AudioEngine {
   }
 
   /**
-   * Triggers an acoustic note envelope strike (ADSR reset) for placed shapes in pitch space.
+   * Returns current note age in seconds for a shape, enabling visualizations
+   * to accurately render dynamic harmonic damping and ADSR levels.
    */
-  public triggerNote(shapeId?: string): void {
-    if (!this.workletNode) return;
+  public getNoteAge(shapeId?: string): number {
+    const id = shapeId || this.scene.placements[0]?.shapeId;
+    if (!id || !this.latestTelemetry?.phases?.[id]) return 0;
+    const baseAge = (this.latestTelemetry.phases[id] as { noteAge?: number }).noteAge || 0;
+    const elapsedSec = (performance.now() - this.latestTelemetryTime) / 1000;
+    return baseAge + Math.max(0, elapsedSec);
+  }
+
+  /**
+   * Triggers an acoustic note envelope strike (ADSR reset) for placed shapes in pitch space.
+   * If playback is paused, unlocks audio context and plays an audition note that rings out fully.
+   */
+  public async triggerNote(shapeId?: string): Promise<void> {
+    const ok = await this.unlock();
+    if (!ok || !this.workletNode) return;
+
+    // If playback is not active, allow the user to audition the note strike
+    if (!this.isPlaying && this.masterGainNode && this.ctx) {
+      const now = this.ctx.currentTime;
+      const targetGain = this.scene.audio.masterGain || 0.75;
+      this.syncSceneToWorklet();
+
+      // Find shape ADSR decay to determine audition hold duration
+      const targetShape = this.scene.shapes.find(
+        (s) => (shapeId ? s.id === shapeId : s.id === this.scene.placements[0]?.shapeId)
+      );
+      const ringSec = Math.max(1.5, (targetShape?.adsr?.attack || 0.01) + (targetShape?.adsr?.decay || 1.2) * 1.35);
+
+      this.masterGainNode.gain.cancelScheduledValues(now);
+      this.masterGainNode.gain.setValueAtTime(targetGain, now);
+      this.masterGainNode.gain.setValueAtTime(targetGain, now + ringSec);
+      this.masterGainNode.gain.linearRampToValueAtTime(0, now + ringSec + 0.35);
+    }
+
     this.workletNode.port.postMessage({
       type: 'TRIGGER_NOTE',
       payload: { shapeId },
