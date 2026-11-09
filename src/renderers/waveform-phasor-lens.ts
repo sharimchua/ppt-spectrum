@@ -156,10 +156,35 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     const phasorCenterY = height / 2;
     const maxPhasorR = Math.min((width - splitX) / 2, height / 2) * 0.75;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    // Orbit outer perimeter
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(phasorCenterX, phasorCenterY, maxPhasorR, 0, Math.PI * 2);
     ctx.stroke();
+
+    // 12 o'clock Apex Coincidence Top Marker (Top of orbit)
+    ctx.save();
+    ctx.strokeStyle = '#E13610';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(phasorCenterX, phasorCenterY - maxPhasorR - 8);
+    ctx.lineTo(phasorCenterX, phasorCenterY - maxPhasorR + 6);
+    ctx.stroke();
+
+    // Prominent Apex indicator notch/triangle
+    ctx.fillStyle = '#E13610';
+    ctx.beginPath();
+    ctx.moveTo(phasorCenterX, phasorCenterY - maxPhasorR);
+    ctx.lineTo(phasorCenterX - 5, phasorCenterY - maxPhasorR - 8);
+    ctx.lineTo(phasorCenterX + 5, phasorCenterY - maxPhasorR - 8);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.font = 'bold 8px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('0° / APEX', phasorCenterX, phasorCenterY - maxPhasorR - 12);
+    ctx.restore();
 
     let cx = phasorCenterX;
     let cy = phasorCenterY;
@@ -178,31 +203,67 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       const nx = cx + r * Math.cos(angle);
       const ny = cy + r * Math.sin(angle);
 
-      // Circle orbit
+      // Apex coincidence proximity flash (when reaching 12 o'clock top of orbit)
+      const distToApex = Math.min(currentAngleTurns, 1.0 - currentAngleTurns);
+      const isFlashing = isAudioActive && distToApex < 0.045;
+      const flashFactor = isFlashing ? Math.max(0, 1.0 - distToApex / 0.045) : 0;
+
+      // Circle orbit track
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.stroke();
 
+      // Subtle 12 o'clock apex tick on this orbit
+      ctx.strokeStyle = 'rgba(255, 77, 77, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r - 2);
+      ctx.lineTo(cx, cy - r + 3);
+      ctx.stroke();
+
       // Phasor arm vector
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isFlashing ? '#ffffff' : col;
+      ctx.lineWidth = isFlashing ? 2.2 : 1.5;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(nx, ny);
       ctx.stroke();
 
-      // Node dot
-      ctx.fillStyle = neonCol;
+      // Node dot with flash animation
+      const baseNodeRadius = 3.5 + p.filteredAmp * 2.0;
+      const nodeRadius = baseNodeRadius * (1.0 + flashFactor * 0.9);
+
+      // Flashing aura/sparkle
+      if (isFlashing) {
+        ctx.save();
+        ctx.strokeStyle = neonCol;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(nx, ny, nodeRadius * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(nx, ny, nodeRadius * 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = isFlashing ? '#ffffff' : neonCol;
       ctx.beginPath();
-      ctx.arc(nx, ny, 3.5, 0, Math.PI * 2);
+      ctx.arc(nx, ny, nodeRadius, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       this.dynamicLights.push({
         x: nx,
         y: ny,
-        velocity: p.filteredAmp * 0.9,
-        colorHex: neonCol,
+        velocity: p.filteredAmp * (1.0 + flashFactor * 1.5),
+        colorHex: isFlashing ? '#ffffff' : neonCol,
       });
 
       cx = nx;

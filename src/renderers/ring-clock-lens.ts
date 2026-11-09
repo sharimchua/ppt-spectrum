@@ -309,32 +309,31 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
 
       const partials = evaluatePlacedShape(shape, placement, scene.filter);
 
-      // Draw connecting ray/polygon between partials
-      if (partials.length > 1) {
+      // Draw connecting interval chord line ONLY for dyad partial pairs (exactly 2 active partials)
+      const activePartials = partials.filter((p) => p.filteredAmp > 0.001);
+      if (activePartials.length === 2) {
+        const p1 = activePartials[0];
+        const p2 = activePartials[1];
+        const r1 = getRadiusForD(p1.d);
+        const r2 = getRadiusForD(p2.d);
+        const addr1 = resolveDuPeriodAddress(p1.d);
+        const addr2 = resolveDuPeriodAddress(p2.d);
+        const a1 = (addr1.semitoneOffset / 12) * Math.PI * 2 - Math.PI / 2;
+        const a2 = (addr2.semitoneOffset / 12) * Math.PI * 2 - Math.PI / 2;
+        const px1 = centerX + r1 * Math.cos(a1);
+        const py1 = centerY + r1 * Math.sin(a1);
+        const px2 = centerX + r2 * Math.cos(a2);
+        const py2 = centerY + r2 * Math.sin(a2);
+
         ctx.save();
+        ctx.strokeStyle = 'rgba(225, 54, 16, 0.45)';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([3, 2]);
         ctx.beginPath();
-        let first = true;
-        for (const p of partials) {
-          if (p.filteredAmp <= 0.001) continue;
-          const r = getRadiusForD(p.d);
-          const addr = resolveDuPeriodAddress(p.d);
-          // Angle proportional to semitone offset within band
-          const angle = (addr.semitoneOffset / 12) * Math.PI * 2 - Math.PI / 2;
-          const px = centerX + r * Math.cos(angle);
-          const py = centerY + r * Math.sin(angle);
-          if (first) {
-            ctx.moveTo(px, py);
-            first = false;
-          } else {
-            ctx.lineTo(px, py);
-          }
-        }
-        ctx.closePath();
-        ctx.strokeStyle = 'rgba(225, 54, 16, 0.35)';
-        ctx.lineWidth = 1.5;
-        ctx.fillStyle = 'rgba(225, 54, 16, 0.06)';
-        ctx.fill();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
         ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
       }
 
