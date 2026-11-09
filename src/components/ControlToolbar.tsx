@@ -189,8 +189,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
         {/* Center: Continuum Timeline Slider & Parameter Readouts */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
-          <div className="flex-1 space-y-0.5">
-            <div className="flex justify-between text-[10px] font-mono">
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between items-center text-[10px] font-mono leading-none select-none">
               <span className="text-slate-300">
                 {dVal > 0 ? (
                   <>Tempo: <strong className="text-white">{bpm.toFixed(0)} BPM</strong> <span className="text-slate-500">({dToPeriodMs(dVal).toFixed(0)} ms)</span></>
@@ -203,21 +203,31 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </div>
 
             {/* Inverted continuous slider with bookmark markers */}
-            <div className="relative flex items-center">
+            <div className="relative flex items-center h-4">
+              {/* Limen / TPL Center Tick Line */}
+              <div
+                className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-3 bg-slate-600/70 pointer-events-none z-0 rounded-full"
+                title="The Limen / TPL (25.8 Hz) Center Horizon"
+              />
+
               {bookmarks && (
                 <>
                   {/* Bookmark A Marker */}
                   <div
-                    className="absolute -top-1 w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#38bdf8] pointer-events-none z-10 -translate-x-1/2"
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 shadow-[0_0_8px_rgba(56,189,248,0.9)] pointer-events-none z-10 flex items-center justify-center"
                     style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }}
-                    title={`Bookmark A: ${bookmarks.a.label}`}
-                  />
+                    title={`Bookmark A: ${bookmarks.a.label} (d: ${bookmarks.a.d.toFixed(2)})`}
+                  >
+                    <span className="text-[7px] font-black text-slate-950 font-mono leading-none select-none">A</span>
+                  </div>
                   {/* Bookmark B Marker */}
                   <div
-                    className="absolute -top-1 w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b] pointer-events-none z-10 -translate-x-1/2"
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.9)] pointer-events-none z-10 flex items-center justify-center"
                     style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }}
-                    title={`Bookmark B: ${bookmarks.b.label}`}
-                  />
+                    title={`Bookmark B: ${bookmarks.b.label} (d: ${bookmarks.b.d.toFixed(2)})`}
+                  >
+                    <span className="text-[7px] font-black text-slate-950 font-mono leading-none select-none">B</span>
+                  </div>
                 </>
               )}
               <input
@@ -227,14 +237,14 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                 step={0.001}
                 value={-dVal}
                 onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500"
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500 relative z-0 focus:outline-none"
                 title="Continuous DuPeriod continuum navigation (Drag to glide between macro rhythm and micro pitch)"
               />
             </div>
 
-            <div className="flex justify-between text-[8px] sm:text-[9px] text-slate-500 font-mono">
+            <div className="flex justify-between items-center text-[8px] sm:text-[9px] text-slate-500 font-mono leading-none select-none">
               <span>◄ Slower (Rhythm)</span>
-              <span className="text-slate-400">TPL (25.8 Hz)</span>
+              <span className="text-slate-400 font-medium">TPL (25.8 Hz)</span>
               <span>Faster (Pitch) ►</span>
             </div>
           </div>
