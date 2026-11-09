@@ -28,7 +28,7 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
     const partials = (shapeObj ? shapeObj.partials : []).map((p) => {
       const ratioVal = ratioToValue(p.ratio);
       const partialD = placement.d - Math.log2(ratioVal);
-      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter) : 1.0;
+      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter, placement.d) : 1.0;
       return {
         ratio: ratioVal,
         amp: p.amp * filterGain,

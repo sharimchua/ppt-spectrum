@@ -117,9 +117,49 @@ describe('BandFilter', () => {
     // Outside filter has gain 0.0
     expect(calculateFilterGain(2.2, filter)).toBe(0.0);
   });
+
+  it('supports relative fundamental tracking mode', () => {
+    const filter = {
+      enabled: true,
+      centreD: 0.0, // exactly at fundamental
+      widthD: 2.0,
+      softnessD: 1.0,
+      mode: 'band-pass' as const,
+      trackingMode: 'relative' as const,
+    };
+
+    // When fundamental is placed at d = 3.5:
+    // Effective center is 3.5 + 0.0 = 3.5.
+    // At d = 3.5, gain is 1.0.
+    expect(calculateFilterGain(3.5, filter, 3.5)).toBe(1.0);
+    // At d = 0.0 (far from fundamental), gain is 0.0.
+    expect(calculateFilterGain(0.0, filter, 3.5)).toBe(0.0);
+
+    // If fundamental moves to d = -2.0:
+    // Effective center is -2.0.
+    expect(calculateFilterGain(-2.0, filter, -2.0)).toBe(1.0);
+    expect(calculateFilterGain(3.5, filter, -2.0)).toBe(0.0);
+  });
 });
 
 describe('Presets & Piano Inharmonicity', () => {
+  it('organises presets into rhythmic, harmonic, and timbral categories', () => {
+    const rhythmPresets = PRESET_SHAPES.filter((s) => s.category === 'rhythm');
+    const harmonyPresets = PRESET_SHAPES.filter((s) => s.category === 'harmony');
+    const timbrePresets = PRESET_SHAPES.filter((s) => s.category === 'timbre');
+
+    expect(rhythmPresets.length).toBeGreaterThanOrEqual(5);
+    expect(harmonyPresets.length).toBeGreaterThanOrEqual(4);
+    expect(timbrePresets.length).toBeGreaterThanOrEqual(5);
+
+    // 4-on-the-floor exists in rhythmic
+    expect(rhythmPresets.some((s) => s.id === 'four-on-the-floor')).toBe(true);
+    // Major triad and Dominant 7th exist in harmonies
+    expect(harmonyPresets.some((s) => s.id === 'major-triad-4-5-6')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'dominant-7th-4-5-6-7')).toBe(true);
+    // Piano exists in timbral
+    expect(timbrePresets.some((s) => s.id === 'piano')).toBe(true);
+  });
   it('includes duple presets (1:2 and 1:4)', () => {
     const duple12 = PRESET_SHAPES.find((s) => s.id === 'duple-1-2');
     const duple14 = PRESET_SHAPES.find((s) => s.id === 'duple-1-4');

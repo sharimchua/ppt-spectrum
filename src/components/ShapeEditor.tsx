@@ -164,7 +164,9 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
     }
   };
 
-  const presetShapes = allShapes.filter((s) => s.origin === 'preset');
+  const rhythmShapes = allShapes.filter((s) => s.origin === 'preset' && s.category === 'rhythm');
+  const harmonyShapes = allShapes.filter((s) => s.origin === 'preset' && s.category === 'harmony');
+  const timbreShapes = allShapes.filter((s) => s.origin === 'preset' && (s.category === 'timbre' || (!s.category && s.origin === 'preset')));
   const userShapes = allShapes.filter((s) => s.origin !== 'preset');
 
   return (
@@ -182,15 +184,35 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
                   onChange={(e) => onSelectShape(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500 cursor-pointer pr-7 appearance-none truncate"
                 >
-                  <optgroup label="── Built-in Presets ──" className="bg-slate-900 text-slate-400 font-semibold">
-                    {presetShapes.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
-                        {s.name} ({s.partials.length} {s.partials.length === 1 ? 'partial' : 'partials'})
-                      </option>
-                    ))}
-                  </optgroup>
+                  {rhythmShapes.length > 0 && (
+                    <optgroup label="── 🥁 Rhythmic Patterns ──" className="bg-slate-900 text-amber-400 font-semibold">
+                      {rhythmShapes.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
+                          {s.name} ({s.partials.length} {s.partials.length === 1 ? 'partial' : 'partials'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {harmonyShapes.length > 0 && (
+                    <optgroup label="── 🎵 Harmonies & Chords ──" className="bg-slate-900 text-purple-400 font-semibold">
+                      {harmonyShapes.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
+                          {s.name} ({s.partials.length} {s.partials.length === 1 ? 'partial' : 'partials'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {timbreShapes.length > 0 && (
+                    <optgroup label="── 🎻 Timbral Profiles ──" className="bg-slate-900 text-emerald-400 font-semibold">
+                      {timbreShapes.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
+                          {s.name} ({s.partials.length} {s.partials.length === 1 ? 'partial' : 'partials'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                   {userShapes.length > 0 && (
-                    <optgroup label="── User Library ──" className="bg-slate-900 text-cyan-400 font-semibold">
+                    <optgroup label="── 👤 User Library ──" className="bg-slate-900 text-cyan-400 font-semibold">
                       {userShapes.map((s) => (
                         <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
                           {s.name} ({s.partials.length} {s.partials.length === 1 ? 'partial' : 'partials'})
@@ -500,6 +522,40 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
             A temporary raised-cosine frequency aperture that sculpts perceived acoustics and resonance cavities in real-time without modifying your shape’s stored harmonic partials. Visible on the <strong className="text-cyan-300">Spectrum Ruler</strong>.
           </div>
 
+          {/* Tracking Behavior: Fixed Formant vs Relative Fundamental */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-slate-300 font-medium">Tracking Behaviour:</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => onUpdateFilter({ ...filter, trackingMode: 'fixed' })}
+                className={`py-1.5 px-2 rounded text-center text-xs font-semibold transition border cursor-pointer ${
+                  (filter.trackingMode || 'fixed') === 'fixed'
+                    ? 'bg-cyan-600 border-cyan-400 text-white shadow-sm'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Fixed Formant
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateFilter({ ...filter, trackingMode: 'relative' })}
+                className={`py-1.5 px-2 rounded text-center text-xs font-semibold transition border cursor-pointer ${
+                  filter.trackingMode === 'relative'
+                    ? 'bg-cyan-600 border-cyan-400 text-white shadow-sm'
+                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Relative Tracking
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight pt-0.5">
+              {filter.trackingMode === 'relative'
+                ? 'Relative mode locks the aperture to the fundamental, sweeping dynamically with pitch & tempo.'
+                : 'Fixed mode anchors the aperture to absolute continuum coordinates (physical vocal/instrument formant).'}
+            </p>
+          </div>
+
           {/* Filter Mode */}
           <div className="space-y-1">
             <span className="text-[11px] text-slate-300 font-medium">Aperture Mode:</span>
@@ -523,7 +579,9 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
           {/* Filter Centre d */}
           <div className="space-y-1">
             <div className="flex justify-between text-[11px]">
-              <span className="text-slate-300">Aperture Centre (d):</span>
+              <span className="text-slate-300">
+                {filter.trackingMode === 'relative' ? 'Relative Offset (Δd from Fund):' : 'Aperture Centre (d):'}
+              </span>
               <span className="font-mono text-cyan-300">{filter.centreD.toFixed(2)}</span>
             </div>
             <input

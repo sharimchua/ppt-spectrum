@@ -35,12 +35,16 @@ export function classifyPrimeFamily(ratioVal: number): '2' | '3' | '5' | '7' | '
 
 /**
  * Calculates the raised-cosine attenuation factor g(d) for a BandFilter.
+ * Supports fixed continuum formant mode and relative fundamental tracking mode.
  * Returns value in [0, 1].
  */
-export function calculateFilterGain(d: number, filter: BandFilter): number {
+export function calculateFilterGain(d: number, filter: BandFilter, fundamentalD?: number): number {
   if (!filter.enabled) return 1.0;
+  const effectiveCentreD = filter.trackingMode === 'relative' && fundamentalD !== undefined
+    ? fundamentalD + filter.centreD
+    : filter.centreD;
   const halfW = filter.widthD / 2;
-  const dist = Math.abs(d - filter.centreD);
+  const dist = Math.abs(d - effectiveCentreD);
   const soft = Math.max(0.001, filter.softnessD);
 
   switch (filter.mode) {
@@ -52,16 +56,16 @@ export function calculateFilterGain(d: number, filter: BandFilter): number {
     }
     case 'low-pass': {
       // In DuPeriod coordinates, low frequency is higher d (rhythm).
-      // If we mean acoustic low-pass (keeping lower frequencies, i.e. d >= cutoffD):
-      const cutoff = filter.centreD;
+      // Acoustic low-pass keeps lower frequencies (larger d >= cutoff)
+      const cutoff = effectiveCentreD;
       if (d >= cutoff) return 1.0;
       if (d <= cutoff - soft) return 0.0;
       const x = (cutoff - d) / soft;
       return 0.5 * (1 + Math.cos(Math.PI * x));
     }
     case 'high-pass': {
-      // Acoustic high-pass: keeping higher frequencies (smaller / negative d)
-      const cutoff = filter.centreD;
+      // Acoustic high-pass keeps higher frequencies (smaller / more negative d <= cutoff)
+      const cutoff = effectiveCentreD;
       if (d <= cutoff) return 1.0;
       if (d >= cutoff + soft) return 0.0;
       const x = (d - cutoff) / soft;
@@ -85,7 +89,7 @@ export function evaluatePlacedShape(
     // d_i = p.d - log2(r_i)
     const partialD = placement.d - Math.log2(ratioVal);
     const freqHz = dToFreq(partialD);
-    const filterGain = filter ? calculateFilterGain(partialD, filter) : 1.0;
+    const filterGain = filter ? calculateFilterGain(partialD, filter, placement.d) : 1.0;
     const effectiveAmp = p.amp * placement.gain * (placement.mute ? 0 : 1);
 
     return {

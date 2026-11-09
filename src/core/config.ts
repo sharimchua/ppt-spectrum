@@ -55,6 +55,7 @@ export const DEFAULT_SCENE: Scene = {
     widthD: 4.0,
     softnessD: 1.0,
     mode: 'band-pass',
+    trackingMode: 'fixed',
   },
   anchors: {
     tplFrequencyHz: TPL_FREQUENCY_HZ,

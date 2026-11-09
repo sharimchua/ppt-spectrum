@@ -32,12 +32,15 @@ export interface PartialComponent {
   previousAmp?: number;
 }
 
+export type PresetCategory = 'rhythm' | 'harmony' | 'timbre';
+
 export interface Shape {
   id: string;
   name: string;
   partials: PartialComponent[];
   origin: 'preset' | 'user' | 'captured-pitch' | 'captured-rhythm';
   description?: string;
+  category?: PresetCategory;
 }
 
 export interface Placement {
@@ -49,15 +52,19 @@ export interface Placement {
   solo: boolean;
 }
 
+export type FilterTrackingMode = 'fixed' | 'relative';
+
 export interface BandFilter {
   enabled: boolean;
-  /** Centre coordinate on DuPeriod axis d */
+  /** Centre coordinate on DuPeriod axis d (absolute coordinate when fixed, or relative offset when tracking) */
   centreD: number;
   /** Band width in DuPeriods / octaves */
   widthD: number;
   /** Edge softness (raised-cosine transition width in DuPeriods) */
   softnessD: number;
   mode: 'band-pass' | 'low-pass' | 'high-pass';
+  /** Fixed formant on continuum or relative tracking with fundamental */
+  trackingMode?: FilterTrackingMode;
 }
 
 export interface AnchorConfig {

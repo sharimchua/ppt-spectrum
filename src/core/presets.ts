@@ -35,40 +35,27 @@ export function createPianoPartials(count: number = 12, B: number = 0.0004) {
 }
 
 export const PRESET_SHAPES: Shape[] = [
+  // ─────────────────────────────────────────────────────────────
+  // 1. RHYTHMIC PATTERNS (Polyrhythms, Metres, Drum Grooves)
+  // ─────────────────────────────────────────────────────────────
   {
-    id: 'pure-tone',
-    name: 'Pure Tone / Single Beat',
+    id: 'four-on-the-floor',
+    name: '4 on the Floor (Club Groove)',
     origin: 'preset',
-    description: 'Fundamental only (single periodic component). Sine wave in pitch, steady metronome in rhythm.',
+    category: 'rhythm',
+    description: 'Classic 4/4 electronic drum groove: kick on all 4 quarter beats, snare on 2 & 4, and offbeat 8th-note open hi-hats. In pitch, transforms into an octave overtone stack.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'woodblock', label: '1' }
-    ]
-  },
-  {
-    id: 'duple-1-2',
-    name: 'Duple (1:2 Octave / 2-Layer)',
-    origin: 'preset',
-    description: 'Fundamental and 2nd harmonic (octave in pitch, 2-layer pulse in rhythm). 2-prime power.',
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Downbeat)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Backbeat)' },
-    ]
-  },
-  {
-    id: 'duple-1-4',
-    name: 'Quadruple (1:4 Double Octave / 4-Layer)',
-    origin: 'preset',
-    description: '1 : 2 : 4 power-of-two octave stack. In rhythm, standard 4/4 meter subdivision with hierarchical accents.',
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Bar)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Half)' },
-      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.55, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: 'Kick (4/Floor)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0.25, voice: 'snare', label: 'Snare (2 & 4)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.65, phase: 0.0625, voice: 'hihat', label: 'Hi-Hat (Offbeat)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 0.45, phase: 0.125, voice: 'clave', label: 'Clave (Sync)' },
     ]
   },
   {
     id: 'hemiola-3-2',
     name: '3 against 2 (Do to So / Fifth)',
     origin: 'preset',
+    category: 'rhythm',
     description: 'The prototypical PPT 3:2 relation: a perfect fifth in pitch, a hemiola polyrhythm in rhythm.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '2 (Do)' },
@@ -79,16 +66,18 @@ export const PRESET_SHAPES: Shape[] = [
     id: 'polyrhythm-4-3',
     name: '4 against 3 (Fourth / Polyrhythm)',
     origin: 'preset',
-    description: '4:3 polyrhythm in rhythm, perfect fourth in pitch.',
+    category: 'rhythm',
+    description: '4:3 polyrhythm in rhythm space, perfect fourth interval in pitch space.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '3' },
-      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.85, phase: 0, voice: 'snare', label: '4' },
+      { id: 'p1', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '3 (Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.85, phase: 0, voice: 'snare', label: '4 (Cross)' },
     ]
   },
   {
     id: 'polyrhythm-5-4',
     name: '5 against 4 (Major Third)',
     origin: 'preset',
+    category: 'rhythm',
     description: '5:4 ratio: 5-prime quintuplet polyrhythm in rhythm, pure Just major third in pitch.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Do)' },
@@ -96,16 +85,157 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
+    id: 'polyrhythm-7-4',
+    name: '7 against 4 (Harmonic 7th)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: '7:4 ratio: septuplet cross-rhythm in tempo space, blue harmonic minor seventh in pitch space.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Root)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 0.8, phase: 0, voice: 'triangle', label: '7 (Harmonic 7th)' },
+    ]
+  },
+  {
+    id: 'duple-1-2',
+    name: 'Duple (1:2 Octave / 2-Layer)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: 'Fundamental and 2nd harmonic (octave in pitch, 2-layer pulse in rhythm). 2-prime power.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Downbeat)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Backbeat)' },
+    ]
+  },
+  {
+    id: 'duple-1-4',
+    name: 'Quadruple (1:4 Double Octave / 4-Layer)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: '1 : 2 : 4 power-of-two octave stack. In rhythm, standard 4/4 meter subdivision with hierarchical accents.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Bar)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Half)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.55, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
+    ]
+  },
+  {
+    id: 'tresillo-3-3-2',
+    name: 'Tresillo Syncopation (3+3+2)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: 'Afro-Cuban tresillo syncopation (3+3+2 eighth-note accents over an 8-beat bar). In pitch space, produces bright polymetric partials.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Downbeat)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.85, phase: 3 / 8, voice: 'woodblock', label: '2 (Sync 3)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.85, phase: 6 / 8, voice: 'clave', label: '3 (Sync 6)' },
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. HARMONIES & CHORDS (Simulated Fundamentals & Overtones)
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: 'major-triad-4-5-6',
+    name: 'Major Triad (4 : 5 : 6 Root Position)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Pure Just Major Triad (4:5:6) formed by harmonics 4 (Root Do), 5 (Major 3rd Mi), and 6 (Fifth So). In rhythm, creates a 4:5:6 polymeter.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 0.9, phase: 0, voice: 'clave', label: '5 (3rd Mi)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 0.8, phase: 0, voice: 'woodblock', label: '6 (5th So)' },
+    ]
+  },
+  {
+    id: 'minor-triad-10-12-15',
+    name: 'Minor Triad (10 : 12 : 15)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Pure Just Minor Triad in 10:12:15 integer proportions (Root, Minor 3rd 6/5, Perfect Fifth 3/2). Pure consonant sonority.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 10, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '10 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 12, den: 1 }, amp: 0.88, phase: 0, voice: 'clave', label: '12 (m3 Me)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 15, den: 1 }, amp: 0.78, phase: 0, voice: 'woodblock', label: '15 (5th So)' },
+    ]
+  },
+  {
+    id: 'dominant-7th-4-5-6-7',
+    name: 'Dominant 7th (4 : 5 : 6 : 7 Harmonic 7th)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Harmonic Dominant 7th chord (4:5:6:7) containing the pure overtone subminor 7th. In rhythm space, a complex 4-way cross-rhythm.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 0.85, phase: 0, voice: 'clave', label: '5 (3rd Mi)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '6 (5th So)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 0.65, phase: 0, voice: 'triangle', label: '7 (Harm 7th Te)' },
+    ]
+  },
+  {
+    id: 'major-7th-8-10-12-15',
+    name: 'Major 7th (8 : 10 : 12 : 15)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Lush Just Major 7th chord (8:10:12:15) featuring the bright major 7th (15/8 Ti) leading tone.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '8 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 10, den: 1 }, amp: 0.85, phase: 0, voice: 'clave', label: '10 (3rd Mi)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 12, den: 1 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '12 (5th So)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 15, den: 1 }, amp: 0.65, phase: 0, voice: 'triangle', label: '15 (Maj 7th Ti)' },
+    ]
+  },
+  {
+    id: 'minor-7th-10-12-15-18',
+    name: 'Minor 7th (10 : 12 : 15 : 18)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Mellow Just Minor 7th chord (10:12:15:18) with natural minor third and minor seventh.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 10, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '10 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 12, den: 1 }, amp: 0.85, phase: 0, voice: 'clave', label: '12 (m3 Me)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 15, den: 1 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '15 (5th So)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 18, den: 1 }, amp: 0.65, phase: 0, voice: 'triangle', label: '18 (m7 Te)' },
+    ]
+  },
+  {
+    id: 'sus4-6-8-9',
+    name: 'Suspended 4th (6 : 8 : 9 Sus4)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Suspended 4th triad (6:8:9) replacing the third with the perfect 4th (4/3 Fa).',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '6 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.85, phase: 0, voice: 'snare', label: '8 (4th Fa)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 9, den: 1 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '9 (5th So)' },
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. TIMBRAL PROFILES (Acoustic Instruments & Synthetic Waves)
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: 'pure-tone',
+    name: 'Pure Tone / Single Beat',
+    origin: 'preset',
+    category: 'timbre',
+    description: 'Fundamental only (single periodic component). Pure sine wave in pitch, steady metronome click in rhythm.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'woodblock', label: '1 (Fund)' }
+    ]
+  },
+  {
     id: 'piano',
     name: 'Acoustic Piano (Stretched String)',
     origin: 'preset',
+    category: 'timbre',
     description: 'Struck steel string with inharmonic string-stiffness stretch (B = 0.0004) and natural acoustic decay.',
     partials: createPianoPartials(10, 0.0004),
   },
   {
     id: 'saw-like',
-    name: 'Sawtooth (All Harmonics)',
+    name: 'Sawtooth (Rich Brass / Strings)',
     origin: 'preset',
+    category: 'timbre',
     description: 'All integer harmonics with amp = 1/k. Bright, rich spectrum with even & odd prime presence.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
@@ -120,8 +250,9 @@ export const PRESET_SHAPES: Shape[] = [
   },
   {
     id: 'square-like',
-    name: 'Square Wave (Odd Harmonics)',
+    name: 'Square Wave (Hollow Reed)',
     origin: 'preset',
+    category: 'timbre',
     description: 'Odd integer harmonics only (1, 3, 5, 7) with amp = 1/k. Hollow, woody resonance.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
@@ -132,9 +263,10 @@ export const PRESET_SHAPES: Shape[] = [
   },
   {
     id: 'clarinet-like',
-    name: 'Clarinet-like',
+    name: 'Clarinet (Cylindrical Bore)',
     origin: 'preset',
-    description: 'Odd partials strongly dominant, even partials present but soft (not zero), reflecting cylindrical bore.',
+    category: 'timbre',
+    description: 'Odd partials strongly dominant, even partials present but soft, capturing the cylindrical bore acoustics of a clarinet.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
       { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.12, phase: 0, voice: 'snare', label: '2' },
@@ -147,9 +279,10 @@ export const PRESET_SHAPES: Shape[] = [
   },
   {
     id: 'plucked-string',
-    name: 'Plucked String',
+    name: 'Plucked String (Guitar / Harpsichord)',
     origin: 'preset',
-    description: 'Ideal string pluck at 1/3 string position, removing partial 3 and scaling amp by 1/k^2.',
+    category: 'timbre',
+    description: 'Ideal acoustic string pluck at 1/3 node position, attenuating partial 3 and scaling amplitude by 1/k^2.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
       { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.25, phase: 0, voice: 'snare', label: '2' },
@@ -160,9 +293,10 @@ export const PRESET_SHAPES: Shape[] = [
   },
   {
     id: 'bell',
-    name: 'Church Bell',
+    name: 'Church Bell (Inharmonic Idiophone)',
     origin: 'preset',
-    description: 'Inharmonic idiophone with sub-octave hum, minor-third tierce, fifth, and octave nominal.',
+    category: 'timbre',
+    description: 'Acoustic bell with sub-octave hum, minor-third tierce, quint, and nominal octave.',
     partials: [
       { id: 'p1', ratio: { kind: 'real', value: 0.5 }, amp: 0.8, phase: 0, voice: 'kick', label: 'Hum' },
       { id: 'p2', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'snare', label: 'Prime' },
@@ -173,9 +307,10 @@ export const PRESET_SHAPES: Shape[] = [
   },
   {
     id: 'floating-bars',
-    name: 'Floating Free-Free Bar',
+    name: 'Vibraphone / Free-Free Bar',
     origin: 'preset',
-    description: 'Acoustic free-free vibrating bar modes (1 : 2.756 : 5.404 : 8.933), classic chime/glockenspiel.',
+    category: 'timbre',
+    description: 'Acoustic free-free vibrating chime bar modes (1 : 2.756 : 5.404 : 8.933), classic chime/glockenspiel.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: 'Mode 1' },
       { id: 'p2', ratio: { kind: 'real', value: 2.756 }, amp: 0.65, phase: 0, voice: 'woodblock', label: 'Mode 2' },

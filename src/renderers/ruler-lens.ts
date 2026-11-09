@@ -103,6 +103,12 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     if (scene.filter && scene.filter.enabled) {
       ctx.save();
       const filter = scene.filter;
+      const primaryPlacement = scene.placements[0];
+      const fundamentalD = primaryPlacement?.d;
+      const effectiveFilterCenterD = filter.trackingMode === 'relative' && fundamentalD !== undefined
+        ? fundamentalD + filter.centreD
+        : filter.centreD;
+
       const apertureMaxH = height * 0.56;
 
       // Draw shaded transmission aperture polygon
@@ -112,7 +118,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       const step = 3;
       for (let x = 0; x <= width; x += step) {
         const d = xToD(x);
-        const gain = calculateFilterGain(d, filter);
+        const gain = calculateFilterGain(d, filter, fundamentalD);
         const fy = baselineY - gain * apertureMaxH;
         ctx.lineTo(x, fy);
       }
@@ -128,7 +134,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       let started = false;
       for (let x = 0; x <= width; x += step) {
         const d = xToD(x);
-        const gain = calculateFilterGain(d, filter);
+        const gain = calculateFilterGain(d, filter, fundamentalD);
         const fy = baselineY - gain * apertureMaxH;
         if (!started) {
           ctx.moveTo(x, fy);
@@ -144,7 +150,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       ctx.setLineDash([]);
 
       // Aperture Center Landmark line
-      const filterCenterX = dToX(filter.centreD);
+      const filterCenterX = dToX(effectiveFilterCenterD);
       if (filterCenterX >= 0 && filterCenterX <= width) {
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
         ctx.lineWidth = 1;
@@ -157,7 +163,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       }
 
       // Filter Mode Badge
-      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} (d=${filter.centreD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct)`;
+      const trackingLabel = filter.trackingMode === 'relative' ? 'RELATIVE' : 'FIXED';
+      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct)`;
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const bWidth = ctx.measureText(badgeText).width;
       const badgeX = Math.max(bWidth / 2 + 10, Math.min(width - bWidth / 2 - 10, filterCenterX));

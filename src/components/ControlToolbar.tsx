@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Scene, Shape } from '../core/types';
+import { Scene } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
 import { BookmarkSettings } from './MusicalBookmarksModal';
@@ -36,7 +36,6 @@ interface ControlToolbarProps {
   onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
-  onSelectPreset: (shapeId: string) => void;
   onToggleAudioMode: () => void;
   onToggleEditMode?: () => void;
   onShareLayout?: () => void;
@@ -62,7 +61,6 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
-  onSelectPreset,
   onToggleAudioMode,
   onToggleEditMode,
   onShareLayout,
@@ -77,6 +75,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
 
   const activePlacement = scene.placements[0];
+  const activeShape = scene.shapes.find((s) => s.id === activePlacement?.shapeId);
   const dVal = activePlacement ? activePlacement.d : 0;
   const freqHz = dToFreq(dVal, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(dVal, scene.anchors.tplFrequencyHz);
@@ -179,6 +178,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do" />
               <span>Library</span>
+              {activeShape && (
+                <span className="hidden xl:inline text-[10px] text-slate-400 font-mono font-normal truncate max-w-[150px] pl-1.5 border-l border-slate-700/80">
+                  {activeShape.name}
+                </span>
+              )}
             </button>
           )}
         </div>
@@ -236,22 +240,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Right Tools Group: Presets, Audio Mode, Capture, Layout Tools, Fullscreen */}
+        {/* Right Tools Group: Audio Mode, Capture, Layout Tools, Fullscreen */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Preset Selector */}
-          <select
-            value={activePlacement?.shapeId || ''}
-            onChange={(e) => onSelectPreset(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-900/90 px-2 py-1 text-xs text-slate-200 focus:border-red-500 focus:outline-none cursor-pointer font-mono max-w-[110px] sm:max-w-[140px] truncate"
-            title="Select PPT Preset Shape"
-          >
-            {scene.shapes.map((s: Shape) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
           {/* Audio Synthesis Mode (Literal vs Poetic) */}
           <button
             onClick={onToggleAudioMode}

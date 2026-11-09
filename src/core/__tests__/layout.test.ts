@@ -139,8 +139,8 @@ describe('Layout Models & Tree Operations', () => {
 });
 
 describe('RingClock Dynamic Compact Bands', () => {
-  const pureToneShape = PRESET_SHAPES[0];
-  const dupleShape = PRESET_SHAPES[1];
+  const pureToneShape = PRESET_SHAPES.find((s) => s.id === 'pure-tone')!;
+  const dupleShape = PRESET_SHAPES.find((s) => s.id === 'duple-1-2')!;
 
   const dummyScene: Scene = {
     ...DEFAULT_SCENE,

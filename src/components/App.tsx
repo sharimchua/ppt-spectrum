@@ -446,7 +446,6 @@ export const App: React.FC = () => {
         onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
-        onSelectPreset={handleSelectPreset}
         onToggleAudioMode={handleToggleAudioMode}
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
         onShareLayout={handleShareLayout}
