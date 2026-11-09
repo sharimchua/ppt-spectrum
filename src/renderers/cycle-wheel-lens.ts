@@ -14,7 +14,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene): void {
+  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene, transportTime: number): void {
     this.dynamicLights = [];
 
     const centerX = width / 2;
@@ -31,6 +31,13 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     const ghost = calculateGhostFundamental(shape, f0);
     const partials = evaluatePlacedShape(shape, primaryPlacement, scene.filter);
 
+    // Ghost fundamental rotation rate:
+    // When in rhythm (<10Hz), rotates exactly at cycle rate f_ghost.
+    // When in pitch (>30Hz), scales gracefully to ~0.75-1.5 rev/sec so the eye can follow cyclical alignment.
+    const effectiveGhostRate = ghost.ghostFreqHz > 25 ? 1.0 : ghost.ghostFreqHz;
+    const playheadAngleTurns = (transportTime * effectiveGhostRate) % 1.0;
+    const playheadAngleRad = playheadAngleTurns * Math.PI * 2 - Math.PI / 2;
+
     // 1. Ghost fundamental cycle boundary (the "Sam" / common bar)
     ctx.save();
     ctx.beginPath();
@@ -39,13 +46,31 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 12 o'clock coincidence marker
+    // 12 o'clock coincidence top marker
     ctx.beginPath();
     ctx.moveTo(centerX, centerY - maxR - 8);
     ctx.lineTo(centerX, centerY - maxR + 8);
     ctx.strokeStyle = '#E13610';
     ctx.lineWidth = 3;
     ctx.stroke();
+
+    // Dynamic rotating radial sweep playhead across the entire cycle wheel
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(centerX + maxR * Math.cos(playheadAngleRad), centerY + maxR * Math.sin(playheadAngleRad));
+    ctx.strokeStyle = 'rgba(238, 54, 16, 0.65)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Playhead tip spark light
+    const phX = centerX + maxR * Math.cos(playheadAngleRad);
+    const phY = centerY + maxR * Math.sin(playheadAngleRad);
+    this.dynamicLights.push({
+      x: phX,
+      y: phY,
+      velocity: 0.8,
+      colorHex: '#FF4D4D',
+    });
 
     ctx.fillStyle = '#E13610';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
@@ -80,14 +105,19 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
       const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
 
       for (let dot = 0; dot < ratioCount; dot++) {
-        // Angle starts at 12 o'clock (-PI/2) plus dot phase
-        const angle = (dot / ratioCount) * Math.PI * 2 - Math.PI / 2 + p.phase * Math.PI * 2;
+        // Dot fixed angular position in the cycle
+        const dotAngleFrac = (dot / ratioCount + p.phase) % 1.0;
+        const angle = dotAngleFrac * Math.PI * 2 - Math.PI / 2;
         const px = centerX + r * Math.cos(angle);
         const py = centerY + r * Math.sin(angle);
-        const dotRadius = 3.0 + p.filteredAmp * 3.5;
+
+        // Proximity to playhead: highlight dot when playhead sweeps over it
+        const angularDist = Math.abs((dotAngleFrac - playheadAngleTurns + 1.5) % 1.0 - 0.5);
+        const isStrike = angularDist < 0.04;
+        const dotRadius = (3.0 + p.filteredAmp * 3.5) * (isStrike ? 1.6 : 1.0);
 
         ctx.save();
-        ctx.fillStyle = neonCol;
+        ctx.fillStyle = isStrike ? '#ffffff' : neonCol;
         ctx.beginPath();
         ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
         ctx.fill();
@@ -97,8 +127,8 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
           ctx.beginPath();
           ctx.moveTo(centerX, centerY);
           ctx.lineTo(px, py);
-          ctx.strokeStyle = 'rgba(225, 54, 16, 0.25)';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isStrike ? 'rgba(255, 255, 255, 0.7)' : 'rgba(225, 54, 16, 0.25)';
+          ctx.lineWidth = isStrike ? 1.5 : 1;
           ctx.stroke();
         }
         ctx.restore();
@@ -106,8 +136,8 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
         this.dynamicLights.push({
           x: px,
           y: py,
-          velocity: p.filteredAmp * 0.8,
-          colorHex: neonCol,
+          velocity: isStrike ? 1.0 : p.filteredAmp * 0.7,
+          colorHex: isStrike ? '#ffffff' : neonCol,
         });
       }
     }

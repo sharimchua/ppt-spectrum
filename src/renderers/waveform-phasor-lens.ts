@@ -1,7 +1,7 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
-import { resolveDuPeriodAddress } from '../core/axis';
+import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 
@@ -13,7 +13,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene): void {
+  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene, transportTime: number): void {
     this.dynamicLights = [];
 
     const placement = scene.placements[0];
@@ -23,6 +23,12 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
 
     const partials = evaluatePlacedShape(shape, placement, scene.filter);
     const splitX = width * 0.65;
+    const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
+
+    // Dynamic rotation angle: for high audio frequencies (>30Hz), clamp rotation to visually pleasing cadence (1.5 rev/sec)
+    // so it doesn't alias into a blur; for rhythm rates (<30Hz), rotate strictly at f0 rate.
+    const effectiveVisualRate = f0 > 30 ? 1.5 : f0;
+    const rotationTurns = transportTime * effectiveVisualRate;
 
     // 1. Composite Waveform (Left 65% of viewport)
     ctx.save();
@@ -36,7 +42,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.lineTo(splitX - 20, waveCenterY);
     ctx.stroke();
 
-    // Waveform path (sum of sinusoids)
+    // Waveform path (sum of sinusoids traveling smoothly over time)
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 2.0;
     ctx.beginPath();
@@ -51,7 +57,9 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
 
       for (const p of partials) {
         if (p.filteredAmp <= 0.001) continue;
-        ySum += Math.sin(2 * Math.PI * (t * p.ratioValue + p.phase)) * p.filteredAmp;
+        // Travel wave continuously with transportTime * effectiveVisualRate
+        const wavePhase = (t - rotationTurns) * p.ratioValue + p.phase;
+        ySum += Math.sin(2 * Math.PI * wavePhase) * p.filteredAmp;
         ampNorm += p.filteredAmp;
       }
 
@@ -91,8 +99,9 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#E13610';
       const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
 
-      // Current phasor angle
-      const angle = (p.phase * Math.PI * 2) - Math.PI / 2;
+      // Active rotating phasor angle derived from master phase
+      const currentAngleTurns = (rotationTurns * p.ratioValue + p.phase) % 1.0;
+      const angle = (currentAngleTurns * Math.PI * 2) - Math.PI / 2;
       const nx = cx + r * Math.cos(angle);
       const ny = cy + r * Math.sin(angle);
 
@@ -130,7 +139,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = '#E13610';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('PARTIAL PHASORS', phasorCenterX, 30);
+    ctx.fillText('ROTATING PHASORS', phasorCenterX, 30);
     ctx.restore();
   }
 }
