@@ -131,7 +131,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                 ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
                 : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
             }`}
-            title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
+            title={isPlaying ? 'Pause Audio (Space)' : 'Start Audio Synthesis (Space)'}
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5 fill-current" />}
             <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
@@ -146,7 +146,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-red-500 bg-red-600/30 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-700'
               }`}
-              title={isOscillating ? 'Stop Continuum Sweep Oscillation' : 'Oscillate Continuously Between Bookmarks A and B'}
+              title={isOscillating ? 'Stop Continuum Sweep Oscillation (S)' : 'Oscillate Continuously Between Bookmarks A and B (S)'}
             >
               <Repeat className={`w-3.5 h-3.5 ${isOscillating ? 'animate-spin text-red-400' : 'text-slate-400'}`} />
               <span className="hidden md:inline">{isOscillating ? 'Sweeping' : 'Sweep'}</span>
@@ -355,7 +355,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-cyan-500 bg-cyan-950/70 text-cyan-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Toggle Non-Destructive Band Filter Aperture View"
+              title="Toggle Non-Destructive Band Filter Aperture View (F)"
             >
               <Filter className="w-3 h-3 text-cyan-400" />
               <span className="hidden md:inline">Filter:</span>

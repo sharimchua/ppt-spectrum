@@ -195,7 +195,10 @@ export const App: React.FC = () => {
     }
   };
 
-  // Keyboard shortcut: Spacebar toggles simulation/audio playback
+  // Keyboard shortcuts:
+  // - Spacebar: toggles simulation/audio playback
+  // - 's' / 'S': toggles continuum sweep oscillation
+  // - 'f' / 'F': toggles band filter aperture
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -209,9 +212,26 @@ export const App: React.FC = () => {
         return;
       }
 
+      // Ignore modifier keys so browser shortcuts (e.g. Ctrl+S, Ctrl+F) are preserved
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
         handleTogglePlay();
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setIsOscillating((prev) => !prev);
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        setScene((prev) => ({
+          ...prev,
+          filter: {
+            ...prev.filter,
+            enabled: !prev.filter?.enabled,
+          },
+        }));
       }
     };
 

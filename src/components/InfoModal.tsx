@@ -7,6 +7,7 @@ import {
   BookOpen,
   Layers,
   Play,
+  Keyboard,
 } from 'lucide-react';
 
 interface InfoModalProps {
@@ -143,6 +144,43 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                 <li><strong>Wave / Phasor</strong>: Time-domain composite waveform paired with rotating partial phasor vectors.</li>
                 <li><strong>Prime Profile</strong>: Amplitude distribution across prime factor families (2-prime octaves, 3-prime fifths, 5-prime thirds, etc.).</li>
               </ul>
+            </div>
+          </div>
+
+          {/* Keyboard Shortcuts */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
+              <Keyboard className="h-4 w-4 text-cyan-400" />
+              <span>Keyboard Shortcuts</span>
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  Space
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Play / Pause</span>
+                  <span className="text-[9px] text-slate-400">Audio & simulation</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  S
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Toggle Sweep</span>
+                  <span className="text-[9px] text-slate-400">Oscillate A ↔ B</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  F
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Toggle Filter</span>
+                  <span className="text-[9px] text-slate-400">Band aperture</span>
+                </div>
+              </div>
             </div>
           </div>
 
