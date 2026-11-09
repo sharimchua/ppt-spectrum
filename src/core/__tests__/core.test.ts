@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
-import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit } from '../rational';
+import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit, ratioToValue } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
@@ -159,6 +159,20 @@ describe('Presets & Piano Inharmonicity', () => {
     expect(harmonyPresets.some((s) => s.id === 'dominant-7th-4-5-6-7')).toBe(true);
     // Piano exists in timbral
     expect(timbrePresets.some((s) => s.id === 'piano')).toBe(true);
+
+    // Harmony presets have Root on fundamental frequency (ratio 1/1)
+    for (const h of harmonyPresets) {
+      const rootPartial = h.partials[0];
+      const rVal = ratioToValue(rootPartial.ratio);
+      expect(rVal).toBeCloseTo(1.0, 5);
+    }
+
+    // Tresillo syncopation has distinct partial frequencies
+    const tresillo = rhythmPresets.find((s) => s.id === 'tresillo-3-3-2');
+    expect(tresillo).toBeDefined();
+    const tresilloRatios = tresillo!.partials.map((p) => ratioToValue(p.ratio));
+    const uniqueRatios = new Set(tresilloRatios);
+    expect(uniqueRatios.size).toBe(tresilloRatios.length);
   });
   it('includes duple presets (1:2 and 1:4)', () => {
     const duple12 = PRESET_SHAPES.find((s) => s.id === 'duple-1-2');
