@@ -15,6 +15,12 @@ describe('Audio Synthesiser Worklet Source', () => {
     expect(SPECTRUM_WORKLET_CODE).toContain('partialFreq >= 40.0');
     expect(SPECTRUM_WORKLET_CODE).toContain('Math.sin(2.0 * Math.PI * partialPhase)');
   });
+
+  it('implements acoustic ADSR envelope and harmonic damping in pitch space', () => {
+    expect(SPECTRUM_WORKLET_CODE).toContain('const adsr = shape.adsr;');
+    expect(SPECTRUM_WORKLET_CODE).toContain('const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;');
+    expect(SPECTRUM_WORKLET_CODE).toContain('TRIGGER_NOTE');
+  });
 });
 
 describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
@@ -75,5 +81,25 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     const payload = buildAudioPayloadShapes(scene);
     const shape = scene.shapes.find((s) => s.id === scene.placements[0].shapeId)!;
     expect(payload[0].partials[0].amp).toBeCloseTo(shape.partials[0].amp, 3);
+  });
+
+  it('propagates shape ADSR acoustic profile into worklet payload', () => {
+    const scene: Scene = {
+      ...DEFAULT_SCENE,
+      shapes: DEFAULT_SCENE.shapes.map((s) =>
+        s.id === 'piano'
+          ? { ...s, adsr: { attack: 0.006, decay: 1.8, sustain: 0.22, release: 0.5, damping: 0.6 } }
+          : s
+      ),
+      placements: [{ ...DEFAULT_SCENE.placements[0], shapeId: 'piano' }],
+    };
+
+    const payload = buildAudioPayloadShapes(scene);
+    expect(payload).toHaveLength(1);
+    expect(payload[0].adsr).toBeDefined();
+    expect(payload[0].adsr?.attack).toBe(0.006);
+    expect(payload[0].adsr?.decay).toBe(1.8);
+    expect(payload[0].adsr?.sustain).toBe(0.22);
+    expect(payload[0].adsr?.damping).toBe(0.6);
   });
 });

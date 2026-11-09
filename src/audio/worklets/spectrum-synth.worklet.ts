@@ -11,6 +11,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
     // Poetic voice envelopes & triggers
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz }
+    this.noteStates = new Map(); // shapeId -> { noteAge, lastD }
 
     // Message throttle counter (~30-60 Hz telemetry back to render thread)
     this.telemetryCounter = 0;
@@ -25,6 +26,17 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       } else if (type === 'SET_TARGET_D') {
         const { shapeId, targetD } = payload;
         this.smoothedD.set(shapeId, targetD);
+      } else if (type === 'TRIGGER_NOTE') {
+        const { shapeId } = payload || {};
+        if (shapeId) {
+          const st = this.noteStates.get(shapeId);
+          if (st) st.noteAge = 0;
+          else this.noteStates.set(shapeId, { noteAge: 0, lastD: 0 });
+        } else {
+          for (const st of this.noteStates.values()) {
+            st.noteAge = 0;
+          }
+        }
       }
     };
   }
@@ -54,18 +66,32 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       let currentD = this.smoothedD.get(shapeId) ?? shape.placementD;
       const targetD = shape.placementD;
 
+      // Note tracking for ADSR envelope
+      let nState = this.noteStates.get(shapeId);
+      if (!nState) {
+        nState = { noteAge: 0, lastD: targetD };
+        this.noteStates.set(shapeId, nState);
+      } else if (Math.abs(targetD - nState.lastD) > 0.05) {
+        // Re-trigger envelope on intentional musical pitch step / bookmark jump
+        nState.noteAge = 0;
+        nState.lastD = targetD;
+      }
+
       // Exponential smoothing toward targetD
       currentD += (targetD - currentD) * 0.08;
       this.smoothedD.set(shapeId, currentD);
 
       const f0 = this.tplHz * Math.pow(2, -currentD);
       let masterPhase = this.masterPhases.get(shapeId) || 0.0;
+      const adsr = shape.adsr;
 
       for (let s = 0; s < numSamples; s++) {
         const sampleDt = 1.0 / sampleRate;
         const masterPhaseIncrement = f0 * sampleDt;
         const prevPhase = masterPhase;
         masterPhase = (masterPhase + masterPhaseIncrement) % 1.0;
+        nState.noteAge += sampleDt;
+        const noteAge = nState.noteAge;
 
         let sampleValL = 0;
         let sampleValR = 0;
@@ -87,10 +113,30 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           }
           const eventWeight = 1.0 - toneWeight;
 
-          // 1. Tone Component (Pure sinusoid)
+          // Compute ADSR acoustic envelope in tone regime
+          let env = 1.0;
+          if (adsr && toneWeight > 0.001) {
+            const att = Math.max(0.001, adsr.attack);
+            const dec = Math.max(0.01, adsr.decay);
+            const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
+            const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
+
+            if (noteAge < att) {
+              const aRatio = noteAge / att;
+              env = aRatio * aRatio * (3.0 - 2.0 * aRatio); // smooth hermite attack ramp
+            } else {
+              const decayElapsed = noteAge - att;
+              // Higher partials decay faster via harmonic damping
+              const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
+              const expDecay = Math.exp(-decayElapsed / Math.max(0.005, tau));
+              env = sus + (1.0 - sus) * expDecay;
+            }
+          }
+
+          // 1. Tone Component (Pure sinusoid shaped by dynamic ADSR envelope)
           let toneSample = 0;
           if (toneWeight > 0.001) {
-            toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * toneWeight;
+            toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * toneWeight;
           }
 
           // 2. Event / Pulse Component

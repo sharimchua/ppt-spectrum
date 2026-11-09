@@ -186,6 +186,7 @@ export const App: React.FC = () => {
       const ok = await audioEngine.play();
       if (ok) {
         setIsPlaying(true);
+        audioEngine.triggerNote();
         coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
         coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#FF4D4D', 1.0, 24);
       }
@@ -199,6 +200,7 @@ export const App: React.FC = () => {
   // - Spacebar: toggles simulation/audio playback
   // - 's' / 'S': toggles continuum sweep oscillation
   // - 'f' / 'F': toggles band filter aperture
+  // - 't' / 'T': triggers/strikes acoustic ADSR note
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -232,6 +234,10 @@ export const App: React.FC = () => {
             enabled: !prev.filter?.enabled,
           },
         }));
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        audioEngine.triggerNote();
+        coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
       }
     };
 
@@ -528,6 +534,7 @@ export const App: React.FC = () => {
         onDuplicateShape={handleDuplicateShape}
         onDeleteShape={handleDeleteUserShape}
         onCreateShape={handleCreateShape}
+        onTriggerNote={() => audioEngine.triggerNote()}
       />
 
       <MusicalBookmarksModal
@@ -542,6 +549,7 @@ export const App: React.FC = () => {
         }}
         isOscillating={isOscillating}
         onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        onTriggerNote={() => audioEngine.triggerNote()}
       />
 
       <SettingsDrawer

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shape, PartialComponent, BandFilter } from '../core/types';
+import { Shape, PartialComponent, BandFilter, ADSREnvelope } from '../core/types';
 import {
   Plus,
   Trash2,
@@ -12,6 +12,8 @@ import {
   User,
   Copy,
   RotateCcw,
+  Play,
+  Activity,
 } from 'lucide-react';
 import { ratioToValue } from '../core/rational';
 
@@ -25,6 +27,7 @@ interface ShapeEditorProps {
   onDuplicateShape?: (shape: Shape) => void;
   onDeleteShape?: (shapeId: string) => void;
   onCreateShape?: (newShape: Shape) => void;
+  onTriggerNote?: () => void;
 }
 
 export const ShapeEditor: React.FC<ShapeEditorProps> = ({
@@ -37,8 +40,9 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   onDuplicateShape,
   onDeleteShape,
   onCreateShape,
+  onTriggerNote,
 }) => {
-  const [activeTab, setActiveTab] = useState<'partials' | 'filter'>('partials');
+  const [activeTab, setActiveTab] = useState<'partials' | 'envelope' | 'filter'>('partials');
   const isPreset = shape.origin === 'preset';
 
   // Preset shapes are read-only; fork to a user shape when edited
@@ -50,9 +54,30 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         name: `${shape.name} (Custom)`,
         origin: 'user',
         partials: shape.partials.map((p) => ({ ...p })),
+        adsr: shape.adsr ? { ...shape.adsr } : undefined,
       };
     }
     return shape;
+  };
+
+  const adsr: ADSREnvelope = shape.adsr || {
+    attack: 0.01,
+    decay: 1.0,
+    sustain: 0.8,
+    release: 0.3,
+    damping: 0.2,
+  };
+
+  const handleUpdateAdsr = (patch: Partial<ADSREnvelope>) => {
+    const target = getEditableShape();
+    const currentAdsr: ADSREnvelope = target.adsr || {
+      attack: 0.01,
+      decay: 1.0,
+      sustain: 0.8,
+      release: 0.3,
+      damping: 0.2,
+    };
+    onUpdateShape({ ...target, adsr: { ...currentAdsr, ...patch } });
   };
 
   const handleUpdatePartial = (index: number, patch: Partial<PartialComponent>) => {
@@ -311,6 +336,16 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
               Partials ({shape.partials.length})
             </button>
             <button
+              onClick={() => setActiveTab('envelope')}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                activeTab === 'envelope' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Acoustic ADSR Envelope & Harmonic Damping"
+            >
+              <Activity className="w-3 h-3" />
+              <span>Envelope (ADSR)</span>
+            </button>
+            <button
               onClick={() => setActiveTab('filter')}
               className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                 activeTab === 'filter' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
@@ -496,7 +531,295 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         </div>
       )}
 
-      {/* TAB 2: NON-DESTRUCTIVE ACOUSTIC APERTURE FILTER VIEW */}
+      {/* TAB 2: ACOUSTIC ADSR ENVELOPE & DYNAMIC HARMONIC DAMPING */}
+      {activeTab === 'envelope' && (
+        <div className="space-y-3.5 p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
+          {/* Header row with Title and Strike Note preview button */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-amber-400" />
+              <div>
+                <span className="font-semibold text-white block">Acoustic ADSR Envelope</span>
+                <span className="text-[9px] text-amber-400 font-mono">Time-varying amplitude in pitch space</span>
+              </div>
+            </div>
+            {onTriggerNote && (
+              <button
+                type="button"
+                onClick={onTriggerNote}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow-md cursor-pointer"
+                title="Strike acoustic note with current ADSR envelope (Hot key: T)"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Strike Note (T)</span>
+              </button>
+            )}
+          </div>
+
+          <div className="text-[10px] text-slate-400 leading-relaxed bg-slate-950/40 p-2 rounded border border-slate-800/80">
+            Acoustic instruments (piano, plucked strings, bells) evolve dynamically over time. When in pitch space (f &gt; 25.8 Hz), the ADSR envelope shapes the note strike, with <strong className="text-amber-300">harmonic damping</strong> dissipating higher overtones faster than the fundamental.
+          </div>
+
+          {/* Interactive SVG Envelope Curve Visualization */}
+          <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/90 space-y-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400">
+              <span className="text-amber-400 font-semibold">Envelope Contour:</span>
+              <span className="text-slate-400">
+                A: {(adsr.attack * 1000).toFixed(0)}ms | D: {adsr.decay.toFixed(2)}s | S: {(adsr.sustain * 100).toFixed(0)}% | R: {adsr.release.toFixed(2)}s
+              </span>
+            </div>
+
+            {/* SVG Visualizer */}
+            <div className="w-full h-24 relative bg-[#06080e] rounded border border-slate-800 flex items-center justify-center overflow-hidden">
+              <svg className="w-full h-full" viewBox="0 0 360 85" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="adsrGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+                    <stop offset="70%" stopColor="#d97706" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#b45309" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Grid guidelines */}
+                <line x1="20" y1="15" x2="340" y2="15" stroke="#334155" strokeDasharray="2,2" strokeWidth="0.8" opacity="0.4" />
+                <line x1="20" y1="68" x2="340" y2="68" stroke="#334155" strokeWidth="1" opacity="0.6" />
+
+                {/* Time markers and segments */}
+                {(() => {
+                  const baseW = 320;
+                  const x0 = 20;
+                  const yBase = 68;
+                  const yPeak = 15;
+                  const hSpan = yBase - yPeak;
+
+                  // Segment widths (normalized)
+                  const wA = Math.max(12, Math.min(60, (adsr.attack / 0.3) * 60));
+                  const wD = Math.max(25, Math.min(100, (adsr.decay / 3.0) * 100));
+                  const wS = 65;
+                  const wR = Math.max(20, Math.min(80, (adsr.release / 2.0) * 80));
+                  const totalW = wA + wD + wS + wR;
+                  const scale = (baseW - 10) / Math.max(1, totalW);
+
+                  const swA = wA * scale;
+                  const swD = wD * scale;
+                  const swS = wS * scale;
+                  const swR = wR * scale;
+
+                  const p0x = x0;
+                  const p1x = p0x + swA;
+                  const p2x = p1x + swD;
+                  const p3x = p2x + swS;
+                  const p4x = p3x + swR;
+
+                  const ySus = yBase - adsr.sustain * hSpan;
+
+                  // Main fundamental envelope path
+                  const mainPath = `M ${p0x},${yBase} L ${p1x},${yPeak} Q ${p1x + swD * 0.4},${ySus + 5} ${p2x},${ySus} L ${p3x},${ySus} Q ${p3x + swR * 0.5},${yBase - 3} ${p4x},${yBase}`;
+                  const mainFill = `${mainPath} L ${p4x},${yBase} L ${p0x},${yBase} Z`;
+
+                  // High harmonic damped curve (harmonic 4)
+                  const dampVal = adsr.damping !== undefined ? adsr.damping : 0.0;
+                  const swDampD = swD / (1.0 + dampVal * 3.0);
+                  const pDamp2x = p1x + swDampD;
+                  const yDampSus = yBase - Math.min(adsr.sustain, adsr.sustain / (1.0 + dampVal * 2.0)) * hSpan;
+                  const dampPath = `M ${p0x},${yBase} L ${p1x},${yPeak} Q ${p1x + swDampD * 0.4},${yDampSus + 4} ${pDamp2x},${yDampSus} L ${p3x},${yDampSus} L ${p4x},${yBase}`;
+
+                  return (
+                    <>
+                      {/* Damped High Harmonic Comparison Curve */}
+                      {dampVal > 0.08 && (
+                        <path
+                          d={dampPath}
+                          fill="none"
+                          stroke="#38bdf8"
+                          strokeWidth="1.2"
+                          strokeDasharray="3,2"
+                          opacity="0.75"
+                        />
+                      )}
+
+                      {/* Main Fundamental Curve Filled Area */}
+                      <path d={mainFill} fill="url(#adsrGrad)" />
+                      <path d={mainPath} fill="none" stroke="#f59e0b" strokeWidth="2.0" />
+
+                      {/* Anchor Points */}
+                      <circle cx={p1x} cy={yPeak} r="3" fill="#ffffff" stroke="#f59e0b" strokeWidth="1.5" />
+                      <circle cx={p2x} cy={ySus} r="2.5" fill="#f59e0b" />
+                      <circle cx={p3x} cy={ySus} r="2.5" fill="#f59e0b" />
+                      <circle cx={p4x} cy={yBase} r="2.5" fill="#f59e0b" />
+
+                      {/* Phase Labels */}
+                      <text x={p0x + swA * 0.5} y="80" fill="#94a3b8" fontSize="8" fontFamily="monospace" textAnchor="middle">A</text>
+                      <text x={p1x + swD * 0.5} y="80" fill="#94a3b8" fontSize="8" fontFamily="monospace" textAnchor="middle">D</text>
+                      <text x={p2x + swS * 0.5} y="80" fill="#94a3b8" fontSize="8" fontFamily="monospace" textAnchor="middle">S</text>
+                      <text x={p3x + swR * 0.5} y="80" fill="#94a3b8" fontSize="8" fontFamily="monospace" textAnchor="middle">R</text>
+                    </>
+                  );
+                })()}
+              </svg>
+            </div>
+            {adsr.damping && adsr.damping > 0.08 ? (
+              <div className="flex items-center gap-1.5 text-[9px] text-cyan-400 font-mono">
+                <span className="w-3 h-0.5 bg-cyan-400 border-b border-dashed border-cyan-400"></span>
+                <span>Cyan dashed line: Damped 4th harmonic decay rate</span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Instrument Acoustic Presets */}
+          <div className="space-y-1.5">
+            <span className="text-[11px] text-slate-300 font-medium">Instrument Envelopes:</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.006, decay: 1.8, sustain: 0.22, release: 0.5, damping: 0.6 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Piano Hammer
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.003, decay: 1.2, sustain: 0.06, release: 0.35, damping: 0.8 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Plucked String
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.08, decay: 0.4, sustain: 0.85, release: 0.3, damping: 0.1 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Bowed Strings
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.002, decay: 2.8, sustain: 0.12, release: 0.8, damping: 0.4 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Church Bell
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.004, decay: 2.2, sustain: 0.18, release: 0.6, damping: 0.35 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Vibraphone
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.04, decay: 0.25, sustain: 0.9, release: 0.15, damping: 0.05 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Clarinet / Reed
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.25, decay: 0.8, sustain: 0.9, release: 0.6, damping: 0.0 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Ambient Pad
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateAdsr({ attack: 0.01, decay: 0.1, sustain: 1.0, release: 0.1, damping: 0.0 })}
+                className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              >
+                Flat Drone (Organ)
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Sliders */}
+          <div className="space-y-3 pt-1 border-t border-slate-800/80">
+            {/* Attack */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-300">Attack Time (A):</span>
+                <span className="text-amber-400 font-semibold">{(adsr.attack * 1000).toFixed(0)} ms</span>
+              </div>
+              <input
+                type="range"
+                min="0.001"
+                max="0.5"
+                step="0.001"
+                value={adsr.attack}
+                onChange={(e) => handleUpdateAdsr({ attack: parseFloat(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
+
+            {/* Decay */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-300">Decay Time (D):</span>
+                <span className="text-amber-400 font-semibold">{adsr.decay.toFixed(2)} s</span>
+              </div>
+              <input
+                type="range"
+                min="0.05"
+                max="4.0"
+                step="0.05"
+                value={adsr.decay}
+                onChange={(e) => handleUpdateAdsr({ decay: parseFloat(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
+
+            {/* Sustain */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-300">Sustain Level (S):</span>
+                <span className="text-amber-400 font-semibold">{(adsr.sustain * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.0"
+                max="1.0"
+                step="0.01"
+                value={adsr.sustain}
+                onChange={(e) => handleUpdateAdsr({ sustain: parseFloat(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
+
+            {/* Release */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-300">Release Time (R):</span>
+                <span className="text-amber-400 font-semibold">{adsr.release.toFixed(2)} s</span>
+              </div>
+              <input
+                type="range"
+                min="0.02"
+                max="3.0"
+                step="0.02"
+                value={adsr.release}
+                onChange={(e) => handleUpdateAdsr({ release: parseFloat(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
+
+            {/* Harmonic Damping */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-mono">
+                <span className="text-slate-300">Harmonic Damping (High-Frequency Dissipation):</span>
+                <span className="text-cyan-400 font-semibold">{((adsr.damping || 0) * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.0"
+                max="1.0"
+                step="0.02"
+                value={adsr.damping || 0}
+                onChange={(e) => handleUpdateAdsr({ damping: parseFloat(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-cyan-400"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: NON-DESTRUCTIVE ACOUSTIC APERTURE FILTER VIEW */}
       {activeTab === 'filter' && filter && onUpdateFilter && (
         <div className="space-y-3.5 p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
           <div className="flex items-center justify-between">

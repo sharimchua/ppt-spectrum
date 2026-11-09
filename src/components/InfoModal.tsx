@@ -153,7 +153,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
               <Keyboard className="h-4 w-4 text-cyan-400" />
               <span>Keyboard Shortcuts</span>
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
                 <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
                   Space
@@ -179,6 +179,15 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-200 font-medium">Toggle Filter</span>
                   <span className="text-[9px] text-slate-400">Band aperture</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  T
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Strike Note</span>
+                  <span className="text-[9px] text-slate-400">Acoustic ADSR trigger</span>
                 </div>
               </div>
             </div>

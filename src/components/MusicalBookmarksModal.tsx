@@ -85,6 +85,7 @@ interface MusicalBookmarksModalProps {
   onJumpToD: (d: number) => void;
   isOscillating: boolean;
   onToggleOscillate: () => void;
+  onTriggerNote?: () => void;
 }
 
 export const MusicalBookmarksModal: React.FC<MusicalBookmarksModalProps> = ({
@@ -96,6 +97,7 @@ export const MusicalBookmarksModal: React.FC<MusicalBookmarksModalProps> = ({
   onJumpToD,
   isOscillating,
   onToggleOscillate,
+  onTriggerNote,
 }) => {
   const [activeSlot, setActiveSlot] = useState<'a' | 'b'>('a');
   const [pitchOctave, setPitchOctave] = useState<number>(4);
@@ -135,6 +137,7 @@ export const MusicalBookmarksModal: React.FC<MusicalBookmarksModalProps> = ({
       noteIndex,
       octave,
     });
+    if (onTriggerNote) onTriggerNote();
   };
 
   const handleCaptureCurrentD = () => {

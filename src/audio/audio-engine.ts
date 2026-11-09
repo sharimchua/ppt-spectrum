@@ -1,4 +1,4 @@
-import { Scene, VoiceId } from '../core/types';
+import { Scene, VoiceId, ADSREnvelope } from '../core/types';
 import { ratioToValue } from '../core/rational';
 import { calculateFilterGain } from '../core/shape';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
@@ -16,6 +16,7 @@ export interface WorkletShapePayload {
   gain: number;
   mute: boolean;
   partials: WorkletPartialPayload[];
+  adsr?: ADSREnvelope;
 }
 
 /**
@@ -43,6 +44,7 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
       gain: placement.gain,
       mute: placement.mute,
       partials,
+      adsr: shapeObj?.adsr,
     };
   });
 }
@@ -142,6 +144,17 @@ export class AudioEngine {
 
   public getIsPlaying(): boolean {
     return this.isPlaying;
+  }
+
+  /**
+   * Triggers an acoustic note envelope strike (ADSR reset) for placed shapes in pitch space.
+   */
+  public triggerNote(shapeId?: string): void {
+    if (!this.workletNode) return;
+    this.workletNode.port.postMessage({
+      type: 'TRIGGER_NOTE',
+      payload: { shapeId },
+    });
   }
 
   private applyMasterGain(): void {

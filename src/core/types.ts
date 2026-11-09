@@ -34,6 +34,19 @@ export interface PartialComponent {
 
 export type PresetCategory = 'rhythm' | 'harmony' | 'timbre';
 
+export interface ADSREnvelope {
+  /** Attack duration in seconds (e.g. 0.005s) */
+  attack: number;
+  /** Decay duration in seconds (e.g. 1.5s) */
+  decay: number;
+  /** Sustain amplitude ratio relative to peak (0.0 to 1.0) */
+  sustain: number;
+  /** Release duration in seconds (e.g. 0.4s) */
+  release: number;
+  /** Frequency damping: rate at which higher harmonics decay faster than fundamental (0.0 = uniform, 1.0 = heavy damping) */
+  damping?: number;
+}
+
 export interface Shape {
   id: string;
   name: string;
@@ -41,6 +54,7 @@ export interface Shape {
   origin: 'preset' | 'user' | 'captured-pitch' | 'captured-rhythm';
   description?: string;
   category?: PresetCategory;
+  adsr?: ADSREnvelope;
 }
 
 export interface Placement {
