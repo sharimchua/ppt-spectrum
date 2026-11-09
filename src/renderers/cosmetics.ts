@@ -317,7 +317,7 @@ export class CosmeticsEngine {
   }
 
   public render2DFallback(ctx: CanvasRenderingContext2D, width: number, height: number, config: CosmeticsConfig): void {
-    if (config.performanceProfile === 'eco') return;
+    if (config.performanceProfile === 'eco' || config.performanceProfile === 'none') return;
 
     // Render 2D shockwaves
     if (config.shockwavesEnabled && this.shockwaves.length > 0) {

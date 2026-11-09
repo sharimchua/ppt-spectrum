@@ -403,7 +403,7 @@ export class WebGLPostProcessingPipeline {
     particleBufferData?: { buffer: Float32Array; count: number }
   ) {
     if (!this.isSupported || !this.gl || !this.program) return;
-    if (config.performanceProfile === 'eco' || !config.webglEnabled) {
+    if (config.performanceProfile === 'eco' || config.performanceProfile === 'none' || !config.webglEnabled) {
       this.gl.clearColor(0, 0, 0, 0);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
       return;

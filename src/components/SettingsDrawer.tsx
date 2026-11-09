@@ -99,8 +99,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             <label className="block text-[11px] font-medium text-slate-300">
               Rendering Performance Profile:
             </label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['max', 'balanced', 'eco'] as const).map((profile) => (
+            <div className="grid grid-cols-4 gap-1.5">
+              {(['max', 'balanced', 'eco', 'none'] as const).map((profile) => (
                 <button
                   key={profile}
                   onClick={() => updateCosmetics({ performanceProfile: profile })}
@@ -110,7 +110,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                       : 'bg-slate-950/80 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-white'
                   }`}
                 >
-                  {profile === 'max' ? 'Max Effects' : profile === 'balanced' ? 'Balanced' : 'Eco Mode'}
+                  {profile === 'max' ? 'Max' : profile === 'balanced' ? 'Balanced' : profile === 'eco' ? 'Eco' : 'None'}
                 </button>
               ))}
             </div>
@@ -118,8 +118,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               {cosmetics.performanceProfile === 'max'
                 ? 'High-precision WebGL shaders with 24 FPS film grain, 16 optical Solfège lights, halation bloom, and lens flares.'
                 : cosmetics.performanceProfile === 'balanced'
-                ? 'Optimised shaders with reduced particle count and post-processing for smooth 60 FPS mobile performance.'
-                : 'Eco Mode bypasses hardware shaders and uses lightweight 2D canvas drawing to preserve battery and CPU.'}
+                ? 'Optimised shaders with reduced particle count and post-processing for smooth 60 FPS performance.'
+                : cosmetics.performanceProfile === 'eco'
+                ? 'Eco Mode bypasses hardware shaders and uses lightweight 2D canvas drawing to preserve battery and CPU.'
+                : 'All optical cosmetics, shaders, and particle systems disabled for maximum battery and performance.'}
             </div>
 
             <div className="pt-2 border-t border-slate-800 flex items-center justify-between">

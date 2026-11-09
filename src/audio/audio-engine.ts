@@ -1,6 +1,51 @@
-import { Scene } from '../core/types';
+import { Scene, VoiceId } from '../core/types';
 import { ratioToValue } from '../core/rational';
+import { calculateFilterGain } from '../core/shape';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
+
+export interface WorkletPartialPayload {
+  ratio: number;
+  amp: number;
+  phaseOffset: number;
+  voice?: VoiceId;
+}
+
+export interface WorkletShapePayload {
+  shapeId: string;
+  placementD: number;
+  gain: number;
+  mute: boolean;
+  partials: WorkletPartialPayload[];
+}
+
+/**
+ * Pure function mapping Scene placements and shapes to AudioWorklet payloads,
+ * applying active Band Filter attenuation to partial amplitudes.
+ */
+export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
+  return scene.placements.map((placement) => {
+    const shapeObj = scene.shapes.find((s) => s.id === placement.shapeId);
+    const partials = (shapeObj ? shapeObj.partials : []).map((p) => {
+      const ratioVal = ratioToValue(p.ratio);
+      const partialD = placement.d - Math.log2(ratioVal);
+      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter) : 1.0;
+      return {
+        ratio: ratioVal,
+        amp: p.amp * filterGain,
+        phaseOffset: p.phase,
+        voice: p.voice,
+      };
+    });
+
+    return {
+      shapeId: placement.shapeId,
+      placementD: placement.d,
+      gain: placement.gain,
+      mute: placement.mute,
+      partials,
+    };
+  });
+}
 
 export interface AudioTelemetryData {
   phases: Record<string, { masterPhase: number; f0: number; smoothedD: number }>;
@@ -115,24 +160,7 @@ export class AudioEngine {
   private syncSceneToWorklet(): void {
     if (!this.workletNode) return;
 
-    const payloadShapes = this.scene.placements.map((placement) => {
-      const shapeObj = this.scene.shapes.find((s) => s.id === placement.shapeId);
-      const partials = (shapeObj ? shapeObj.partials : []).map((p) => ({
-        ratio: ratioToValue(p.ratio),
-        amp: p.amp,
-        phaseOffset: p.phase,
-        voice: p.voice,
-      }));
-
-      return {
-        shapeId: placement.shapeId,
-        placementD: placement.d,
-        gain: placement.gain,
-        mute: placement.mute,
-        partials,
-      };
-    });
-
+    const payloadShapes = buildAudioPayloadShapes(this.scene);
     const effectiveGain = (this.isPlaying && !this.isMutedForFocus) ? this.scene.audio.masterGain : 0;
 
     this.workletNode.port.postMessage({

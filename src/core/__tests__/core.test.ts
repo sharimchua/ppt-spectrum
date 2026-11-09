@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
+import { loadSavedScene, saveScene, STORAGE_KEY_GRAPHICS_PROFILE, DEFAULT_SCENE } from '../config';
 
 describe('Axis Mathematics', () => {
   it('round-trips frequency and DuPeriod d accurately', () => {
@@ -143,5 +144,63 @@ describe('Presets & Piano Inharmonicity', () => {
     if (partials[7].ratio.kind === 'real') {
       expect(partials[7].ratio.value).toBeGreaterThan(8.0);
     }
+  });
+});
+
+describe('Graphics Profile Persistence & Restoration', () => {
+  let mockStorage: Record<string, string> = {};
+
+  beforeEach(() => {
+    mockStorage = {};
+    (globalThis as unknown as { window: unknown }).window = {
+      localStorage: {
+        getItem: (key: string) => mockStorage[key] ?? null,
+        setItem: (key: string, val: string) => {
+          mockStorage[key] = val;
+        },
+        removeItem: (key: string) => {
+          delete mockStorage[key];
+        },
+        clear: () => {
+          mockStorage = {};
+        },
+      },
+    };
+  });
+
+  afterEach(() => {
+    delete (globalThis as unknown as { window?: unknown }).window;
+  });
+
+  it('persists and restores performance profile across saves', () => {
+    const scene = {
+      ...DEFAULT_SCENE,
+      cosmetics: {
+        ...DEFAULT_SCENE.cosmetics,
+        performanceProfile: 'max' as const,
+      },
+    };
+
+    saveScene(scene);
+    expect(mockStorage[STORAGE_KEY_GRAPHICS_PROFILE]).toBe('max');
+
+    const restored = loadSavedScene();
+    expect(restored.cosmetics.performanceProfile).toBe('max');
+  });
+
+  it('preserves none profile and prioritises dedicated profile storage', () => {
+    const scene = {
+      ...DEFAULT_SCENE,
+      cosmetics: {
+        ...DEFAULT_SCENE.cosmetics,
+        performanceProfile: 'none' as const,
+      },
+    };
+
+    saveScene(scene);
+    expect(mockStorage[STORAGE_KEY_GRAPHICS_PROFILE]).toBe('none');
+
+    const restored = loadSavedScene();
+    expect(restored.cosmetics.performanceProfile).toBe('none');
   });
 });

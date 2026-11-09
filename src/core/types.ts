@@ -99,7 +99,7 @@ export interface AudioConfig {
 
 export type BackgroundTheme = 'carbon-grid' | 'studio-obsidian' | 'cosmic-abyss' | 'velvet-dark';
 export type LensFlareStyle = 'cinematic' | 'anamorphic' | 'starburst';
-export type PerformanceProfile = 'max' | 'balanced' | 'eco';
+export type PerformanceProfile = 'max' | 'balanced' | 'eco' | 'none';
 
 export interface CosmeticsConfig {
   performanceProfile: PerformanceProfile;

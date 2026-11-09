@@ -1,4 +1,4 @@
-import { Scene } from '../core/types';
+import { Scene, PerformanceProfile, CosmeticsConfig } from '../core/types';
 import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
 import { WebGLPostProcessingPipeline, PostProcessingLight } from './webgl-post-processing';
@@ -54,6 +54,7 @@ export class RenderCoordinator {
 
   // Governor & Focus management
   private consecutiveSlowFrames: number = 0;
+  private throttledProfile: PerformanceProfile | null = null;
   private isFocused: boolean = true;
 
   // Audio Sync Telemetry
@@ -122,10 +123,19 @@ export class RenderCoordinator {
 
   public setScene(scene: Scene): void {
     const bgChanged = scene.cosmetics.backgroundTheme !== this.scene.cosmetics.backgroundTheme;
+    const profileChanged = scene.cosmetics.performanceProfile !== this.scene.cosmetics.performanceProfile;
     this.scene = scene;
+    if (profileChanged) {
+      this.throttledProfile = null;
+      this.consecutiveSlowFrames = 0;
+    }
     if (bgChanged) {
       this.renderBackground();
     }
+  }
+
+  public getEffectivePerformanceProfile(): PerformanceProfile {
+    return this.throttledProfile ?? this.scene.cosmetics.performanceProfile;
   }
 
   public start(): void {
@@ -149,16 +159,19 @@ export class RenderCoordinator {
     const dtMs = Math.min(100, now - this.lastFrameTime);
     this.lastFrameTime = now;
 
-    // Frame-time governor
+    // Frame-time governor (runtime throttle; never permanently mutates scene config)
     if (dtMs > 20.0) {
       this.consecutiveSlowFrames++;
-      if (this.consecutiveSlowFrames > 45 && this.scene.cosmetics.performanceProfile === 'max') {
-        this.scene.cosmetics.performanceProfile = 'balanced';
-      } else if (this.consecutiveSlowFrames > 90 && this.scene.cosmetics.performanceProfile === 'balanced') {
-        this.scene.cosmetics.performanceProfile = 'eco';
+      if (this.consecutiveSlowFrames > 45 && this.getEffectivePerformanceProfile() === 'max') {
+        this.throttledProfile = 'balanced';
+      } else if (this.consecutiveSlowFrames > 90 && this.getEffectivePerformanceProfile() === 'balanced') {
+        this.throttledProfile = 'eco';
       }
     } else {
       this.consecutiveSlowFrames = Math.max(0, this.consecutiveSlowFrames - 1);
+      if (this.consecutiveSlowFrames === 0 && this.throttledProfile !== null) {
+        this.throttledProfile = null;
+      }
     }
 
     if (this.isFocused || !this.scene.cosmetics.focusModeEnabled) {
@@ -211,6 +224,11 @@ export class RenderCoordinator {
       }
     }
 
+    const effectiveProfile = this.getEffectivePerformanceProfile();
+    const effectiveCosmetics: CosmeticsConfig = effectiveProfile !== this.scene.cosmetics.performanceProfile
+      ? { ...this.scene.cosmetics, performanceProfile: effectiveProfile }
+      : this.scene.cosmetics;
+
     // Render 2D effects fallback
     if (this.effectsCanvas && this.effectsCtx) {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -219,7 +237,7 @@ export class RenderCoordinator {
       this.effectsCtx.save();
       this.effectsCtx.scale(dpr, dpr);
       this.effectsCtx.clearRect(0, 0, w, h);
-      this.cosmeticsEngine.render2DFallback(this.effectsCtx, w, h, this.scene.cosmetics);
+      this.cosmeticsEngine.render2DFallback(this.effectsCtx, w, h, effectiveCosmetics);
       this.effectsCtx.restore();
     }
 
@@ -233,7 +251,7 @@ export class RenderCoordinator {
         colorHex: s.color,
       }));
       const particleBufferData = this.cosmeticsEngine.populateGpuParticleBuffer();
-      this.webglPipeline.render(this.scene.cosmetics, dynamicLights, sw, particleBufferData);
+      this.webglPipeline.render(effectiveCosmetics, dynamicLights, sw, particleBufferData);
     }
   }
 

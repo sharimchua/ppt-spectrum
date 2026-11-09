@@ -89,6 +89,7 @@ export const DEFAULT_SCENE: Scene = {
 };
 
 export const STORAGE_KEY = 'ppt_spectrum_scene_v1';
+export const STORAGE_KEY_GRAPHICS_PROFILE = 'ppt_spectrum_graphics_profile_v1';
 
 export function loadSavedScene(): Scene {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -96,12 +97,29 @@ export function loadSavedScene(): Scene {
   }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_SCENE;
+    const dedicatedProfile = window.localStorage.getItem(STORAGE_KEY_GRAPHICS_PROFILE);
+    if (!raw) {
+      if (dedicatedProfile && (dedicatedProfile === 'max' || dedicatedProfile === 'balanced' || dedicatedProfile === 'eco' || dedicatedProfile === 'none')) {
+        return {
+          ...DEFAULT_SCENE,
+          cosmetics: {
+            ...DEFAULT_COSMETICS,
+            performanceProfile: dedicatedProfile,
+          },
+        };
+      }
+      return DEFAULT_SCENE;
+    }
     const parsed = JSON.parse(raw);
     const userShapes = Array.isArray(parsed.shapes)
       ? parsed.shapes.filter((s: Shape) => s && s.origin !== 'preset')
       : [];
     const mergedShapes = [...PRESET_SHAPES, ...userShapes];
+
+    const rawProfile = dedicatedProfile || parsed?.cosmetics?.performanceProfile;
+    const finalProfile = (rawProfile === 'max' || rawProfile === 'balanced' || rawProfile === 'eco' || rawProfile === 'none')
+      ? rawProfile
+      : DEFAULT_COSMETICS.performanceProfile;
 
     return {
       ...DEFAULT_SCENE,
@@ -110,6 +128,7 @@ export function loadSavedScene(): Scene {
       cosmetics: {
         ...DEFAULT_COSMETICS,
         ...(parsed.cosmetics || {}),
+        performanceProfile: finalProfile,
       }
     };
   } catch (err) {
@@ -122,6 +141,9 @@ export function saveScene(scene: Scene): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(scene));
+    if (scene.cosmetics?.performanceProfile) {
+      window.localStorage.setItem(STORAGE_KEY_GRAPHICS_PROFILE, scene.cosmetics.performanceProfile);
+    }
   } catch (err) {
     console.warn('[Config] Failed to persist scene to localStorage:', err);
   }
