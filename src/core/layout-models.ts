@@ -9,10 +9,13 @@ export type SpectrumLensType =
   | 'event-lanes'
   | 'alignment-meter';
 
+export type LensLabelMode = 'duperiod' | 'pitch' | 'bpm' | 'solfege';
+
 export interface LayoutCellNode {
   id: string;
   type: 'cell';
   module: SpectrumLensType;
+  labelMode?: LensLabelMode;
   flex?: number;
   minSize?: number;
   title?: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress } from '../axis';
+import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain } from '../shape';
@@ -33,6 +33,27 @@ describe('Axis Mathematics', () => {
     const addrA440 = resolveDuPeriodAddress(freqToD(440));
     expect(addrA440.band).toBe(-5);
     expect(addrA440.syllable).toBe('Ra');
+  });
+
+  it('converts frequencies to pitch register and cent deviation', () => {
+    // 440 Hz -> A4 ±0¢
+    const a4 = freqToPitchRegister(440, 440);
+    expect(a4.note).toBe('A');
+    expect(a4.octave).toBe(4);
+    expect(a4.cents).toBe(0);
+    expect(a4.formatted).toBe('A4 ±0¢');
+
+    // Middle C (261.63 Hz) -> C4 ±0¢
+    const c4 = freqToPitchRegister(261.63, 440);
+    expect(c4.note).toBe('C');
+    expect(c4.octave).toBe(4);
+    expect(Math.abs(c4.cents)).toBeLessThanOrEqual(1);
+
+    // Microtonal pitch (445 Hz) -> A4 +20¢
+    const micro = freqToPitchRegister(445, 440);
+    expect(micro.note).toBe('A');
+    expect(micro.octave).toBe(4);
+    expect(micro.cents).toBeGreaterThan(15);
   });
 });
 

@@ -1,4 +1,5 @@
 import { Scene } from '../core/types';
+import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
 import { WebGLPostProcessingPipeline, PostProcessingLight } from './webgl-post-processing';
 
@@ -18,7 +19,8 @@ export interface RegisteredLensRenderer {
     scene: Scene,
     transportTime: number,
     audioPhase?: number,
-    isAudioActive?: boolean
+    isAudioActive?: boolean,
+    labelMode?: LensLabelMode
   ) => void;
   getDynamicLights?: () => PostProcessingLight[];
 }
@@ -38,7 +40,10 @@ export class RenderCoordinator {
   private bgCanvas: HTMLCanvasElement | null = null;
   private bgCtx: CanvasRenderingContext2D | null = null;
 
-  private registeredLenses: Map<string, { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; renderer: RegisteredLensRenderer }> = new Map();
+  private registeredLenses: Map<
+    string,
+    { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; renderer: RegisteredLensRenderer; labelMode?: LensLabelMode }
+  > = new Map();
 
   // Governor & Focus management
   private consecutiveSlowFrames: number = 0;
@@ -83,10 +88,15 @@ export class RenderCoordinator {
     return this.postProcessingCanvas;
   }
 
-  public registerLens(id: string, canvas: HTMLCanvasElement, renderer: RegisteredLensRenderer): void {
+  public registerLens(
+    id: string,
+    canvas: HTMLCanvasElement,
+    renderer: RegisteredLensRenderer,
+    labelMode?: LensLabelMode
+  ): void {
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      this.registeredLenses.set(id, { canvas, ctx, renderer });
+      this.registeredLenses.set(id, { canvas, ctx, renderer, labelMode });
     }
   }
 
@@ -159,7 +169,7 @@ export class RenderCoordinator {
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
 
     // Render each lens cell
-    for (const { canvas, ctx, renderer } of this.registeredLenses.values()) {
+    for (const { canvas, ctx, renderer, labelMode } of this.registeredLenses.values()) {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
@@ -167,7 +177,7 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
-      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive);
+      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode);
       ctx.restore();
 
       if (renderer.getDynamicLights) {

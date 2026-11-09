@@ -89,6 +89,62 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     }
     ctx.stroke();
 
+    // 1b. Mark "Sam" / Cycle Repetition Boundaries on the Waveform
+    const startCycle = Math.floor(-rotationTurns);
+    const endCycle = Math.ceil(numCyclesDrawn - rotationTurns);
+
+    for (let c = startCycle; c <= endCycle; c++) {
+      const tBoundary = c + rotationTurns;
+      if (tBoundary >= 0 && tBoundary <= numCyclesDrawn) {
+        const bx = 20 + (tBoundary / numCyclesDrawn) * waveWidth;
+
+        // Vertical boundary line
+        ctx.save();
+        ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(bx, waveCenterY - waveAmpScale - 14);
+        ctx.lineTo(bx, waveCenterY + waveAmpScale + 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Sam marker label
+        ctx.fillStyle = '#E13610';
+        ctx.font = 'bold 8px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`SAM / CYCLE`, bx, waveCenterY - waveAmpScale - 18);
+
+        // Calculate wave Y at boundary point
+        let samYSum = 0;
+        let samNorm = 0;
+        for (const p of partials) {
+          if (p.filteredAmp <= 0.001) continue;
+          const phaseAtSam = (tBoundary - rotationTurns) * p.ratioValue + p.phase;
+          samYSum += Math.sin(2 * Math.PI * phaseAtSam) * p.filteredAmp;
+          samNorm += p.filteredAmp;
+        }
+        const samY = waveCenterY - (samNorm > 0 ? (samYSum / samNorm) * waveAmpScale : 0);
+
+        // Glowing node on the wave
+        ctx.fillStyle = '#FF4D4D';
+        ctx.beginPath();
+        ctx.arc(bx, samY, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        this.dynamicLights.push({
+          x: bx,
+          y: samY,
+          velocity: 0.95,
+          colorHex: '#FF4D4D',
+        });
+      }
+    }
+
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
     ctx.fillText('COMPOSITE WAVEFORM', 20, 30);

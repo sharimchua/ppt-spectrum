@@ -29,6 +29,7 @@ export interface PartialComponent {
   voice?: VoiceId;
   label?: string;
   derived?: boolean;
+  previousAmp?: number;
 }
 
 export interface Shape {

@@ -109,17 +109,14 @@ export const App: React.FC = () => {
 
   const handleTogglePlay = async () => {
     if (!isPlaying) {
-      const ok = await audioEngine.unlock();
+      const ok = await audioEngine.play();
       if (ok) {
         setIsPlaying(true);
         coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
         coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#FF4D4D', 1.0, 24);
       }
     } else {
-      audioEngine.updateScene({
-        ...scene,
-        audio: { ...scene.audio, masterGain: 0 },
-      });
+      audioEngine.pause();
       setIsPlaying(false);
     }
   };
@@ -296,6 +293,7 @@ export const App: React.FC = () => {
             node={layout.root}
             scene={scene}
             coordinator={coordinator}
+            onUpdatePlacementD={handleUpdatePlacementD}
             onUpdateCell={handleUpdateCell}
             isEditMode={isEditMode}
             canDelete={canDelete}
@@ -324,6 +322,10 @@ export const App: React.FC = () => {
         onClose={() => setIsShapeEditorOpen(false)}
         activeShape={activeShape}
         onUpdateShape={handleUpdateActiveShape}
+        filter={scene.filter}
+        onUpdateFilter={(newFilter) => setScene((prev) => ({ ...prev, filter: newFilter }))}
+        allShapes={scene.shapes}
+        onSelectShape={handleSelectPreset}
       />
 
       <SettingsDrawer

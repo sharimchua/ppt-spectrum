@@ -105,3 +105,34 @@ export function resolveDuPeriodAddress(d: number): DuPeriodAddress {
     formatted,
   };
 }
+
+export interface PitchRegisterInfo {
+  note: string;
+  octave: number;
+  cents: number;
+  formatted: string;
+}
+
+const PITCH_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+
+/**
+ * Converts frequency in Hz to traditional Pitch + Register + Cent deviation (e.g. "A4 +3¢", "C3 -14¢")
+ * anchored to standard concert pitch (default A4 = 440 Hz).
+ */
+export function freqToPitchRegister(freqHz: number, a4Hz: number = 440): PitchRegisterInfo {
+  if (freqHz <= 0) {
+    return { note: 'C', octave: 0, cents: 0, formatted: '---' };
+  }
+  const exactMidi = 69 + 12 * Math.log2(freqHz / a4Hz);
+  const roundedMidi = Math.round(exactMidi);
+  const cents = Math.round((exactMidi - roundedMidi) * 100);
+
+  const semitoneIndex = ((roundedMidi % 12) + 12) % 12;
+  const octave = Math.floor(roundedMidi / 12) - 1;
+  const note = PITCH_NAMES[semitoneIndex];
+
+  const sign = cents > 0 ? `+${cents}` : cents < 0 ? `${cents}` : '±0';
+  const formatted = `${note}${octave} ${sign}¢`;
+
+  return { note, octave, cents, formatted };
+}

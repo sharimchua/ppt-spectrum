@@ -1,7 +1,9 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
+import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
-import { resolveDuPeriodAddress } from '../core/axis';
+import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
+import { LensLabelMode } from '../core/layout-models';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 
@@ -13,7 +15,16 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  public render(ctx: CanvasRenderingContext2D, width: number, height: number, scene: Scene): void {
+  public render(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    scene: Scene,
+    _transportTime: number = 0,
+    _audioPhase: number = 0,
+    _isAudioActive: boolean = false,
+    labelMode: LensLabelMode = 'duperiod'
+  ): void {
     this.dynamicLights = [];
 
     // Axis d range mapping: center d=0 at center x=width/2, span ±8 DuPeriods
@@ -90,6 +101,56 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       if (!shape) continue;
 
       const partials = evaluatePlacedShape(shape, placement, scene.filter);
+      const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
+      const ghost = calculateGhostFundamental(shape, f0);
+
+      // Render Ghost Fundamental / Common Sam Anchor
+      const gx = dToX(ghost.ghostD);
+      if (gx >= 0 && gx <= width) {
+        const ghostH = height * 0.52;
+        const gy = baselineY - ghostH;
+
+        ctx.save();
+        ctx.strokeStyle = '#E13610';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(gx, baselineY);
+        ctx.lineTo(gx, gy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Diamond marker at the top of Ghost Fundamental
+        ctx.fillStyle = '#E13610';
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 6);
+        ctx.lineTo(gx + 5, gy);
+        ctx.lineTo(gx, gy + 6);
+        ctx.lineTo(gx - 5, gy);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.font = 'bold 8px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('GHOST (SAM)', gx, gy - 12);
+        ctx.fillStyle = 'rgba(238, 54, 16, 0.7)';
+        ctx.font = '7px JetBrains Mono, monospace';
+        ctx.fillText(
+          ghost.ghostFreqHz < 25
+            ? `${(ghost.cycleDurationSec * 1000).toFixed(0)} ms`
+            : `${ghost.ghostFreqHz.toFixed(1)} Hz`,
+          gx,
+          gy - 3
+        );
+        ctx.restore();
+
+        this.dynamicLights.push({
+          x: gx,
+          y: gy,
+          velocity: 0.85,
+          colorHex: '#FF4D4D',
+        });
+      }
 
       for (const p of partials) {
         if (p.filteredAmp <= 0.001) continue;
@@ -120,11 +181,22 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.arc(px, py, 4.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Label
+        // Label formatted according to active labelMode
+        let displayLabel = p.label || addr.syllable;
+        if (labelMode === 'pitch') {
+          displayLabel = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz).formatted;
+        } else if (labelMode === 'bpm') {
+          displayLabel = `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
+        } else if (labelMode === 'solfege') {
+          displayLabel = addr.formatted;
+        } else if (labelMode === 'duperiod') {
+          displayLabel = `d: ${p.d.toFixed(2)}`;
+        }
+
         ctx.fillStyle = '#ffffff';
         ctx.font = '9px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`${p.label || addr.syllable}`, px, py - 8);
+        ctx.fillText(displayLabel, px, py - 8);
         ctx.restore();
 
         // Add to dynamic lights for WebGL halation & lens flare

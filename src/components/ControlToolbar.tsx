@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Scene, Shape } from '../core/types';
-import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress } from '../core/axis';
+import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
 import {
   Play,
@@ -67,6 +67,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   const freqHz = dToFreq(dVal, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(dVal, scene.anchors.tplFrequencyHz);
   const addr = resolveDuPeriodAddress(dVal);
+  const pitchInfo = freqToPitchRegister(freqHz, scene.anchors.tuningA4Hz);
 
   const handleShareClick = () => {
     if (onShareLayout) {
@@ -128,16 +129,14 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           <div className="flex-1 space-y-0.5">
             <div className="flex justify-between text-[10px] font-mono">
               <span className="text-slate-300">
-                Tempo / Pitch:{' '}
-                <strong className="text-white">
-                  {dVal > 0 ? `${bpm.toFixed(0)} BPM` : `${freqHz.toFixed(1)} Hz`}
-                </strong>{' '}
-                <span className="text-slate-500">(d: {dVal.toFixed(2)})</span>
+                {dVal > 0 ? (
+                  <>Tempo: <strong className="text-white">{bpm.toFixed(0)} BPM</strong> <span className="text-slate-500">({dToPeriodMs(dVal).toFixed(0)} ms)</span></>
+                ) : (
+                  <>Pitch: <strong className="text-white">{pitchInfo.formatted}</strong> <span className="text-slate-500">({freqHz.toFixed(1)} Hz)</span></>
+                )}
               </span>
               <span className="text-ppt-mi font-semibold">{addr.formatted}</span>
-              <span className="text-cyan-400">
-                {dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)} ms` : `${freqHz.toFixed(1)} Hz`}
-              </span>
+              <span className="text-cyan-400 font-mono text-[9px]">d: {dVal.toFixed(2)}</span>
             </div>
 
             {/* Inverted slider: slower is on left (-d), faster is on right (+d) */}

@@ -19,11 +19,29 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
     const centerX = width / 2;
     const centerY = height / 2;
     const maxRadius = Math.min(centerX, centerY) * 0.88;
-    const minRadius = maxRadius * 0.18;
+    const minRadius = maxRadius * 0.15;
 
-    // Rings represent DuPeriod bands: -5 (pitch) to +5 (rhythm)
-    const bandMin = -5;
-    const bandMax = 5;
+    // Dynamically calculate DuPeriod band range to encompass active shapes (span from -7 to +7 by default)
+    let minD = -7;
+    let maxD = 7;
+    for (const pl of scene.placements) {
+      const shape = scene.shapes.find((s) => s.id === pl.shapeId);
+      if (shape) {
+        for (const p of shape.partials) {
+          const ratioVal = typeof p.ratio === 'object' && p.ratio.kind === 'rational'
+            ? p.ratio.num / p.ratio.den
+            : typeof p.ratio === 'object' && p.ratio.kind === 'real'
+            ? p.ratio.value
+            : 1;
+          const partialD = pl.d - Math.log2(Math.max(0.001, ratioVal));
+          minD = Math.min(minD, Math.floor(partialD));
+          maxD = Math.max(maxD, Math.ceil(partialD));
+        }
+      }
+    }
+
+    const bandMin = Math.max(-8, Math.min(-6, minD));
+    const bandMax = Math.min(8, Math.max(6, maxD));
     const bandCount = bandMax - bandMin + 1;
     const ringSpacing = (maxRadius - minRadius) / (bandCount - 1);
 
@@ -34,24 +52,61 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
       return minRadius + clamped * (maxRadius - minRadius);
     };
 
-    // 1. Draw concentric DuPeriod band rings
+    const rLimen = getRadiusForD(0.0);
+
+    // 1. Draw Regime Shading & DuPeriod band rings
     ctx.save();
+
+    // Rhythmic Macro Regime Background (outer of Limen)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, maxRadius, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, rLimen, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(238, 54, 16, 0.03)';
+    ctx.fill();
+
+    // Tonal Micro Pitch Regime Background (inner of Limen)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, rLimen, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, minRadius, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.03)';
+    ctx.fill();
+
     for (let i = 0; i < bandCount; i++) {
       const bandVal = bandMin + i;
       const r = minRadius + i * ringSpacing;
+      const isLimen = bandVal === 0;
+
       ctx.beginPath();
       ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-      ctx.strokeStyle = bandVal === 0 ? 'rgba(225, 54, 16, 0.45)' : 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = bandVal === 0 ? 1.5 : 1;
-      ctx.stroke();
+
+      if (isLimen) {
+        // Glowing TPL Limen ring
+        ctx.strokeStyle = '#E13610';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 77, 77, 0.3)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
 
       // Band label
-      ctx.fillStyle = bandVal === 0 ? '#E13610' : 'rgba(255, 255, 255, 0.25)';
-      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.fillStyle = isLimen ? '#E13610' : 'rgba(255, 255, 255, 0.35)';
+      ctx.font = isLimen ? 'bold 9px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
-      const label = bandVal === 0 ? 'TPL (0)' : bandVal > 0 ? `+${bandVal}` : `${bandVal}`;
+      const label = isLimen ? 'TPL (0)' : bandVal > 0 ? `+${bandVal}` : `${bandVal}`;
       ctx.fillText(label, centerX - r - 4, centerY + 3);
     }
+
+    // Limen title banner on the clock
+    ctx.fillStyle = '#E13610';
+    ctx.font = 'bold 8px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TEMPORAL-PLACE LIMEN (25.8 Hz / 38.7 ms)', centerX, centerY - rLimen - 5);
 
     // 2. 12 Solfège spokes (Do at 12 o'clock, clockwise)
     for (let st = 0; st < 12; st++) {

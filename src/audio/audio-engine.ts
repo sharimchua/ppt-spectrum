@@ -13,6 +13,7 @@ export class AudioEngine {
   private masterGainNode: GainNode | null = null;
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
+  private isPlaying: boolean = false;
 
   private scene: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
@@ -63,13 +64,14 @@ export class AudioEngine {
         };
 
         this.masterGainNode = this.ctx.createGain();
-        this.masterGainNode.gain.setValueAtTime(this.scene.audio.masterGain, this.ctx.currentTime);
+        this.masterGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
 
         this.workletNode.connect(this.masterGainNode);
         this.masterGainNode.connect(this.ctx.destination);
       }
 
       this.isUnlocked = true;
+      this.applyMasterGain();
       this.syncSceneToWorklet();
       return true;
     } catch (e) {
@@ -78,12 +80,35 @@ export class AudioEngine {
     }
   }
 
-  public updateScene(scene: Scene): void {
-    this.scene = scene;
+  public async play(): Promise<boolean> {
+    const ok = await this.unlock();
+    if (!ok) return false;
+    this.isPlaying = true;
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
+    return true;
+  }
+
+  public pause(): void {
+    this.isPlaying = false;
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
+  }
+
+  public getIsPlaying(): boolean {
+    return this.isPlaying;
+  }
+
+  private applyMasterGain(): void {
     if (this.masterGainNode && this.ctx) {
-      const targetGain = this.isMutedForFocus ? 0 : scene.audio.masterGain;
+      const targetGain = (this.isPlaying && !this.isMutedForFocus) ? this.scene.audio.masterGain : 0;
       this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.02);
     }
+  }
+
+  public updateScene(scene: Scene): void {
+    this.scene = scene;
+    this.applyMasterGain();
     this.syncSceneToWorklet();
   }
 
@@ -108,12 +133,14 @@ export class AudioEngine {
       };
     });
 
+    const effectiveGain = (this.isPlaying && !this.isMutedForFocus) ? this.scene.audio.masterGain : 0;
+
     this.workletNode.port.postMessage({
       type: 'UPDATE_SCENE',
       payload: {
         shapes: payloadShapes,
         audioMode: this.scene.audio.audioMode,
-        masterGain: this.scene.audio.masterGain,
+        masterGain: effectiveGain,
         tplHz: this.scene.anchors.tplFrequencyHz,
       },
     });
@@ -122,10 +149,8 @@ export class AudioEngine {
   private handleFocusChange(focused: boolean): void {
     if (!this.scene.cosmetics.focusModeEnabled) return;
     this.isMutedForFocus = !focused;
-    if (this.masterGainNode && this.ctx) {
-      const targetGain = focused ? this.scene.audio.masterGain : 0;
-      this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.02);
-    }
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
   }
 
   public getContext(): AudioContext | null {
@@ -137,7 +162,7 @@ export class AudioEngine {
   }
 
   public getMasterPhase(shapeId: string): number {
-    if (!this.isUnlocked || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
+    if (!this.isUnlocked || !this.isPlaying || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
       return 0.0;
     }
     const shapeData = this.latestTelemetry?.phases?.[shapeId];
@@ -148,7 +173,7 @@ export class AudioEngine {
   }
 
   public isAudioActive(): boolean {
-    return this.isUnlocked && !this.isMutedForFocus && this.scene.audio.masterGain > 0.0001;
+    return this.isUnlocked && this.isPlaying && !this.isMutedForFocus && this.scene.audio.masterGain > 0.0001;
   }
 
   public isReady(): boolean {
