@@ -26,6 +26,7 @@ import { CaptureModal } from './CaptureModal';
 import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
+import { MusicalBookmarksModal, loadSavedBookmarks, BookmarkSettings } from './MusicalBookmarksModal';
 
 const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
 
@@ -79,6 +80,9 @@ export const App: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
+  const [isOscillating, setIsOscillating] = useState<boolean>(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
 
   // Initialize layout from URL slug, last saved layout, or default to PRESET_SOLO
   const [layout, setLayout] = useState<LayoutDefinition>(loadInitialLayout);
@@ -100,12 +104,47 @@ export const App: React.FC = () => {
     coordinator.setIsAudioActiveProvider(() => audioEngine.isAudioActive());
   }, [coordinator, audioEngine]);
 
-  // Sync state updates to audio engine and persistence
+  // Sync state updates to audio engine and persistence (debounced to avoid localStorage thrash during 60 FPS sweep)
   useEffect(() => {
     coordinator.setScene(scene);
     audioEngine.updateScene(scene);
-    saveScene(scene);
-  }, [scene, coordinator, audioEngine]);
+    if (!isOscillating) {
+      const timer = setTimeout(() => {
+        saveScene(scene);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [scene, coordinator, audioEngine, isOscillating]);
+
+  // Smooth Sinusoidal Continuum Sweep Oscillation
+  useEffect(() => {
+    if (!isOscillating) return;
+    let animId: number;
+    const startTime = performance.now();
+    const startD = bookmarks.a.d;
+    const targetD = bookmarks.b.d;
+    const span = targetD - startD;
+    const periodMs = Math.max(1, bookmarks.periodSec) * 1000;
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const phase = (elapsed / periodMs) * 2 * Math.PI;
+      const progress = (1 - Math.cos(phase)) * 0.5;
+      const currentGlideD = startD + span * progress;
+
+      setScene((prev) => {
+        const updatedPlacements = prev.placements.map((p, idx) =>
+          idx === 0 ? { ...p, d: currentGlideD } : p
+        );
+        return { ...prev, placements: updatedPlacements };
+      });
+
+      animId = requestAnimationFrame(step);
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec]);
 
   // Persist last selected layout to localStorage
   useEffect(() => {
@@ -400,6 +439,10 @@ export const App: React.FC = () => {
         isEditMode={isEditMode}
         isFullscreen={isFullscreen}
         isShapeEditorOpen={isShapeEditorOpen}
+        isOscillating={isOscillating}
+        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)}
+        bookmarks={bookmarks}
         onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
@@ -466,6 +509,20 @@ export const App: React.FC = () => {
         onDuplicateShape={handleDuplicateShape}
         onDeleteShape={handleDeleteUserShape}
         onCreateShape={handleCreateShape}
+      />
+
+      <MusicalBookmarksModal
+        isOpen={isBookmarksOpen}
+        onClose={() => setIsBookmarksOpen(false)}
+        currentD={scene.placements[0]?.d ?? 0}
+        bookmarks={bookmarks}
+        onUpdateBookmarks={setBookmarks}
+        onJumpToD={(targetD) => {
+          handleUpdatePlacementD(targetD);
+          setIsBookmarksOpen(false);
+        }}
+        isOscillating={isOscillating}
+        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
       />
 
       <SettingsDrawer

@@ -113,7 +113,23 @@ export interface PitchRegisterInfo {
   formatted: string;
 }
 
-const PITCH_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+export const PITCH_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const;
+
+/**
+ * Converts traditional Pitch + Octave to frequency in Hz (A4 = 440 Hz standard tuning).
+ */
+export function pitchToFreq(noteIndex: number, octave: number, a4Hz: number = 440): number {
+  const midi = (octave + 1) * 12 + noteIndex;
+  return a4Hz * Math.pow(2, (midi - 69) / 12);
+}
+
+/**
+ * Converts traditional Pitch + Octave directly to DuPeriod continuous coordinate d.
+ */
+export function pitchToD(noteIndex: number, octave: number, a4Hz: number = 440, tplHz: number = TPL_FREQUENCY_HZ): number {
+  const freq = pitchToFreq(noteIndex, octave, a4Hz);
+  return freqToD(freq, tplHz);
+}
 
 /**
  * Converts frequency in Hz to traditional Pitch + Register + Cent deviation (e.g. "A4 +3¢", "C3 -14¢")

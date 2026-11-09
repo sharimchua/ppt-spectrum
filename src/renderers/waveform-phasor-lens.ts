@@ -126,21 +126,87 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         }
         const samY = waveCenterY - (samNorm > 0 ? (samYSum / samNorm) * waveAmpScale : 0);
 
+        // Detect when the Sam boundary line hits the right edge (onset impact)
+        const distToEnd = (20 + waveWidth) - bx;
+        const isOnsetContact = distToEnd >= 0 && distToEnd <= 30;
+        const impactIntensity = isOnsetContact ? Math.max(0, 1 - distToEnd / 30) : 0;
+
+        if (isOnsetContact && impactIntensity > 0.05) {
+          // Onset Radial Shockwave Burst
+          ctx.save();
+          const burstRadius = 8 + impactIntensity * 24;
+
+          // Radial gradient flash
+          const grad = ctx.createRadialGradient(bx, samY, 0, bx, samY, burstRadius);
+          grad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * impactIntensity})`);
+          grad.addColorStop(0.4, `rgba(255, 77, 77, ${0.75 * impactIntensity})`);
+          grad.addColorStop(1, 'rgba(255, 77, 77, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(bx, samY, burstRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // High-contrast kinetic shockwave ring
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * impactIntensity})`;
+          ctx.lineWidth = 2 + impactIntensity * 2.5;
+          ctx.beginPath();
+          ctx.arc(bx, samY, burstRadius * 0.85, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Radiant onset sparks
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          const numRays = 8;
+          for (let rIdx = 0; rIdx < numRays; rIdx++) {
+            const rayAng = (rIdx / numRays) * Math.PI * 2;
+            const rInner = burstRadius * 0.4;
+            const rOuter = burstRadius * (1.1 + (rIdx % 2) * 0.3);
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(rayAng) * rInner, samY + Math.sin(rayAng) * rInner);
+            ctx.lineTo(bx + Math.cos(rayAng) * rOuter, samY + Math.sin(rayAng) * rOuter);
+            ctx.stroke();
+          }
+
+          // Flashing end-wall onset contact line
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * impactIntensity})`;
+          ctx.lineWidth = 3 + impactIntensity * 4;
+          ctx.beginPath();
+          ctx.moveTo(20 + waveWidth, waveCenterY - waveAmpScale - 16);
+          ctx.lineTo(20 + waveWidth, waveCenterY + waveAmpScale + 16);
+          ctx.stroke();
+
+          // Onset badge pulse
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚡ SAM ONSET!', bx, waveCenterY - waveAmpScale - 20);
+
+          ctx.restore();
+
+          // Spawn high-intensity optical bloom dynamic light for WebGL post-processing
+          this.dynamicLights.push({
+            x: bx,
+            y: samY,
+            velocity: 1.0,
+            colorHex: '#FFFFFF',
+          });
+        }
+
         // Glowing node on the wave
-        ctx.fillStyle = '#FF4D4D';
+        ctx.fillStyle = isOnsetContact ? '#ffffff' : '#FF4D4D';
         ctx.beginPath();
-        ctx.arc(bx, samY, 4.5, 0, Math.PI * 2);
+        ctx.arc(bx, samY, isOnsetContact ? 6.0 : 4.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = isOnsetContact ? '#FF4D4D' : '#ffffff';
+        ctx.lineWidth = isOnsetContact ? 2.0 : 1.5;
         ctx.stroke();
         ctx.restore();
 
         this.dynamicLights.push({
           x: bx,
           y: samY,
-          velocity: 0.95,
-          colorHex: '#FF4D4D',
+          velocity: isOnsetContact ? 1.0 : 0.95,
+          colorHex: isOnsetContact ? '#FFFFFF' : '#FF4D4D',
         });
       }
     }

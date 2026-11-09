@@ -287,92 +287,92 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         </div>
       )}
 
-      {/* Cell Header */}
-      <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between pointer-events-none">
-        {/* Left: Lens selector & Label Mode Selector */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-[#0b0e17]/85 backdrop-blur-md px-2 py-1 rounded-md border border-slate-700/60 shadow-md">
-          <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
-            {cell.title || getLensDisplayName(cell.module)}
-          </span>
-          <select
-            value={cell.module}
-            onChange={(e) => {
-              const newMod = e.target.value as SpectrumLensType;
-              if (onUpdateCell) {
-                onUpdateCell({
-                  ...cell,
-                  module: newMod,
-                  title: getLensDisplayName(newMod),
-                });
-              }
-            }}
-            className="bg-transparent text-[10px] text-slate-300 font-mono focus:outline-none cursor-pointer"
-          >
-            {lensOptions.map((opt) => (
-              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                {opt.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Label Mode Switcher */}
-          <div className="h-3 w-px bg-slate-700 mx-0.5" />
-          <div className="flex items-center gap-1" title="Customise Cell Label Scale">
-            <Tag className="w-3 h-3 text-slate-500" />
+      {/* Cell Header - only visible when in Edit Mode */}
+      {isEditMode && (
+        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+          {/* Left: Lens selector & Label Mode Selector */}
+          <div className="pointer-events-auto flex items-center gap-1.5 bg-[#0b0e17]/90 backdrop-blur-md px-2 py-1 rounded-md border border-purple-500/50 shadow-md">
+            <span className="text-[10px] font-mono text-purple-300 uppercase font-semibold">
+              {cell.title || getLensDisplayName(cell.module)}
+            </span>
             <select
-              value={cell.labelMode || 'duperiod'}
+              value={cell.module}
               onChange={(e) => {
-                const newMode = e.target.value as LensLabelMode;
+                const newMod = e.target.value as SpectrumLensType;
                 if (onUpdateCell) {
                   onUpdateCell({
                     ...cell,
-                    labelMode: newMode,
+                    module: newMod,
+                    title: getLensDisplayName(newMod),
                   });
                 }
               }}
-              className="bg-transparent text-[9px] text-slate-400 font-mono focus:outline-none cursor-pointer"
+              className="bg-transparent text-[10px] text-slate-200 font-mono focus:outline-none cursor-pointer"
             >
-              {labelModeOptions.map((opt) => (
+              {lensOptions.map((opt) => (
                 <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
                   {opt.label}
                 </option>
               ))}
             </select>
+
+            {/* Label Mode Switcher */}
+            <div className="h-3 w-px bg-slate-700 mx-0.5" />
+            <div className="flex items-center gap-1" title="Customise Cell Label Scale">
+              <Tag className="w-3 h-3 text-slate-400" />
+              <select
+                value={cell.labelMode || 'duperiod'}
+                onChange={(e) => {
+                  const newMode = e.target.value as LensLabelMode;
+                  if (onUpdateCell) {
+                    onUpdateCell({
+                      ...cell,
+                      labelMode: newMode,
+                    });
+                  }
+                }}
+                className="bg-transparent text-[9px] text-slate-300 font-mono focus:outline-none cursor-pointer"
+              >
+                {labelModeOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Concentric Ring Clock Density Selector */}
+            {cell.module === 'ring-clock' && (
+              <>
+                <div className="h-3 w-px bg-slate-700 mx-0.5" />
+                <div className="flex items-center gap-1" title="Customise Ring Clock Density">
+                  <Disc className="w-3 h-3 text-slate-400" />
+                  <select
+                    value={cell.ringClockMode || 'auto-compact'}
+                    onChange={(e) => {
+                      const newMode = e.target.value as RingClockDensityMode;
+                      if (onUpdateCell) {
+                        onUpdateCell({
+                          ...cell,
+                          ringClockMode: newMode,
+                        });
+                      }
+                    }}
+                    className="bg-transparent text-[9px] text-slate-300 font-mono focus:outline-none cursor-pointer"
+                  >
+                    {ringClockDensityOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Concentric Ring Clock Density Selector */}
-          {cell.module === 'ring-clock' && (
-            <>
-              <div className="h-3 w-px bg-slate-700 mx-0.5" />
-              <div className="flex items-center gap-1" title="Customise Ring Clock Density">
-                <Disc className="w-3 h-3 text-slate-500" />
-                <select
-                  value={cell.ringClockMode || 'auto-compact'}
-                  onChange={(e) => {
-                    const newMode = e.target.value as RingClockDensityMode;
-                    if (onUpdateCell) {
-                      onUpdateCell({
-                        ...cell,
-                        ringClockMode: newMode,
-                      });
-                    }
-                  }}
-                  className="bg-transparent text-[9px] text-slate-400 font-mono focus:outline-none cursor-pointer"
-                >
-                  {ringClockDensityOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Right: In Edit Mode, display action tools */}
-        {isEditMode && (
-          <div className="pointer-events-auto flex items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg animate-in fade-in zoom-in-95 duration-150">
+          {/* Right: In Edit Mode, display action tools */}
+          <div className="pointer-events-auto flex items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">
             {onSplitCell && (
               <button
                 onClick={() => onSplitCell(cell.id, 'row', 'cycle-wheel')}
@@ -413,8 +413,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
               </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Floating Jog Wheel Toggle on Mobile (Bottom Right of Cell) */}
       <div className="absolute bottom-2 right-2 z-20 flex flex-col items-end gap-1.5">

@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Scene, Shape } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
+import { BookmarkSettings } from './MusicalBookmarksModal';
 import {
   Play,
   Pause,
+  Repeat,
+  ArrowRightLeft,
   Radio,
   Layers,
   LayoutGrid,
@@ -26,6 +29,10 @@ interface ControlToolbarProps {
   isEditMode?: boolean;
   isFullscreen?: boolean;
   isShapeEditorOpen?: boolean;
+  isOscillating?: boolean;
+  onToggleOscillate?: () => void;
+  onOpenBookmarks?: () => void;
+  bookmarks?: BookmarkSettings;
   onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
@@ -48,6 +55,10 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   isEditMode = false,
   isFullscreen = false,
   isShapeEditorOpen = false,
+  isOscillating = false,
+  onToggleOscillate,
+  onOpenBookmarks,
+  bookmarks,
   onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
@@ -127,6 +138,34 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
 
+          {/* Continuum Sweep / Oscillation Toggle Button */}
+          {onToggleOscillate && (
+            <button
+              onClick={onToggleOscillate}
+              className={`flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap ${
+                isOscillating
+                  ? 'border-red-500 bg-red-600/30 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-700'
+              }`}
+              title={isOscillating ? 'Stop Continuum Sweep Oscillation' : 'Oscillate Continuously Between Bookmarks A and B'}
+            >
+              <Repeat className={`w-3.5 h-3.5 ${isOscillating ? 'animate-spin text-red-400' : 'text-slate-400'}`} />
+              <span className="hidden md:inline">{isOscillating ? 'Sweeping' : 'Sweep'}</span>
+            </button>
+          )}
+
+          {/* Musical Bookmarks Anchor Modal Button */}
+          {onOpenBookmarks && (
+            <button
+              onClick={onOpenBookmarks}
+              className="flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap"
+              title="Configure Musical Bookmarks (BPM & Piano Keyboard)"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden lg:inline">Bookmarks</span>
+            </button>
+          )}
+
           {/* Shape Library & Synthesiser Button (Prominent, High Priority) */}
           {onToggleShapeEditor && (
             <button
@@ -159,17 +198,35 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               <span className="text-cyan-400 font-mono text-[9px]">d: {dVal.toFixed(2)}</span>
             </div>
 
-            {/* Inverted slider: slower is on left (-d), faster is on right (+d) */}
-            <input
-              type="range"
-              min={-7}
-              max={7}
-              step={0.05}
-              value={-dVal}
-              onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500"
-              title="Drag to navigate from macro rhythm (slower) to micro pitch (faster)"
-            />
+            {/* Inverted continuous slider with bookmark markers */}
+            <div className="relative flex items-center">
+              {bookmarks && (
+                <>
+                  {/* Bookmark A Marker */}
+                  <div
+                    className="absolute -top-1 w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#38bdf8] pointer-events-none z-10 -translate-x-1/2"
+                    style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }}
+                    title={`Bookmark A: ${bookmarks.a.label}`}
+                  />
+                  {/* Bookmark B Marker */}
+                  <div
+                    className="absolute -top-1 w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b] pointer-events-none z-10 -translate-x-1/2"
+                    style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }}
+                    title={`Bookmark B: ${bookmarks.b.label}`}
+                  />
+                </>
+              )}
+              <input
+                type="range"
+                min={-7}
+                max={7}
+                step={0.001}
+                value={-dVal}
+                onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500"
+                title="Continuous DuPeriod continuum navigation (Drag to glide between macro rhythm and micro pitch)"
+              />
+            </div>
 
             <div className="flex justify-between text-[8px] sm:text-[9px] text-slate-500 font-mono">
               <span>◄ Slower (Rhythm)</span>

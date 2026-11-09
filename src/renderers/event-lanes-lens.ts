@@ -86,7 +86,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       ctx.stroke();
 
       // Lane descriptor
-      ctx.fillStyle = col;
+      ctx.fillStyle = neonCol;
       ctx.font = 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
       ctx.fillText(`${addr.formatted} (${p.ratioValue.toFixed(2)}x)`, leftX - 10, y + laneHeight / 2 + 3);

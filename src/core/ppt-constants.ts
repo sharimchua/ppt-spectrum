@@ -24,7 +24,7 @@ export const SOLFEGE_COLORS: Record<number, string> = {
   3: '#F5D432',  // Me (Minor third)
   4: '#F5D432',  // Mi (Major third)
   5: '#43A440',  // Fa (Perfect fourth)
-  6: '#141414',  // Fi (Tritone)
+  6: '#0284c7',  // Fi (Tritone - vibrant sky blue for dark canvas legibility)
   7: '#0032A4',  // So (Perfect fifth)
   8: '#5300A4',  // Le (Minor sixth)
   9: '#5300A4',  // La (Major sixth)

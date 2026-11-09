@@ -1,5 +1,5 @@
 import { Shape, Placement } from './types';
-import { gcd, lcm, reduceRational } from './rational';
+import { gcd, lcm, reduceRational, rationalise, ratioToValue } from './rational';
 import { freqToD } from './axis';
 import { evaluatePlacedShape } from './shape';
 
@@ -9,38 +9,62 @@ import { evaluatePlacedShape } from './shape';
  * D = lcm(d_i), m_i = n_i * D / d_i => g = f0 * gcd(m_i) / D
  */
 export function calculateGhostFundamental(shape: Shape, f0: number): { ghostFreqHz: number; cycleDurationSec: number; ghostD: number } {
-  const rationalPartials = shape.partials
-    .filter((p) => p.amp > 0)
-    .map((p) => {
-      if (p.ratio.kind === 'rational') {
-        return reduceRational(p.ratio.num, p.ratio.den);
-      }
-      // If real, approximate with small denominator
-      const val = p.ratio.value;
-      const rounded = Math.round(val * 100);
-      return reduceRational(rounded, 100);
-    });
-
-  if (rationalPartials.length === 0) {
+  const activePartials = shape.partials.filter((p) => p.amp > 0);
+  if (activePartials.length === 0) {
     return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0) };
   }
 
-  let D = 1;
-  for (const r of rationalPartials) {
-    D = lcm(D, r.den);
+  // 1. If all partials are purely rational, compute exact GCD/LCM:
+  const isPurelyRational = activePartials.every((p) => p.ratio.kind === 'rational');
+  if (isPurelyRational) {
+    const rationalPartials = activePartials.map((p) => {
+      const r = p.ratio;
+      return r.kind === 'rational' ? reduceRational(r.num, r.den) : { num: 1, den: 1 };
+    });
+    let D = 1;
+    for (const r of rationalPartials) {
+      D = lcm(D, r.den);
+    }
+    const m = rationalPartials.map((r) => Math.round((r.num * D) / r.den));
+    let commonGcd = m[0];
+    for (let i = 1; i < m.length; i++) {
+      commonGcd = gcd(commonGcd, m[i]);
+    }
+    const ghostFreqHz = (f0 * commonGcd) / D;
+    return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz) };
   }
 
-  const m = rationalPartials.map((r) => Math.round((r.num * D) / r.den));
+  // 2. For shapes with real/inharmonic partials (e.g. acoustic piano string inharmonicity):
+  // Inharmonic stiffness stretch f_k = k * f0 * sqrt(1 + B * k^2) creates slight overtone sharpness,
+  // but the perceptual virtual pitch and physical repetition cycle is anchored by the fundamental f0.
+  const ratios = activePartials.map((p) => ratioToValue(p.ratio));
+  const hasFundamental = ratios.some((r) => Math.abs(r - 1.0) < 0.06);
+  const minRatio = Math.min(...ratios);
+
+  if (hasFundamental && minRatio >= 0.92) {
+    return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0) };
+  }
+
+  // For other real/microtonal shapes, map partials to nearest harmonic modes:
+  const approxPartials = ratios.map((val) => {
+    const nearestInt = Math.round(val);
+    if (Math.abs(val - nearestInt) < 0.15) {
+      return { num: nearestInt, den: 1 };
+    }
+    return rationalise(val, 0.05, 8);
+  });
+
+  let D = 1;
+  for (const r of approxPartials) {
+    D = lcm(D, r.den);
+  }
+  const m = approxPartials.map((r) => Math.round((r.num * D) / r.den));
   let commonGcd = m[0];
   for (let i = 1; i < m.length; i++) {
     commonGcd = gcd(commonGcd, m[i]);
   }
-
   const ghostFreqHz = (f0 * commonGcd) / D;
-  const cycleDurationSec = 1 / ghostFreqHz;
-  const ghostD = freqToD(ghostFreqHz);
-
-  return { ghostFreqHz, cycleDurationSec, ghostD };
+  return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz) };
 }
 
 /**

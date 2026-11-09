@@ -145,6 +145,15 @@ describe('Presets & Piano Inharmonicity', () => {
       expect(partials[7].ratio.value).toBeGreaterThan(8.0);
     }
   });
+
+  it('calculates ghost fundamental of inharmonic piano string close to f0 rather than 7 octaves below', () => {
+    const piano = PRESET_SHAPES.find((s) => s.id === 'piano')!;
+    const f0 = 100.0;
+    const ghost = calculateGhostFundamental(piano, f0);
+    // Ghost fundamental must match f0 (100 Hz), NOT drop to f0 / 100 (1 Hz)
+    expect(ghost.ghostFreqHz).toBeCloseTo(f0, 1);
+    expect(ghost.ghostD).toBeCloseTo(freqToD(f0), 2);
+  });
 });
 
 describe('Graphics Profile Persistence & Restoration', () => {
