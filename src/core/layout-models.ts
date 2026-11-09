@@ -11,11 +11,15 @@ export type SpectrumLensType =
 
 export type LensLabelMode = 'duperiod' | 'pitch' | 'bpm' | 'solfege';
 
+export type RingClockDensityMode = 'auto-compact' | 'standard' | 'full';
+
 export interface LayoutCellNode {
   id: string;
   type: 'cell';
   module: SpectrumLensType;
   labelMode?: LensLabelMode;
+  ringClockMode?: RingClockDensityMode;
+  minRings?: number;
   flex?: number;
   minSize?: number;
   title?: string;
@@ -100,6 +104,7 @@ export const PRESET_DUO_HORIZONTAL: LayoutDefinition = {
         id: 'cell-bottom',
         type: 'cell',
         module: 'ring-clock',
+        ringClockMode: 'auto-compact',
         flex: 1.5,
         title: 'Concentric Ring Clock',
       },
@@ -251,6 +256,7 @@ export const PRESET_QUAD: LayoutDefinition = {
             id: 'cell-quad-ring',
             type: 'cell',
             module: 'ring-clock',
+            ringClockMode: 'auto-compact',
             flex: 1,
             title: 'Concentric Ring Clock',
           },

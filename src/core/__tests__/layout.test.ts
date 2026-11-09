@@ -12,7 +12,12 @@ import {
   updateCellInTree,
   encodeLayoutToSlug,
   decodeLayoutFromSlug,
+  LayoutDefinition,
 } from '../layout-models';
+import { calculateRingClockBands } from '../../renderers/ring-clock-lens';
+import { Scene } from '../types';
+import { DEFAULT_SCENE } from '../config';
+import { PRESET_SHAPES } from '../presets';
 
 describe('Layout Models & Tree Operations', () => {
   it('correctly queries all cells and finds cell by id', () => {
@@ -99,5 +104,100 @@ describe('Layout Models & Tree Operations', () => {
     expect(decodedCells[0].module).toBe('ruler');
     expect(decodedCells[1].module).toBe('cycle-wheel');
     expect(decodedCells[2].module).toBe('waveform-phasor');
+  });
+
+  it('preserves ringClockMode and minRings during layout encoding and decoding', () => {
+    const layoutWithRingClock: LayoutDefinition = {
+      id: 'custom-ring-layout',
+      name: 'Custom Ring Layout',
+      description: 'Testing compact ring clock settings',
+      root: {
+        id: 'root-c',
+        type: 'container',
+        direction: 'row',
+        children: [
+          {
+            id: 'cell-ring',
+            type: 'cell',
+            module: 'ring-clock',
+            ringClockMode: 'auto-compact',
+            minRings: 4,
+            title: 'Compact Clock',
+          },
+        ],
+      },
+    };
+
+    const slug = encodeLayoutToSlug(layoutWithRingClock);
+    const decoded = decodeLayoutFromSlug(slug);
+    expect(decoded).not.toBeNull();
+    const cell = getAllCellNodes(decoded!.layout.root)[0];
+    expect(cell.module).toBe('ring-clock');
+    expect(cell.ringClockMode).toBe('auto-compact');
+    expect(cell.minRings).toBe(4);
+  });
+});
+
+describe('RingClock Dynamic Compact Bands', () => {
+  const pureToneShape = PRESET_SHAPES[0];
+  const dupleShape = PRESET_SHAPES[1];
+
+  const dummyScene: Scene = {
+    ...DEFAULT_SCENE,
+    shapes: [pureToneShape, dupleShape],
+    placements: [
+      {
+        shapeId: pureToneShape.id,
+        d: 0,
+        gain: 1.0,
+        mute: false,
+        solo: false,
+      },
+    ],
+  };
+
+  it('calculates full 16-octave continuum in full mode', () => {
+    const bands = calculateRingClockBands(dummyScene, 'full');
+    expect(bands.bandMin).toBe(-8);
+    expect(bands.bandMax).toBe(8);
+    expect(bands.bandMax - bands.bandMin + 1).toBe(17);
+  });
+
+  it('calculates 8 bands centred around placement fundamental in standard mode', () => {
+    const bands = calculateRingClockBands(dummyScene, 'standard');
+    expect(bands.bandMax - bands.bandMin + 1).toBe(8);
+    expect(bands.bandMin).toBeLessThanOrEqual(0);
+    expect(bands.bandMax).toBeGreaterThanOrEqual(0);
+  });
+
+  it('enforces a minimum of 4 rings in auto-compact mode for a single partial', () => {
+    const bands = calculateRingClockBands(dummyScene, 'auto-compact', 4);
+    const count = bands.bandMax - bands.bandMin + 1;
+    expect(count).toBeGreaterThanOrEqual(4);
+    expect(count).toBeLessThanOrEqual(6);
+    // Limen (0) should be included when placement is at d = 0
+    expect(bands.bandMin).toBeLessThanOrEqual(0);
+    expect(bands.bandMax).toBeGreaterThanOrEqual(0);
+  });
+
+  it('dynamically encompasses duple partials and contextualises relative to Limen', () => {
+    const dupleScene: Scene = {
+      ...dummyScene,
+      placements: [
+        {
+          shapeId: dupleShape.id,
+          d: 1.0,
+          gain: 1.0,
+          mute: false,
+          solo: false,
+        },
+      ],
+    };
+    const bands = calculateRingClockBands(dupleScene, 'auto-compact', 4);
+    const count = bands.bandMax - bands.bandMin + 1;
+    expect(count).toBeGreaterThanOrEqual(4);
+    // Placed at d = 1 with 1:2 ratio (d = 1 and d = 0), so Limen (0) is included
+    expect(bands.bandMin).toBeLessThanOrEqual(0);
+    expect(bands.bandMax).toBeGreaterThanOrEqual(1);
   });
 });

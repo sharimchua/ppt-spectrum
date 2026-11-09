@@ -20,7 +20,8 @@ export interface RegisteredLensRenderer {
     transportTime: number,
     audioPhase?: number,
     isAudioActive?: boolean,
-    labelMode?: LensLabelMode
+    labelMode?: LensLabelMode,
+    configOverrides?: Record<string, unknown>
   ) => void;
   getDynamicLights?: () => PostProcessingLight[];
 }
@@ -42,7 +43,13 @@ export class RenderCoordinator {
 
   private registeredLenses: Map<
     string,
-    { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; renderer: RegisteredLensRenderer; labelMode?: LensLabelMode }
+    {
+      canvas: HTMLCanvasElement;
+      ctx: CanvasRenderingContext2D;
+      renderer: RegisteredLensRenderer;
+      labelMode?: LensLabelMode;
+      configOverrides?: Record<string, unknown>;
+    }
   > = new Map();
 
   // Governor & Focus management
@@ -92,11 +99,12 @@ export class RenderCoordinator {
     id: string,
     canvas: HTMLCanvasElement,
     renderer: RegisteredLensRenderer,
-    labelMode?: LensLabelMode
+    labelMode?: LensLabelMode,
+    configOverrides?: Record<string, unknown>
   ): void {
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      this.registeredLenses.set(id, { canvas, ctx, renderer, labelMode });
+      this.registeredLenses.set(id, { canvas, ctx, renderer, labelMode, configOverrides });
     }
   }
 
@@ -169,7 +177,7 @@ export class RenderCoordinator {
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
 
     // Render each lens cell
-    for (const { canvas, ctx, renderer, labelMode } of this.registeredLenses.values()) {
+    for (const { canvas, ctx, renderer, labelMode, configOverrides } of this.registeredLenses.values()) {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
@@ -177,7 +185,7 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
-      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode);
+      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, configOverrides);
       ctx.restore();
 
       if (renderer.getDynamicLights) {

@@ -3,6 +3,7 @@ import {
   LayoutCellNode,
   SpectrumLensType,
   LensLabelMode,
+  RingClockDensityMode,
   LayoutFlexDirection,
   getLensDisplayName,
 } from '../core/layout-models';
@@ -91,12 +92,30 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         break;
     }
 
-    coordinator.registerLens(cell.id, canvas, renderer, cell.labelMode || 'duperiod');
+    coordinator.registerLens(
+      cell.id,
+      canvas,
+      renderer,
+      cell.labelMode || 'duperiod',
+      {
+        ringClockMode: cell.ringClockMode || 'auto-compact',
+        minRings: cell.minRings ?? 4,
+        ...cell.configOverrides,
+      }
+    );
 
     return () => {
       coordinator.unregisterLens(cell.id);
     };
-  }, [cell.id, cell.module, cell.labelMode, coordinator]);
+  }, [
+    cell.id,
+    cell.module,
+    cell.labelMode,
+    cell.ringClockMode,
+    cell.minRings,
+    cell.configOverrides,
+    coordinator,
+  ]);
 
   // High-DPI canvas resizing
   useEffect(() => {
@@ -229,6 +248,12 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     { id: 'solfege', label: 'Solfège (Do, Re...)' },
   ];
 
+  const ringClockDensityOptions: { id: RingClockDensityMode; label: string }[] = [
+    { id: 'auto-compact', label: 'Compact (4+)' },
+    { id: 'standard', label: 'Standard (8)' },
+    { id: 'full', label: 'Full (16)' },
+  ];
+
   return (
     <div
       ref={containerRef}
@@ -292,7 +317,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 
           {/* Label Mode Switcher */}
           <div className="h-3 w-px bg-slate-700 mx-0.5" />
-          <div className="flex items-center gap-1" title="Customize Cell Label Scale">
+          <div className="flex items-center gap-1" title="Customise Cell Label Scale">
             <Tag className="w-3 h-3 text-slate-500" />
             <select
               value={cell.labelMode || 'duperiod'}
@@ -314,6 +339,35 @@ export const CellViewport: React.FC<CellViewportProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Concentric Ring Clock Density Selector */}
+          {cell.module === 'ring-clock' && (
+            <>
+              <div className="h-3 w-px bg-slate-700 mx-0.5" />
+              <div className="flex items-center gap-1" title="Customise Ring Clock Density">
+                <Disc className="w-3 h-3 text-slate-500" />
+                <select
+                  value={cell.ringClockMode || 'auto-compact'}
+                  onChange={(e) => {
+                    const newMode = e.target.value as RingClockDensityMode;
+                    if (onUpdateCell) {
+                      onUpdateCell({
+                        ...cell,
+                        ringClockMode: newMode,
+                      });
+                    }
+                  }}
+                  className="bg-transparent text-[9px] text-slate-400 font-mono focus:outline-none cursor-pointer"
+                >
+                  {ringClockDensityOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: In Edit Mode, display action tools */}
