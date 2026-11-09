@@ -24,6 +24,7 @@ interface CellViewportProps {
   scene: Scene;
   coordinator: RenderCoordinator;
   onUpdatePlacementD?: (d: number) => void;
+  onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
@@ -38,6 +39,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   scene,
   coordinator,
   onUpdatePlacementD,
+  onUpdateFilterCentreD,
   onUpdateCell,
   isEditMode = false,
   canDelete = false,
@@ -50,7 +52,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 
   // Drag scrubbing & mobile rotary jog wheel states
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0, d: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0, d: 0, filterD: 0 });
   const [isTouchScrubbing, setIsTouchScrubbing] = useState(false);
   const [wheelPos, setWheelPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [jogAngle, setJogAngle] = useState(0);
@@ -149,23 +151,35 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     };
   }, []);
 
-  // Mouse drag scrubbing on desktop canvas
+  // Mouse drag scrubbing on desktop canvas (Shift + Drag scrubs Band Filter centreD)
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || isEditMode) return;
     setIsDragging(true);
-    setDragStartPos({ x: e.clientX, y: e.clientY, d: currentD });
+    setDragStartPos({
+      x: e.clientX,
+      y: e.clientY,
+      d: currentD,
+      filterD: scene.filter?.centreD ?? 0,
+    });
   };
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDragging || !onUpdatePlacementD) return;
+      if (!isDragging) return;
       const dx = e.clientX - dragStartPos.x;
-      const sensitivity = e.shiftKey ? 0.003 : 0.015;
+      if (e.shiftKey && onUpdateFilterCentreD) {
+        // Shift + Drag: scrub Band Filter centreD across the DuPeriod continuum
+        const targetFilterD = Math.max(-7, Math.min(7, dragStartPos.filterD - dx * 0.015));
+        onUpdateFilterCentreD(targetFilterD);
+        return;
+      }
+      if (!onUpdatePlacementD) return;
+      const sensitivity = 0.015;
       // Moving right increases frequency (faster) => decreases d
       const targetD = Math.max(-7, Math.min(7, dragStartPos.d - dx * sensitivity));
       onUpdatePlacementD(targetD);
     },
-    [isDragging, dragStartPos, onUpdatePlacementD]
+    [isDragging, dragStartPos, onUpdatePlacementD, onUpdateFilterCentreD]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -183,11 +197,17 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Mouse wheel fine scrub on canvas
+  // Mouse wheel fine scrub on canvas (Shift + Wheel scrubs Band Filter centreD)
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    if (!onUpdatePlacementD) return;
     e.preventDefault();
-    const step = e.shiftKey ? 0.01 : 0.05;
+    if (e.shiftKey && onUpdateFilterCentreD) {
+      const curFilterD = scene.filter?.centreD ?? 0;
+      const deltaFilter = e.deltaY > 0 ? 0.08 : -0.08;
+      onUpdateFilterCentreD(Math.max(-7, Math.min(7, curFilterD + deltaFilter)));
+      return;
+    }
+    if (!onUpdatePlacementD) return;
+    const step = 0.05;
     const delta = e.deltaY > 0 ? step : -step;
     onUpdatePlacementD(Math.max(-7, Math.min(7, currentD + delta)));
   };
@@ -217,7 +237,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     lastAngleRef.current = initialAngle;
     setJogAngle(initialAngle);
 
-    setDragStartPos({ x: touch.clientX, y: touch.clientY, d: currentDRef.current });
+    setDragStartPos({ x: touch.clientX, y: touch.clientY, d: currentDRef.current, filterD: scene.filter?.centreD ?? 0 });
     setIsTouchScrubbing(true);
   };
 

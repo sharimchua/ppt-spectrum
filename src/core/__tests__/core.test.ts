@@ -160,11 +160,14 @@ describe('Presets & Piano Inharmonicity', () => {
     // Piano exists in timbral
     expect(timbrePresets.some((s) => s.id === 'piano')).toBe(true);
 
-    // Harmony presets have Root on fundamental frequency (ratio 1/1)
+    // Harmony presets have Root on fundamental frequency (ratio 1/1) and do NOT create a displaced Ghost Sam
     for (const h of harmonyPresets) {
       const rootPartial = h.partials[0];
       const rVal = ratioToValue(rootPartial.ratio);
       expect(rVal).toBeCloseTo(1.0, 5);
+      const ghost = calculateGhostFundamental(h, 220.0);
+      expect(ghost.ghostFreqHz).toBeCloseTo(220.0, 5);
+      expect(ghost.ghostD).toBeCloseTo(freqToD(220.0), 5);
     }
 
     // Timbre presets: elementary waveforms (sine, triangle, square, saw) precede acoustic and inharmonic instruments
@@ -181,12 +184,13 @@ describe('Presets & Piano Inharmonicity', () => {
     expect(rhythmIds[1]).toBe('duple-1-4');
     expect(rhythmIds[rhythmIds.length - 1]).toBe('four-on-the-floor');
 
-    // Tresillo syncopation has distinct partial frequencies
+    // Tresillo syncopation has distinct (ratio, phase) DuMetric anchor combinations (Do, DoLa, La, 8th grid)
     const tresillo = rhythmPresets.find((s) => s.id === 'tresillo-3-3-2');
     expect(tresillo).toBeDefined();
-    const tresilloRatios = tresillo!.partials.map((p) => ratioToValue(p.ratio));
-    const uniqueRatios = new Set(tresilloRatios);
-    expect(uniqueRatios.size).toBe(tresilloRatios.length);
+    expect(tresillo!.anchors?.length).toBe(4);
+    const tresilloKeys = tresillo!.partials.map((p) => `${ratioToValue(p.ratio)}@${p.phase.toFixed(4)}`);
+    const uniqueKeys = new Set(tresilloKeys);
+    expect(uniqueKeys.size).toBe(tresilloKeys.length);
   });
   it('includes duple presets (1:2 and 1:4)', () => {
     const duple12 = PRESET_SHAPES.find((s) => s.id === 'duple-1-2');

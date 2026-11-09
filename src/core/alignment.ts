@@ -1,20 +1,37 @@
 import { Shape, Placement } from './types';
 import { gcd, lcm, reduceRational, rationalise, ratioToValue } from './rational';
 import { freqToD } from './axis';
-import { evaluatePlacedShape } from './shape';
+import { evaluatePlacedShape, getEffectivePartials } from './shape';
 
 /**
  * Calculates the exact ghost fundamental (greatest common divisor frequency) of rational partials.
  * For rational ratios r_i = n_i / d_i at fundamental f0:
  * D = lcm(d_i), m_i = n_i * D / d_i => g = f0 * gcd(m_i) / D
  */
-export function calculateGhostFundamental(shape: Shape, f0: number): { ghostFreqHz: number; cycleDurationSec: number; ghostD: number } {
-  const activePartials = shape.partials.filter((p) => p.amp > 0);
+export function calculateGhostFundamental(
+  shape: Shape,
+  f0: number,
+  tplHz?: number
+): { ghostFreqHz: number; cycleDurationSec: number; ghostD: number } {
+  const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
   if (activePartials.length === 0) {
-    return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0) };
+    return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0, tplHz) };
   }
 
-  // 1. If all partials are purely rational, compute exact GCD/LCM:
+  // 1. If the shape already contains a physical Root partial on the fundamental (1/1)
+  // and has no sub-octave partials (< 1/1), the shape's fundamental IS f0.
+  // This ensures that Harmony chords (1 : 5/4 : 3/2) and stretched strings (piano)
+  // anchor directly on the scene's fundamental f0 without creating a displaced sub-harmonic Ghost Sam.
+  const ratios = activePartials.map((p) => ratioToValue(p.ratio));
+  const hasFundamental = ratios.some((r) => Math.abs(r - 1.0) < 0.06);
+  const minRatio = Math.min(...ratios);
+
+  if (hasFundamental && minRatio >= 0.92) {
+    return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0, tplHz) };
+  }
+
+  // 2. If all partials are purely rational (e.g. 2:3 Hemiola, 3:4 Fourth, 4:5 Third with missing 1/1),
+  // compute exact GCD/LCM to find the implied Ghost Fundamental (Sam):
   const isPurelyRational = activePartials.every((p) => p.ratio.kind === 'rational');
   if (isPurelyRational) {
     const rationalPartials = activePartials.map((p) => {
@@ -31,21 +48,10 @@ export function calculateGhostFundamental(shape: Shape, f0: number): { ghostFreq
       commonGcd = gcd(commonGcd, m[i]);
     }
     const ghostFreqHz = (f0 * commonGcd) / D;
-    return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz) };
+    return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz, tplHz) };
   }
 
-  // 2. For shapes with real/inharmonic partials (e.g. acoustic piano string inharmonicity):
-  // Inharmonic stiffness stretch f_k = k * f0 * sqrt(1 + B * k^2) creates slight overtone sharpness,
-  // but the perceptual virtual pitch and physical repetition cycle is anchored by the fundamental f0.
-  const ratios = activePartials.map((p) => ratioToValue(p.ratio));
-  const hasFundamental = ratios.some((r) => Math.abs(r - 1.0) < 0.06);
-  const minRatio = Math.min(...ratios);
-
-  if (hasFundamental && minRatio >= 0.92) {
-    return { ghostFreqHz: f0, cycleDurationSec: 1 / f0, ghostD: freqToD(f0) };
-  }
-
-  // For other real/microtonal shapes, map partials to nearest harmonic modes:
+  // 3. For other real/microtonal shapes without a 1/1 root, map partials to nearest harmonic modes:
   const approxPartials = ratios.map((val) => {
     const nearestInt = Math.round(val);
     if (Math.abs(val - nearestInt) < 0.15) {
@@ -64,7 +70,7 @@ export function calculateGhostFundamental(shape: Shape, f0: number): { ghostFreq
     commonGcd = gcd(commonGcd, m[i]);
   }
   const ghostFreqHz = (f0 * commonGcd) / D;
-  return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz) };
+  return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz, tplHz) };
 }
 
 /**

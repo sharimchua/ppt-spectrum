@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { quantisePhaseTo11Limit, decomposeTapIntervals } from '../decompose';
+import { quantisePhaseTo11Limit, decomposeTapIntervals, decomposeMultiVoiceOnsets } from '../decompose';
+import { resolveDuMetricOffsetToken } from '../shape';
 
 describe('Rhythm Decomposer & 11-Limit Quantiser', () => {
   it('quantises typical rhythmic phase fractions to 11-limit denominators', () => {
@@ -33,5 +34,23 @@ describe('Rhythm Decomposer & 11-Limit Quantiser', () => {
     const pulse = candidates.find((c) => c.name.includes('Steady Pulse'));
     expect(pulse).toBeDefined();
     expect(pulse?.cyclePeriodSec).toBeCloseTo(0.5, 2);
+  });
+
+  it('resolves DuMetric Solfège phase offsets and decomposes multi-voice onsets into VoiceAnchors', () => {
+    expect(resolveDuMetricOffsetToken(0.0).token).toBe('Do');
+    expect(resolveDuMetricOffsetToken(0.375).token).toBe('DoLa');
+    expect(resolveDuMetricOffsetToken(0.5).token).toBe('Fi');
+    expect(resolveDuMetricOffsetToken(0.75).token).toBe('La');
+
+    const onsets = [
+      { timestampSec: 1.0, voice: 'kick' as const, velocity: 1.0 },
+      { timestampSec: 1.5, voice: 'snare' as const, velocity: 0.85 },
+      { timestampSec: 2.0, voice: 'clave' as const, velocity: 0.8 },
+      { timestampSec: 2.5, voice: 'hihat' as const, velocity: 0.7 },
+    ];
+    const decomp = decomposeMultiVoiceOnsets(onsets);
+    expect(decomp.anchors.length).toBe(4);
+    expect(decomp.anchors[0].offsetToken).toBe('Do');
+    expect(decomp.anchors[0].voice).toBe('kick');
   });
 });

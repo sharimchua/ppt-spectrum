@@ -126,6 +126,11 @@ export function loadSavedScene(): Scene {
       ...DEFAULT_SCENE,
       ...parsed,
       shapes: mergedShapes,
+      audio: {
+        ...DEFAULT_SCENE.audio,
+        ...(parsed.audio || {}),
+        audioMode: 'poetic',
+      },
       cosmetics: {
         ...DEFAULT_COSMETICS,
         ...(parsed.cosmetics || {}),

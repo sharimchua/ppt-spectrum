@@ -26,7 +26,8 @@ import { CaptureModal } from './CaptureModal';
 import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
-import { MusicalBookmarksModal, loadSavedBookmarks, BookmarkSettings } from './MusicalBookmarksModal';
+import { MusicalBookmarksModal, loadSavedBookmarks, saveBookmarks, createBookmarkPointFromD, BookmarkSettings } from './MusicalBookmarksModal';
+import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 
 const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
 
@@ -80,9 +81,25 @@ export const App: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
+  const [isQuickSearchOpen, setIsQuickSearchOpen] = useState<boolean>(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
   const [isOscillating, setIsOscillating] = useState<boolean>(false);
   const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
+
+  // Session-only history of selected shapes for quick Up/Down arrow navigation
+  const [, setShapeHistory] = useState<{ stack: string[]; index: number }>(() => {
+    const initialId = scene.placements[0]?.shapeId || 'hemiola-3-2';
+    return { stack: [initialId], index: 0 };
+  });
+
+  const pushShapeHistory = useCallback((shapeId: string) => {
+    setShapeHistory((prev) => {
+      if (prev.stack[prev.index] === shapeId) return prev;
+      const truncated = prev.stack.slice(0, prev.index + 1);
+      const nextStack = [...truncated, shapeId];
+      return { stack: nextStack, index: nextStack.length - 1 };
+    });
+  }, []);
 
   // Initialize layout from URL slug, last saved layout, or default to PRESET_SOLO
   const [layout, setLayout] = useState<LayoutDefinition>(loadInitialLayout);
@@ -250,17 +267,66 @@ export const App: React.FC = () => {
   };
 
   // Keyboard shortcuts:
-  // - Spacebar: toggles simulation/audio playback
+  // - Spacebar: toggles simulation/audio playback (intercepted in capture phase so focused buttons/dropdowns don't steal it)
+  // - 'l' / 'L': toggles Shape Library & Synthesiser tray
+  // - Shift + 'L': opens Quick Shape Search Modal with autocomplete
   // - 's' / 'S': toggles continuum sweep oscillation
   // - 'f' / 'F': toggles band filter aperture
   // - 't' / 'T': triggers/strikes acoustic ADSR note
-  // - 'a' / 'A': jump fundamental to Bookmark A
-  // - 'b' / 'B': jump fundamental to Bookmark B
-  // - Left/Right (or Down/Up) arrows: step fundamental by 1 DuMetric octave
-  // - Shift + Left/Right arrows: step fundamental by 0.5 DuMetric octave (tritone)
+  // - 'a' / 'A': jump fundamental to Bookmark A (Shift + A sets Bookmark A to current d)
+  // - 'b' / 'B': jump fundamental to Bookmark B (Shift + B sets Bookmark B to current d)
+  // - Left/Right arrows: step fundamental by 1 DuMetric octave (Shift + Left/Right steps by 0.5 octave)
+  // - Up/Down arrows: navigate back and forth through session shape selection history
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // If Quick Shape Search Modal is open, let it handle its own keyboard navigation
+      if (isQuickSearchOpen) {
+        return;
+      }
+
+      // Ignore browser modifier combinations (e.g. Ctrl+S, Ctrl+A, Alt+F)
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+
       const target = e.target as HTMLElement | null;
+      const isTextInput =
+        target &&
+        ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable);
+
+      if (isTextInput) {
+        return;
+      }
+
+      // Spacebar Focus Guard: always toggle play/pause unless Capture Modal is open (where Space taps the rhythm pad)
+      if (e.code === 'Space' || e.key === ' ') {
+        if (isCaptureOpen) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (
+          document.activeElement instanceof HTMLElement &&
+          (document.activeElement.tagName === 'BUTTON' ||
+            document.activeElement.tagName === 'SELECT' ||
+            document.activeElement.tagName === 'INPUT')
+        ) {
+          document.activeElement.blur();
+        }
+        handleTogglePlay();
+        return;
+      }
+
+      if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setIsQuickSearchOpen((prev) => !prev);
+        } else {
+          setIsShapeEditorOpen((prev) => !prev);
+        }
+        return;
+      }
+
       if (
         target &&
         (target.tagName === 'INPUT' ||
@@ -271,15 +337,7 @@ export const App: React.FC = () => {
         return;
       }
 
-      // Ignore browser modifier combinations (e.g. Ctrl+S, Ctrl+A, Alt+F)
-      if (e.ctrlKey || e.altKey || e.metaKey) {
-        return;
-      }
-
-      if (e.code === 'Space' || e.key === ' ') {
-        e.preventDefault();
-        handleTogglePlay();
-      } else if (e.key === 's' || e.key === 'S') {
+      if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
         setIsOscillating((prev) => !prev);
       } else if (e.key === 'f' || e.key === 'F') {
@@ -298,19 +356,41 @@ export const App: React.FC = () => {
         }
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        const targetD = bookmarks.a.d;
-        updateScene((prev) => ({
-          ...prev,
-          placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-        }));
+        if (e.shiftKey) {
+          const curD = sceneRef.current.placements[0]?.d ?? 0;
+          const nextPoint = createBookmarkPointFromD(curD);
+          setBookmarks((prev) => {
+            const updated = { ...prev, a: nextPoint };
+            saveBookmarks(updated);
+            return updated;
+          });
+          coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, 48, '#38bdf8', 0.9, 14);
+        } else {
+          const targetD = bookmarks.a.d;
+          updateScene((prev) => ({
+            ...prev,
+            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+          }));
+        }
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
-        const targetD = bookmarks.b.d;
-        updateScene((prev) => ({
-          ...prev,
-          placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-        }));
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        if (e.shiftKey) {
+          const curD = sceneRef.current.placements[0]?.d ?? 0;
+          const nextPoint = createBookmarkPointFromD(curD);
+          setBookmarks((prev) => {
+            const updated = { ...prev, b: nextPoint };
+            saveBookmarks(updated);
+            return updated;
+          });
+          coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, 48, '#f59e0b', 0.9, 14);
+        } else {
+          const targetD = bookmarks.b.d;
+          updateScene((prev) => ({
+            ...prev,
+            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
+          }));
+        }
+      } else if (e.key === 'ArrowRight') {
         // Move UP in frequency / pitch (decrease d)
         e.preventDefault();
         const step = e.shiftKey ? 0.5 : 1.0;
@@ -322,7 +402,7 @@ export const App: React.FC = () => {
             placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
           };
         });
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowLeft') {
         // Move DOWN in frequency / pitch (increase d)
         e.preventDefault();
         const step = e.shiftKey ? 0.5 : 1.0;
@@ -334,16 +414,46 @@ export const App: React.FC = () => {
             placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
           };
         });
+      } else if (e.key === 'ArrowUp') {
+        // Navigate BACK in session shape selection history
+        e.preventDefault();
+        setShapeHistory((prev) => {
+          if (prev.index <= 0) return prev;
+          const nextIndex = prev.index - 1;
+          const targetShapeId = prev.stack[nextIndex];
+          if (targetShapeId) {
+            updateScene((sc) => ({
+              ...sc,
+              placements: sc.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId: targetShapeId } : p)),
+            }));
+          }
+          return { ...prev, index: nextIndex };
+        });
+      } else if (e.key === 'ArrowDown') {
+        // Navigate FORWARD in session shape selection history
+        e.preventDefault();
+        setShapeHistory((prev) => {
+          if (prev.index >= prev.stack.length - 1) return prev;
+          const nextIndex = prev.index + 1;
+          const targetShapeId = prev.stack[nextIndex];
+          if (targetShapeId) {
+            updateScene((sc) => ({
+              ...sc,
+              placements: sc.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId: targetShapeId } : p)),
+            }));
+          }
+          return { ...prev, index: nextIndex };
+        });
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isQuickSearchOpen) return;
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.tagName === 'INPUT' ||
+        ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') ||
           target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
           target.isContentEditable)
       ) {
         return;
@@ -355,13 +465,13 @@ export const App: React.FC = () => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keyup', handleKeyUp, { capture: true });
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      window.removeEventListener('keyup', handleKeyUp, { capture: true });
     };
-  }, [isPlaying, handleTriggerNote, handleNoteOn, handleNoteOff, bookmarks]);
+  }, [isPlaying, isCaptureOpen, isQuickSearchOpen, handleTriggerNote, handleNoteOn, handleNoteOff, bookmarks, updateScene, coordinator]);
 
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -378,12 +488,24 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleSelectPreset = (shapeId: string) => {
+  const handleUpdateFilterCentreD = useCallback((centreD: number) => {
+    updateScene((prev) => ({
+      ...prev,
+      filter: {
+        ...prev.filter,
+        enabled: true,
+        centreD,
+      },
+    }));
+  }, [updateScene]);
+
+  const handleSelectPreset = useCallback((shapeId: string) => {
+    pushShapeHistory(shapeId);
     updateScene((prev) => {
       const updatedPlacements = prev.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId } : p));
       return { ...prev, placements: updatedPlacements };
     });
-  };
+  }, [pushShapeHistory, updateScene]);
 
   const handleToggleAudioMode = () => {
     updateScene((prev) => ({
@@ -396,7 +518,8 @@ export const App: React.FC = () => {
   };
 
   const handleCaptureShape = (capturedShape: Shape, dPosition: number) => {
-    setScene((prev) => ({
+    pushShapeHistory(capturedShape.id);
+    updateScene((prev) => ({
       ...prev,
       shapes: [capturedShape, ...prev.shapes],
       placements: [
@@ -477,6 +600,7 @@ export const App: React.FC = () => {
           name: `${updated.name} (Custom)`,
           origin: 'user',
         };
+        pushShapeHistory(userShape.id);
         return {
           ...prev,
           shapes: [userShape, ...prev.shapes],
@@ -489,6 +613,7 @@ export const App: React.FC = () => {
       // If the shape is a new user shape not yet in shapes list, add it
       const exists = prev.shapes.some((s) => s.id === updated.id);
       if (!exists) {
+        pushShapeHistory(updated.id);
         return {
           ...prev,
           shapes: [updated, ...prev.shapes],
@@ -503,7 +628,7 @@ export const App: React.FC = () => {
         shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
       };
     });
-  }, [updateScene]);
+  }, [updateScene, pushShapeHistory]);
 
   const handleDuplicateShape = useCallback((sourceShape: Shape) => {
     const duplicated: Shape = {
@@ -511,11 +636,22 @@ export const App: React.FC = () => {
       id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
       name: `${sourceShape.name} (Copy)`,
       origin: 'user',
+      anchors: sourceShape.anchors
+        ? sourceShape.anchors.map((a) => ({
+            ...a,
+            id: `a-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+            partials: a.partials.map((p) => ({
+              ...p,
+              id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+            })),
+          }))
+        : undefined,
       partials: sourceShape.partials.map((p) => ({
         ...p,
         id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
       })),
     };
+    pushShapeHistory(duplicated.id);
     updateScene((prev) => ({
       ...prev,
       shapes: [duplicated, ...prev.shapes],
@@ -523,9 +659,19 @@ export const App: React.FC = () => {
         idx === 0 ? { ...pl, shapeId: duplicated.id } : pl
       ),
     }));
-  }, [updateScene]);
+  }, [updateScene, pushShapeHistory]);
 
   const handleDeleteUserShape = useCallback((shapeId: string) => {
+    setShapeHistory((prev) => {
+      const nextStack = prev.stack.filter((id) => id !== shapeId);
+      if (nextStack.length === 0) {
+        return { stack: ['hemiola-3-2'], index: 0 };
+      }
+      return {
+        stack: nextStack,
+        index: Math.min(prev.index, nextStack.length - 1),
+      };
+    });
     updateScene((prev) => {
       const remainingShapes = prev.shapes.filter(
         (s) => s.id !== shapeId || s.origin === 'preset'
@@ -542,6 +688,7 @@ export const App: React.FC = () => {
   }, [updateScene]);
 
   const handleCreateShape = useCallback((newShape: Shape) => {
+    pushShapeHistory(newShape.id);
     updateScene((prev) => ({
       ...prev,
       shapes: [newShape, ...prev.shapes],
@@ -549,7 +696,7 @@ export const App: React.FC = () => {
         idx === 0 ? { ...pl, shapeId: newShape.id } : pl
       ),
     }));
-  }, [updateScene]);
+  }, [updateScene, pushShapeHistory]);
 
   const handleUpdateCell = useCallback((updatedCell: LayoutCellNode) => {
     setLayout((prev) => ({
@@ -617,6 +764,7 @@ export const App: React.FC = () => {
             scene={scene}
             coordinator={coordinator}
             onUpdatePlacementD={handleUpdatePlacementD}
+            onUpdateFilterCentreD={handleUpdateFilterCentreD}
             onUpdateCell={handleUpdateCell}
             isEditMode={isEditMode}
             canDelete={canDelete}
@@ -678,6 +826,14 @@ export const App: React.FC = () => {
         scene={scene}
         onUpdateScene={updateScene}
         onOpenInfoModal={() => setIsInfoOpen(true)}
+      />
+
+      <ShapeQuickSearchModal
+        isOpen={isQuickSearchOpen}
+        onClose={() => setIsQuickSearchOpen(false)}
+        shapes={scene.shapes}
+        activeShapeId={activeShape?.id}
+        onSelectShape={handleSelectPreset}
       />
     </div>
   );

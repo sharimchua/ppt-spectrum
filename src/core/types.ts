@@ -47,10 +47,33 @@ export interface ADSREnvelope {
   damping?: number;
 }
 
+export interface VoiceAnchor {
+  id: string;
+  name: string;
+  /** Fundamental interval ratio relative to the root placement fundamental (default 1/1) */
+  ratio: Ratio;
+  /** Cycle phase offset in turns [0..1) (e.g. 0 for Do, 0.5 for Fi offbeat, 0.375 for 3/8) */
+  phaseOffset: number;
+  /** Optional PPT DuMetric Solfège rhythm token label (e.g. 'Do', 'Me', 'Mi', 'MeFi', 'Fi', 'Le', 'La', 'LaFi') */
+  offsetToken?: string;
+  /** Anchor gain multiplier (0.0 to 1.0) */
+  gain: number;
+  /** Previous gain retained when muted */
+  previousGain?: number;
+  /** Default drum/percussion voice for this anchor */
+  voice?: VoiceId;
+  /** Muted state for individual voice anchor */
+  mute?: boolean;
+  /** Nested harmonic partials relative to this anchor's fundamental */
+  partials: PartialComponent[];
+}
+
 export interface Shape {
   id: string;
   name: string;
   partials: PartialComponent[];
+  /** Hierarchical Voice Anchors (Root + Interval/Rhythm Fundamentals with nested partials) */
+  anchors?: VoiceAnchor[];
   origin: 'preset' | 'user' | 'captured-pitch' | 'captured-rhythm';
   description?: string;
   category?: PresetCategory;

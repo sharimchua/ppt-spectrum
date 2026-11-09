@@ -14,6 +14,7 @@ interface FlexLayoutRendererProps {
   scene: Scene;
   coordinator: RenderCoordinator;
   onUpdatePlacementD?: (d: number) => void;
+  onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
@@ -28,6 +29,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   scene,
   coordinator,
   onUpdatePlacementD,
+  onUpdateFilterCentreD,
   onUpdateCell,
   isEditMode = false,
   canDelete = false,
@@ -48,6 +50,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           scene={scene}
           coordinator={coordinator}
           onUpdatePlacementD={onUpdatePlacementD}
+          onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateCell={onUpdateCell}
           isEditMode={isEditMode}
           canDelete={canDelete}
@@ -78,6 +81,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           scene={scene}
           coordinator={coordinator}
           onUpdatePlacementD={onUpdatePlacementD}
+          onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateCell={onUpdateCell}
           isEditMode={isEditMode}
           canDelete={canDelete}

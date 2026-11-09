@@ -1,10 +1,87 @@
 import { primeFactors } from './rational';
+import { VoiceAnchor, VoiceId } from './types';
+import { resolveDuMetricOffsetToken } from './shape';
 
 export interface RhythmDecompositionCandidate {
   name: string;
   ratios: number[];
   cyclePeriodSec: number;
   complexityScore: number;
+}
+
+export interface CapturedOnsetEvent {
+  timestampSec: number;
+  voice: VoiceId;
+  velocity: number;
+}
+
+/**
+ * Quantises a stream of multi-voice rhythm onset events into PPT DuMetric VoiceAnchors.
+ * Estimates the fundamental bar cycle duration T from the onset span, maps each hit's
+ * phase onto the 16 canonical DuMetric Solfège offsets (Do, Me, Mi, DoLa, Fi, La, etc.),
+ * and builds a VoiceAnchor hierarchy.
+ */
+export function decomposeMultiVoiceOnsets(
+  onsets: CapturedOnsetEvent[]
+): { cyclePeriodSec: number; bpm: number; anchors: VoiceAnchor[] } {
+  if (onsets.length === 0) {
+    return { cyclePeriodSec: 2.0, bpm: 120, anchors: [] };
+  }
+
+  const t0 = onsets[0].timestampSec;
+  const tLast = onsets[onsets.length - 1].timestampSec;
+  const span = Math.max(0.25, tLast - t0);
+
+  // Estimate cycle period (1 bar of 4 beats):
+  // If user tapped >= 2 events, estimate average IOI and round span to a sensible 4-beat bar period
+  let cyclePeriodSec = 2.0;
+  if (onsets.length >= 2) {
+    const avgIoi = span / (onsets.length - 1);
+    const rawBar = avgIoi * Math.max(2, Math.min(8, Math.round(onsets.length)));
+    cyclePeriodSec = Math.max(0.5, Math.min(6.0, rawBar));
+  }
+
+  const bpm = Math.round((60 * 4) / cyclePeriodSec);
+  const anchors: VoiceAnchor[] = [];
+
+  for (let i = 0; i < onsets.length; i++) {
+    const ev = onsets[i];
+    const relTime = Math.max(0, ev.timestampSec - t0);
+    const rawPhase = ((relTime / cyclePeriodSec) % 1 + 1) % 1;
+    const duMetric = i === 0 ? resolveDuMetricOffsetToken(0) : resolveDuMetricOffsetToken(rawPhase);
+
+    // Avoid duplicating an anchor that already landed on the exact same DuMetric token & voice
+    const existing = anchors.find((a) => a.offsetToken === duMetric.token && a.voice === ev.voice);
+    if (existing) {
+      existing.gain = Math.max(existing.gain, ev.velocity);
+      continue;
+    }
+
+    const voiceLabel = ev.voice.charAt(0).toUpperCase() + ev.voice.slice(1);
+    anchors.push({
+      id: `cap_anchor_${i + 1}`,
+      name: `${voiceLabel} @ ${duMetric.token} (${duMetric.fraction})`,
+      ratio: { kind: 'rational', num: 1, den: 1 },
+      phaseOffset: duMetric.phase,
+      offsetToken: duMetric.token,
+      gain: Number(Math.max(0.25, Math.min(1.0, ev.velocity)).toFixed(2)),
+      voice: ev.voice,
+      mute: false,
+      partials: [
+        {
+          id: `p_${i + 1}`,
+          ratio: { kind: 'rational', num: 1, den: 1 },
+          amp: 1.0,
+          previousAmp: 1.0,
+          phase: 0,
+          voice: ev.voice,
+          label: `${voiceLabel} @${duMetric.token}`,
+        },
+      ],
+    });
+  }
+
+  return { cyclePeriodSec, bpm, anchors };
 }
 
 /**

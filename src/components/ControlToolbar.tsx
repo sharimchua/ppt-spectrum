@@ -36,7 +36,7 @@ interface ControlToolbarProps {
   onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
-  onToggleAudioMode: () => void;
+  onToggleAudioMode?: () => void;
   onToggleEditMode?: () => void;
   onShareLayout?: () => void;
   onToggleFullscreen?: () => void;
@@ -61,7 +61,6 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
-  onToggleAudioMode,
   onToggleEditMode,
   onShareLayout,
   onToggleFullscreen,
@@ -174,7 +173,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
               }`}
-              title="Open Shape Synthesiser & User Library"
+              title="Open Shape Synthesiser & User Library (L)"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do" />
               <span>Library</span>
@@ -250,26 +249,13 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Right Tools Group: Audio Mode, Capture, Layout Tools, Fullscreen */}
+        {/* Right Tools Group: Capture, Layout Tools, Filter, Settings, Fullscreen */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Audio Synthesis Mode (Literal vs Poetic) */}
-          <button
-            onClick={onToggleAudioMode}
-            className={`px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
-              scene.audio.audioMode === 'poetic'
-                ? 'border-purple-500/80 bg-purple-950/50 text-purple-300'
-                : 'border-slate-700 bg-slate-800 text-slate-300'
-            }`}
-            title="Toggle Literal Sinusoid vs Poetic Pitched Click Synthesis"
-          >
-            {scene.audio.audioMode.toUpperCase()}
-          </button>
-
           {/* Capture Pad / Mic Pitch Modal */}
           <button
             onClick={onOpenCapture}
             className="hidden sm:flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
-            title="Capture Rhythm via Tap Pad or Pitch via Mic"
+            title="Capture Multi-Voice Rhythm or Harmonic Pitch Spectrum"
           >
             <Radio className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Capture</span>

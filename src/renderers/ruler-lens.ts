@@ -191,9 +191,9 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       const shape = scene.shapes.find((s) => s.id === placement.shapeId);
       if (!shape) continue;
 
-      const partials = evaluatePlacedShape(shape, placement, scene.filter);
+      const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
       const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
-      const ghost = calculateGhostFundamental(shape, f0);
+      const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
 
       // Render Ghost Fundamental / Common Sam Anchor only when there is no physical partial on that frequency
       const hasPhysicalPartialAtGhost = partials.some(
@@ -249,6 +249,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
       const inPitchSpace = f0 > 25.8;
       const adsr = shape?.adsr;
+      const labelledDs: number[] = [];
 
       for (const p of partials) {
         if (p.filteredAmp <= 0.001 && p.amp <= 0.001) continue;
@@ -300,12 +301,11 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.arc(px, py, 3.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // 4. Dynamic Level Overlay Effect (simulating ADSR curve in pitch space when sounding)
+        // 4. Dynamic Level Overlay Effect (simulating ADSR curve in pitch space when actively sounding)
         let activeLightY = py;
         let activeLightVelocity = ceilingBarH / maxH;
 
-        const isSounding = isAudioActive || (noteAge > 0 && adsr && noteAge < (adsr.attack + adsr.decay * 2.5 + adsr.release));
-        if (inPitchSpace && adsr && isSounding) {
+        if (inPitchSpace && adsr && isAudioActive) {
           const adsrMultiplier = evaluatePartialAdsr(adsr, p.ratioValue, noteAge);
           if (adsrMultiplier > 0.005) {
             const dynamicBarH = ceilingBarH * adsrMultiplier;
@@ -351,22 +351,26 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           }
         }
 
-        // Label anchored to structural tip
-        let displayLabel = p.label || addr.syllable;
-        if (labelMode === 'pitch') {
-          displayLabel = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz).formatted;
-        } else if (labelMode === 'bpm') {
-          displayLabel = `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
-        } else if (labelMode === 'solfege') {
-          displayLabel = addr.formatted;
-        } else if (labelMode === 'duperiod') {
-          displayLabel = `d: ${p.d.toFixed(2)}`;
-        }
+        // Label anchored to structural tip (avoid overdrawing when multiple phase-offset anchors share the same d)
+        const alreadyLabelledAtD = labelledDs.some((dVal) => Math.abs(dVal - p.d) < 0.008);
+        if (!alreadyLabelledAtD) {
+          labelledDs.push(p.d);
+          let displayLabel = p.label || addr.syllable;
+          if (labelMode === 'pitch') {
+            displayLabel = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz).formatted;
+          } else if (labelMode === 'bpm') {
+            displayLabel = `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
+          } else if (labelMode === 'solfege') {
+            displayLabel = addr.formatted;
+          } else if (labelMode === 'duperiod') {
+            displayLabel = `d: ${p.d.toFixed(2)}`;
+          }
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(displayLabel, px, py - 8);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '9px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(displayLabel, px, py - 8);
+        }
         ctx.restore();
 
         // Add to dynamic lights for WebGL halation & lens flare

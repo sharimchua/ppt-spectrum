@@ -79,6 +79,25 @@ export function saveBookmarks(bookmarks: BookmarkSettings): void {
   }
 }
 
+export function createBookmarkPointFromD(currentD: number): BookmarkPoint {
+  const addr = resolveDuPeriodAddress(currentD);
+  const freq = dToFreq(currentD);
+  if (currentD > 0) {
+    const bpm = dToBpm(currentD);
+    return {
+      d: currentD,
+      label: `${bpm.toFixed(0)} BPM (${dToPeriodMs(currentD).toFixed(0)} ms)`,
+      type: 'rhythm',
+      bpm: Math.round(bpm),
+    };
+  }
+  return {
+    d: currentD,
+    label: `${addr.formatted} (${freq.toFixed(1)} Hz)`,
+    type: 'pitch',
+  };
+}
+
 interface MusicalBookmarksModalProps {
   isOpen: boolean;
   onClose: () => void;

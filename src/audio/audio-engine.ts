@@ -1,7 +1,7 @@
 import { Scene, VoiceId, ADSREnvelope } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
-import { calculateFilterGain } from '../core/shape';
+import { calculateFilterGain, getEffectivePartials } from '../core/shape';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
 
 export interface WorkletPartialPayload {
@@ -27,7 +27,8 @@ export interface WorkletShapePayload {
 export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
   return scene.placements.map((placement) => {
     const shapeObj = scene.shapes.find((s) => s.id === placement.shapeId);
-    const partials = (shapeObj ? shapeObj.partials : []).map((p) => {
+    const effectivePartials = shapeObj ? getEffectivePartials(shapeObj) : [];
+    const partials = effectivePartials.map((p) => {
       const ratioVal = ratioToValue(p.ratio);
       const partialD = placement.d - Math.log2(ratioVal);
       const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter, placement.d) : 1.0;
@@ -191,10 +192,12 @@ export class AudioEngine {
   }
 
   /**
-   * Returns current note age in seconds for a shape, enabling visualizations
+   * Returns current note age in seconds for a shape, enabling visualisations
    * to accurately render dynamic harmonic damping and ADSR levels.
+   * Returns 0 when audio is paused and not auditioning so levels do not fluctuate while idle.
    */
   public getNoteAge(shapeId?: string): number {
+    if (!this.isAudioActive()) return 0;
     const id = shapeId || this.scene.placements[0]?.shapeId;
     if (!id || !this.latestTelemetry?.phases?.[id]) return 0;
     const baseAge = (this.latestTelemetry.phases[id] as { noteAge?: number }).noteAge || 0;

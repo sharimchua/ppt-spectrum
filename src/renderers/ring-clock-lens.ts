@@ -1,6 +1,6 @@
 import { Scene } from '../core/types';
 import { LensLabelMode, RingClockDensityMode } from '../core/layout-models';
-import { evaluatePlacedShape } from '../core/shape';
+import { evaluatePlacedShape, getEffectivePartials } from '../core/shape';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS, SOLFEGE_SYLLABLES } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToBpm, dToFreq, freqToPitchRegister } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -36,8 +36,9 @@ export function calculateRingClockBands(
   const partialDs: number[] = [];
   for (const pl of scene.placements) {
     const shape = scene.shapes.find((s) => s.id === pl.shapeId);
-    if (shape && shape.partials.length > 0) {
-      for (const p of shape.partials) {
+    const effectivePartials = shape ? getEffectivePartials(shape) : [];
+    if (effectivePartials.length > 0) {
+      for (const p of effectivePartials) {
         if (p.amp <= 0.001) continue;
         const ratioVal = typeof p.ratio === 'object' && p.ratio.kind === 'rational'
           ? p.ratio.num / p.ratio.den

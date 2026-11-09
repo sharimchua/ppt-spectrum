@@ -1,5 +1,5 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape } from '../core/shape';
+import { evaluatePlacedShape, resolveDuMetricOffsetToken } from '../core/shape';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -89,7 +89,8 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = neonCol;
       ctx.font = 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(`${addr.formatted} (${p.ratioValue.toFixed(2)}x)`, leftX - 10, y + laneHeight / 2 + 3);
+      const phaseTag = p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
+      ctx.fillText(`${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`, leftX - 10, y + laneHeight / 2 + 3);
 
       // Event tick marks across the lane
       const eventsPerCycle = Math.max(1, Math.round(p.ratioValue));
