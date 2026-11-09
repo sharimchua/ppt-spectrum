@@ -16,6 +16,8 @@ interface TraySheetProps {
   onDeleteShape?: (shapeId: string) => void;
   onCreateShape?: (newShape: Shape) => void;
   onTriggerNote?: () => void;
+  onNoteOn?: () => void;
+  onNoteOff?: () => void;
 }
 
 export const TraySheet: React.FC<TraySheetProps> = ({
@@ -31,6 +33,8 @@ export const TraySheet: React.FC<TraySheetProps> = ({
   onDeleteShape,
   onCreateShape,
   onTriggerNote,
+  onNoteOn,
+  onNoteOff,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 30, y: 70 });
@@ -139,6 +143,8 @@ export const TraySheet: React.FC<TraySheetProps> = ({
               onDeleteShape={onDeleteShape}
               onCreateShape={onCreateShape}
               onTriggerNote={onTriggerNote}
+              onNoteOn={onNoteOn}
+              onNoteOff={onNoteOff}
             />
           </div>
         )}
@@ -176,6 +182,8 @@ export const TraySheet: React.FC<TraySheetProps> = ({
             onDeleteShape={onDeleteShape}
             onCreateShape={onCreateShape}
             onTriggerNote={onTriggerNote}
+            onNoteOn={onNoteOn}
+            onNoteOff={onNoteOff}
           />
         </div>
       </div>

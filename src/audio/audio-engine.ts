@@ -50,7 +50,7 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
 }
 
 export interface AudioTelemetryData {
-  phases: Record<string, { masterPhase: number; f0: number; smoothedD: number }>;
+  phases: Record<string, { masterPhase: number; f0: number; smoothedD: number; noteAge?: number; isAuditioning?: boolean }>;
   currentTime: number;
 }
 
@@ -61,6 +61,8 @@ export class AudioEngine {
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
   private isPlaying: boolean = false;
+  private isKeyDownLocal: boolean = false;
+  private isAuditioningLocal: boolean = false;
 
   private scene: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
@@ -107,6 +109,13 @@ export class AudioEngine {
           if (event.data?.type === 'AUDIO_SYNC') {
             this.latestTelemetry = event.data.payload;
             this.latestTelemetryTime = performance.now();
+            const anyAuditioning = Boolean(
+              this.latestTelemetry?.phases &&
+              Object.values(this.latestTelemetry.phases).some((p) => p.isAuditioning)
+            );
+            if (!anyAuditioning && !this.isKeyDownLocal) {
+              this.isAuditioningLocal = false;
+            }
           }
         };
 
@@ -159,30 +168,47 @@ export class AudioEngine {
   }
 
   /**
-   * Triggers an acoustic note envelope strike (ADSR reset) for placed shapes in pitch space.
-   * If playback is paused, unlocks audio context and plays an audition note that rings out fully.
+   * Note On: triggered when user presses down key T or presses Strike Note.
+   * Starts note attack in pitch space (sustaining while held), or starts/loops rhythm cycles.
    */
-  public async triggerNote(shapeId?: string): Promise<void> {
+  public async noteOn(shapeId?: string): Promise<void> {
+    this.isKeyDownLocal = true;
+    this.isAuditioningLocal = true;
     const ok = await this.unlock();
     if (!ok || !this.workletNode) return;
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
 
-    // If playback is not active, allow the user to audition the note strike
-    if (!this.isPlaying && this.masterGainNode && this.ctx) {
-      const now = this.ctx.currentTime;
-      const targetGain = this.scene.audio.masterGain || 0.75;
-      this.syncSceneToWorklet();
+    this.workletNode.port.postMessage({
+      type: 'NOTE_ON',
+      payload: { shapeId },
+    });
+  }
 
-      // Find shape ADSR decay to determine audition hold duration
-      const targetShape = this.scene.shapes.find(
-        (s) => (shapeId ? s.id === shapeId : s.id === this.scene.placements[0]?.shapeId)
-      );
-      const ringSec = Math.max(1.5, (targetShape?.adsr?.attack || 0.01) + (targetShape?.adsr?.decay || 1.2) * 1.35);
+  /**
+   * Note Off: triggered when user releases key T.
+   * Triggers release fade-out in pitch space (allowing crisp staccato on rapid taps),
+   * or lets the active rhythm cycle finish completely to its boundary.
+   */
+  public noteOff(shapeId?: string): void {
+    this.isKeyDownLocal = false;
+    if (!this.workletNode) return;
+    this.workletNode.port.postMessage({
+      type: 'NOTE_OFF',
+      payload: { shapeId },
+    });
+  }
 
-      this.masterGainNode.gain.cancelScheduledValues(now);
-      this.masterGainNode.gain.setValueAtTime(targetGain, now);
-      this.masterGainNode.gain.setValueAtTime(targetGain, now + ringSec);
-      this.masterGainNode.gain.linearRampToValueAtTime(0, now + ringSec + 0.35);
-    }
+  /**
+   * Triggers an acoustic note envelope strike.
+   */
+  public async triggerNote(shapeId?: string): Promise<void> {
+    this.isKeyDownLocal = false;
+    this.isAuditioningLocal = true;
+    const ok = await this.unlock();
+    if (!ok || !this.workletNode) return;
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
 
     this.workletNode.port.postMessage({
       type: 'TRIGGER_NOTE',
@@ -192,7 +218,9 @@ export class AudioEngine {
 
   private applyMasterGain(): void {
     if (this.masterGainNode && this.ctx) {
-      const targetGain = (this.isPlaying && !this.isMutedForFocus) ? this.scene.audio.masterGain : 0;
+      // Audio graph output is unmuted whenever audio context is active and not focus-muted.
+      // The worklet processor controls audio emission (continuous transport vs key-triggered audition).
+      const targetGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
       this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.02);
     }
   }
@@ -207,7 +235,7 @@ export class AudioEngine {
     if (!this.workletNode) return;
 
     const payloadShapes = buildAudioPayloadShapes(this.scene);
-    const effectiveGain = (this.isPlaying && !this.isMutedForFocus) ? this.scene.audio.masterGain : 0;
+    const effectiveGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
 
     this.workletNode.port.postMessage({
       type: 'UPDATE_SCENE',
@@ -215,6 +243,7 @@ export class AudioEngine {
         shapes: payloadShapes,
         audioMode: this.scene.audio.audioMode,
         masterGain: effectiveGain,
+        isPlaying: this.isPlaying,
         tplHz: this.scene.anchors.tplFrequencyHz,
       },
     });
@@ -236,10 +265,11 @@ export class AudioEngine {
   }
 
   public getMasterPhase(shapeId: string): number {
-    if (!this.isUnlocked || !this.isPlaying || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
+    const shapeData = this.latestTelemetry?.phases?.[shapeId];
+    const isAuditioning = Boolean(shapeData?.isAuditioning || this.isAuditioningLocal);
+    if (!this.isUnlocked || (!this.isPlaying && !isAuditioning) || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
       return 0.0;
     }
-    const shapeData = this.latestTelemetry?.phases?.[shapeId];
     if (!shapeData) return 0.0;
 
     const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
@@ -247,7 +277,17 @@ export class AudioEngine {
   }
 
   public isAudioActive(): boolean {
-    return this.isUnlocked && this.isPlaying && !this.isMutedForFocus && this.scene.audio.masterGain > 0.0001;
+    const hasAuditioning = Boolean(
+      this.latestTelemetry?.phases &&
+      Object.values(this.latestTelemetry.phases).some((p) => p.isAuditioning)
+    );
+    const activeAuditioning = this.isAuditioningLocal || hasAuditioning;
+    return (
+      this.isUnlocked &&
+      (this.isPlaying || activeAuditioning) &&
+      !this.isMutedForFocus &&
+      this.scene.audio.masterGain > 0.0001
+    );
   }
 
   public isReady(): boolean {

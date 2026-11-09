@@ -22,7 +22,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     scene: Scene,
     _transportTime: number = 0,
     _audioPhase: number = 0,
-    _isAudioActive: boolean = false,
+    isAudioActive: boolean = false,
     labelMode: LensLabelMode = 'duperiod',
     _configOverrides?: Record<string, unknown>,
     noteAge: number = 0
@@ -264,15 +264,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         const ceilingBarH = p.filteredAmp * maxH;
         const rawBarH = p.amp * maxH;
 
-        // Dynamic ADSR envelope evaluation with physical harmonic damping in pitch space
-        let adsrMultiplier = 1.0;
-        if (inPitchSpace && adsr) {
-          adsrMultiplier = evaluatePartialAdsr(adsr, p.ratioValue, noteAge);
-        }
-
-        const dynamicBarH = ceilingBarH * adsrMultiplier;
-        const py = baselineY - dynamicBarH;
-        const pyCeiling = baselineY - ceilingBarH;
+        // Structural bar resting height (invariant across TPL and when transport is paused)
+        const py = baselineY - ceilingBarH;
         const pyRaw = baselineY - rawBarH;
 
         ctx.save();
@@ -283,7 +276,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           ctx.lineWidth = 1.0;
           ctx.setLineDash([2, 3]);
           ctx.beginPath();
-          ctx.moveTo(px, pyCeiling);
+          ctx.moveTo(px, py);
           ctx.lineTo(px, pyRaw);
           ctx.stroke();
           ctx.setLineDash([]);
@@ -293,23 +286,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           ctx.fillRect(px - 2, pyRaw - 1, 4, 2);
         }
 
-        // 2. If ADSR envelope is active and decaying below resting peak ceiling
-        if (inPitchSpace && adsr && ceilingBarH > dynamicBarH + 2) {
-          ctx.strokeStyle = 'rgba(245, 158, 11, 0.28)';
-          ctx.lineWidth = 1.2;
-          ctx.setLineDash([1, 2]);
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.lineTo(px, pyCeiling);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Envelope ceiling cap tick
-          ctx.fillStyle = 'rgba(245, 158, 11, 0.55)';
-          ctx.fillRect(px - 3, pyCeiling - 1, 6, 2);
-        }
-
-        // 3. Active dynamic partial bar
+        // 2. Base structural partial bar (maintains constant geometric shape)
         ctx.strokeStyle = col;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -317,14 +294,64 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.lineTo(px, py);
         ctx.stroke();
 
-        // 4. Tip circle moving dynamically with the envelope
-        const tipRadius = 3.5 + adsrMultiplier * 2.0;
+        // 3. Resting structural tip circle
         ctx.fillStyle = neonCol;
         ctx.beginPath();
-        ctx.arc(px, py, tipRadius, 0, Math.PI * 2);
+        ctx.arc(px, py, 3.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Label formatted according to active labelMode
+        // 4. Dynamic Level Overlay Effect (simulating ADSR curve in pitch space when sounding)
+        let activeLightY = py;
+        let activeLightVelocity = ceilingBarH / maxH;
+
+        const isSounding = isAudioActive || (noteAge > 0 && adsr && noteAge < (adsr.attack + adsr.decay * 2.5 + adsr.release));
+        if (inPitchSpace && adsr && isSounding) {
+          const adsrMultiplier = evaluatePartialAdsr(adsr, p.ratioValue, noteAge);
+          if (adsrMultiplier > 0.005) {
+            const dynamicBarH = ceilingBarH * adsrMultiplier;
+            const pyLevel = baselineY - dynamicBarH;
+            activeLightY = pyLevel;
+            activeLightVelocity = dynamicBarH / maxH;
+
+            // Inner luminous level core
+            ctx.save();
+            ctx.strokeStyle = neonCol;
+            ctx.lineWidth = 3.5;
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            ctx.moveTo(px, baselineY);
+            ctx.lineTo(px, pyLevel);
+            ctx.stroke();
+
+            // Bright white center filament
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.moveTo(px, baselineY);
+            ctx.lineTo(px, pyLevel);
+            ctx.stroke();
+
+            // Sliding indicator bead on top of the dynamic level
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = neonCol;
+            ctx.beginPath();
+            ctx.arc(px, pyLevel, 4.0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(px, pyLevel, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Horizontal indicator level tick
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px - 4, pyLevel - 1, 8, 2);
+            ctx.restore();
+          }
+        }
+
+        // Label anchored to structural tip
         let displayLabel = p.label || addr.syllable;
         if (labelMode === 'pitch') {
           displayLabel = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz).formatted;
@@ -345,8 +372,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         // Add to dynamic lights for WebGL halation & lens flare
         this.dynamicLights.push({
           x: px,
-          y: py,
-          velocity: dynamicBarH / maxH,
+          y: activeLightY,
+          velocity: activeLightVelocity,
           colorHex: neonCol,
         });
       }

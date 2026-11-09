@@ -205,6 +205,16 @@ export const App: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
+  const handleNoteOn = useCallback((shapeId?: string) => {
+    audioEngine.noteOn(shapeId);
+    coordinator.triggerNoteStrike();
+    coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
+  }, [audioEngine, coordinator]);
+
+  const handleNoteOff = useCallback((shapeId?: string) => {
+    audioEngine.noteOff(shapeId);
+  }, [audioEngine]);
+
   const handleTriggerNote = useCallback((shapeId?: string) => {
     audioEngine.triggerNote(shapeId);
     coordinator.triggerNoteStrike();
@@ -269,7 +279,9 @@ export const App: React.FC = () => {
         }));
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        handleTriggerNote();
+        if (!e.repeat) {
+          handleNoteOn();
+        }
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         const targetD = bookmarks.a.d;
@@ -315,9 +327,31 @@ export const App: React.FC = () => {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleNoteOff();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handleTriggerNote, bookmarks]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPlaying, handleTriggerNote, handleNoteOn, handleNoteOff, bookmarks]);
 
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -609,6 +643,8 @@ export const App: React.FC = () => {
         onDeleteShape={handleDeleteUserShape}
         onCreateShape={handleCreateShape}
         onTriggerNote={() => handleTriggerNote()}
+        onNoteOn={() => handleNoteOn()}
+        onNoteOff={() => handleNoteOff()}
       />
 
       <MusicalBookmarksModal

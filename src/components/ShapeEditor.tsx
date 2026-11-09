@@ -28,6 +28,8 @@ interface ShapeEditorProps {
   onDeleteShape?: (shapeId: string) => void;
   onCreateShape?: (newShape: Shape) => void;
   onTriggerNote?: () => void;
+  onNoteOn?: () => void;
+  onNoteOff?: () => void;
 }
 
 export const ShapeEditor: React.FC<ShapeEditorProps> = ({
@@ -41,6 +43,8 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   onDeleteShape,
   onCreateShape,
   onTriggerNote,
+  onNoteOn,
+  onNoteOff,
 }) => {
   const [activeTab, setActiveTab] = useState<'partials' | 'envelope' | 'filter'>('partials');
   const isPreset = shape.origin === 'preset';
@@ -543,12 +547,16 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
                 <span className="text-[9px] text-amber-400 font-mono">Time-varying amplitude in pitch space</span>
               </div>
             </div>
-            {onTriggerNote && (
+            {(onTriggerNote || onNoteOn) && (
               <button
                 type="button"
-                onClick={onTriggerNote}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow-md cursor-pointer"
-                title="Strike acoustic note with current ADSR envelope (Hot key: T)"
+                onMouseDown={onNoteOn || onTriggerNote}
+                onMouseUp={onNoteOff}
+                onTouchStart={onNoteOn || onTriggerNote}
+                onTouchEnd={onNoteOff}
+                onClick={!onNoteOn ? onTriggerNote : undefined}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow-md cursor-pointer select-none"
+                title="Strike acoustic note with current ADSR envelope (Hot key: T - tap or hold)"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Strike Note (T)</span>
