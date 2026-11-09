@@ -8,6 +8,9 @@ import { PostProcessingLight } from './webgl-post-processing';
 export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
   public id = 'waveform-phasor';
   private dynamicLights: PostProcessingLight[] = [];
+  private afterglowIntensity: number = 0;
+  private afterglowY: number = 0;
+  private lastTransportTime: number = 0;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -23,6 +26,18 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     isAudioActive: boolean = false
   ): void {
     this.dynamicLights = [];
+
+    const dt = this.lastTransportTime > 0
+      ? Math.min(0.1, Math.max(0, transportTime - this.lastTransportTime))
+      : 0.016;
+    this.lastTransportTime = transportTime;
+
+    // Decay the afterglow smoothly over ~400ms when audio is active
+    if (!isAudioActive) {
+      this.afterglowIntensity = 0;
+    } else if (this.afterglowIntensity > 0) {
+      this.afterglowIntensity = Math.max(0, this.afterglowIntensity - dt * 2.5);
+    }
 
     const placement = scene.placements[0];
     if (!placement) return;
@@ -92,28 +107,13 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     // 1b. Mark "Sam" / Cycle Repetition Boundaries on the Waveform
     const startCycle = Math.floor(-rotationTurns);
     const endCycle = Math.ceil(numCyclesDrawn - rotationTurns);
+    let currentFrameHitWall = false;
+    let hitWallY = waveCenterY;
 
     for (let c = startCycle; c <= endCycle; c++) {
       const tBoundary = c + rotationTurns;
       if (tBoundary >= 0 && tBoundary <= numCyclesDrawn) {
         const bx = 20 + (tBoundary / numCyclesDrawn) * waveWidth;
-
-        // Vertical boundary line
-        ctx.save();
-        ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(bx, waveCenterY - waveAmpScale - 14);
-        ctx.lineTo(bx, waveCenterY + waveAmpScale + 14);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Sam marker label
-        ctx.fillStyle = '#E13610';
-        ctx.font = 'bold 8px JetBrains Mono, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`SAM / CYCLE`, bx, waveCenterY - waveAmpScale - 18);
 
         // Calculate wave Y at boundary point
         let samYSum = 0;
@@ -126,89 +126,111 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         }
         const samY = waveCenterY - (samNorm > 0 ? (samYSum / samNorm) * waveAmpScale : 0);
 
-        // Detect when the Sam boundary line hits the right edge (onset impact)
+        // Detect when the Sam boundary line approaches or strikes the right edge
         const distToEnd = (20 + waveWidth) - bx;
-        const isOnsetContact = distToEnd >= 0 && distToEnd <= 30;
-        const impactIntensity = isOnsetContact ? Math.max(0, 1 - distToEnd / 30) : 0;
+        const isApproachingWall = distToEnd >= 0 && distToEnd <= 25;
+        const lineImpactIntensity = isApproachingWall ? Math.max(0, 1 - distToEnd / 25) : 0;
 
-        if (isOnsetContact && impactIntensity > 0.05) {
-          // Onset Radial Shockwave Burst
-          ctx.save();
-          const burstRadius = 8 + impactIntensity * 24;
-
-          // Radial gradient flash
-          const grad = ctx.createRadialGradient(bx, samY, 0, bx, samY, burstRadius);
-          grad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * impactIntensity})`);
-          grad.addColorStop(0.4, `rgba(255, 77, 77, ${0.75 * impactIntensity})`);
-          grad.addColorStop(1, 'rgba(255, 77, 77, 0)');
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(bx, samY, burstRadius, 0, Math.PI * 2);
-          ctx.fill();
-
-          // High-contrast kinetic shockwave ring
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * impactIntensity})`;
-          ctx.lineWidth = 2 + impactIntensity * 2.5;
-          ctx.beginPath();
-          ctx.arc(bx, samY, burstRadius * 0.85, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Radiant onset sparks
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5;
-          const numRays = 8;
-          for (let rIdx = 0; rIdx < numRays; rIdx++) {
-            const rayAng = (rIdx / numRays) * Math.PI * 2;
-            const rInner = burstRadius * 0.4;
-            const rOuter = burstRadius * (1.1 + (rIdx % 2) * 0.3);
-            ctx.beginPath();
-            ctx.moveTo(bx + Math.cos(rayAng) * rInner, samY + Math.sin(rayAng) * rInner);
-            ctx.lineTo(bx + Math.cos(rayAng) * rOuter, samY + Math.sin(rayAng) * rOuter);
-            ctx.stroke();
-          }
-
-          // Flashing end-wall onset contact line
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * impactIntensity})`;
-          ctx.lineWidth = 3 + impactIntensity * 4;
-          ctx.beginPath();
-          ctx.moveTo(20 + waveWidth, waveCenterY - waveAmpScale - 16);
-          ctx.lineTo(20 + waveWidth, waveCenterY + waveAmpScale + 16);
-          ctx.stroke();
-
-          // Onset badge pulse
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 9px JetBrains Mono, monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('⚡ SAM ONSET!', bx, waveCenterY - waveAmpScale - 20);
-
-          ctx.restore();
-
-          // Spawn high-intensity optical bloom dynamic light for WebGL post-processing
-          this.dynamicLights.push({
-            x: bx,
-            y: samY,
-            velocity: 1.0,
-            colorHex: '#FFFFFF',
-          });
+        if (distToEnd >= 0 && distToEnd <= 18 && isAudioActive) {
+          currentFrameHitWall = true;
+          hitWallY = samY;
         }
 
-        // Glowing node on the wave
-        ctx.fillStyle = isOnsetContact ? '#ffffff' : '#FF4D4D';
+        const effectiveFlash = Math.max(lineImpactIntensity, this.afterglowIntensity);
+
+        // Vertical boundary line
+        ctx.save();
+        if (effectiveFlash > 0.05) {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + 0.6 * effectiveFlash})`;
+          ctx.lineWidth = 1.5 + effectiveFlash * 1.5;
+        } else {
+          ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+        }
         ctx.beginPath();
-        ctx.arc(bx, samY, isOnsetContact ? 6.0 : 4.5, 0, Math.PI * 2);
+        ctx.moveTo(bx, waveCenterY - waveAmpScale - 14);
+        ctx.lineTo(bx, waveCenterY + waveAmpScale + 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Sam marker label
+        ctx.fillStyle = effectiveFlash > 0.2 ? '#ffffff' : '#E13610';
+        ctx.font = 'bold 8px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`SAM / CYCLE`, bx, waveCenterY - waveAmpScale - 18);
+
+        // Waveform node with soft luminous halo (smooth afterglow, no tacky starburst rays)
+        const nodeRadius = 4.5 + effectiveFlash * 2.0;
+        if (effectiveFlash > 0.05) {
+          const haloRadius = nodeRadius * 2.6;
+          const haloGrad = ctx.createRadialGradient(bx, samY, 0, bx, samY, haloRadius);
+          haloGrad.addColorStop(0, `rgba(255, 255, 255, ${0.8 * effectiveFlash})`);
+          haloGrad.addColorStop(0.45, `rgba(255, 77, 77, ${0.45 * effectiveFlash})`);
+          haloGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
+          ctx.fillStyle = haloGrad;
+          ctx.beginPath();
+          ctx.arc(bx, samY, haloRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = effectiveFlash > 0.1 ? '#ffffff' : '#FF4D4D';
+        ctx.beginPath();
+        ctx.arc(bx, samY, nodeRadius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = isOnsetContact ? '#FF4D4D' : '#ffffff';
-        ctx.lineWidth = isOnsetContact ? 2.0 : 1.5;
+        ctx.strokeStyle = effectiveFlash > 0.1 ? '#FF4D4D' : '#ffffff';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
 
         this.dynamicLights.push({
           x: bx,
           y: samY,
-          velocity: isOnsetContact ? 1.0 : 0.95,
-          colorHex: isOnsetContact ? '#FFFFFF' : '#FF4D4D',
+          velocity: effectiveFlash > 0.2 ? 1.0 : 0.95,
+          colorHex: effectiveFlash > 0.2 ? '#FFFFFF' : '#FF4D4D',
         });
       }
+    }
+
+    if (currentFrameHitWall) {
+      this.afterglowIntensity = 1.0;
+      this.afterglowY = hitWallY;
+    }
+
+    // 1c. Persistent Onset Horizon Afterglow at Waveform End Wall
+    if (this.afterglowIntensity > 0.02) {
+      const xEnd = 20 + waveWidth;
+      const glowY = this.afterglowY || waveCenterY;
+      const glowAmt = this.afterglowIntensity;
+
+      ctx.save();
+      // Luminous end-wall line with smooth decaying afterglow
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.85 * glowAmt})`;
+      ctx.lineWidth = 2 + glowAmt * 3;
+      ctx.beginPath();
+      ctx.moveTo(xEnd, waveCenterY - waveAmpScale - 16);
+      ctx.lineTo(xEnd, waveCenterY + waveAmpScale + 16);
+      ctx.stroke();
+
+      // Soft phosphorescent radial afterglow aura along the wall
+      const auraRadius = 14 + glowAmt * 28;
+      const auraGrad = ctx.createRadialGradient(xEnd, glowY, 0, xEnd, glowY, auraRadius);
+      auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.65 * glowAmt})`);
+      auraGrad.addColorStop(0.4, `rgba(255, 77, 77, ${0.45 * glowAmt})`);
+      auraGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
+      ctx.fillStyle = auraGrad;
+      ctx.beginPath();
+      ctx.arc(xEnd, glowY, auraRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Dynamic light for WebGL post-processing optical bloom
+      this.dynamicLights.push({
+        x: xEnd,
+        y: glowY,
+        velocity: glowAmt,
+        colorHex: '#FF4D4D',
+      });
     }
 
     ctx.fillStyle = '#38bdf8';
