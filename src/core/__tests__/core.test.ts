@@ -3,7 +3,7 @@ import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit } from '../rational';
 import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain } from '../shape';
-import { PRESET_SHAPES } from '../presets';
+import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
 
 describe('Axis Mathematics', () => {
@@ -94,5 +94,33 @@ describe('BandFilter', () => {
     expect(calculateFilterGain(1.5, filter)).toBeCloseTo(0.5, 3);
     // Outside filter has gain 0.0
     expect(calculateFilterGain(2.2, filter)).toBe(0.0);
+  });
+});
+
+describe('Presets & Piano Inharmonicity', () => {
+  it('includes duple presets (1:2 and 1:4)', () => {
+    const duple12 = PRESET_SHAPES.find((s) => s.id === 'duple-1-2');
+    const duple14 = PRESET_SHAPES.find((s) => s.id === 'duple-1-4');
+    expect(duple12).toBeDefined();
+    expect(duple14).toBeDefined();
+    expect(duple12?.partials.length).toBe(2);
+    expect(duple14?.partials.length).toBe(3);
+  });
+
+  it('generates acoustic piano inharmonic partials with stretch coefficient B', () => {
+    const piano = PRESET_SHAPES.find((s) => s.id === 'piano');
+    expect(piano).toBeDefined();
+    expect(piano?.partials.length).toBeGreaterThanOrEqual(10);
+
+    const partials = createPianoPartials(8, 0.0004);
+    // 1st partial is fundamental ratio 1 * sqrt(1 + 0.0004) ≈ 1.0002
+    expect(partials[0].ratio.kind).toBe('real');
+    if (partials[0].ratio.kind === 'real') {
+      expect(partials[0].ratio.value).toBeCloseTo(1.0, 3);
+    }
+    // 8th partial has noticeable stretch > 8
+    if (partials[7].ratio.kind === 'real') {
+      expect(partials[7].ratio.value).toBeGreaterThan(8.0);
+    }
   });
 });

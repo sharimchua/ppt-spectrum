@@ -1,6 +1,6 @@
 import React from 'react';
 import { Scene, Shape } from '../core/types';
-import { dToFreq, dToBpm, resolveDuPeriodAddress } from '../core/axis';
+import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress } from '../core/axis';
 import { Play, Pause } from 'lucide-react';
 
 interface ControlToolbarProps {
@@ -52,19 +52,24 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
       <div className="flex items-center gap-4 max-w-md w-full px-4">
         <div className="flex-1 space-y-1">
           <div className="flex justify-between text-[10px] font-mono">
-            <span className="text-slate-400">Position (d): <strong className="text-white">{dVal.toFixed(2)}</strong></span>
+            <span className="text-slate-400">Tempo / Pitch: <strong className="text-white">{dVal > 0 ? `${bpm.toFixed(0)} BPM` : `${freqHz.toFixed(1)} Hz`}</strong> (d: {dVal.toFixed(2)})</span>
             <span className="text-ppt-mi">{addr.formatted}</span>
-            <span className="text-cyan-400">{freqHz >= 10 ? `${freqHz.toFixed(1)} Hz` : `${bpm.toFixed(0)} BPM`}</span>
+            <span className="text-cyan-400">{dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)} ms` : `${freqHz.toFixed(1)} Hz`}</span>
           </div>
           <input
             type="range"
             min={-7}
             max={7}
             step={0.05}
-            value={dVal}
-            onChange={(e) => onUpdatePlacementD(parseFloat(e.target.value))}
+            value={-dVal}
+            onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
             className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500"
           />
+          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+            <span>◄ Slower (Rhythm / Macro)</span>
+            <span>TPL (25.8 Hz)</span>
+            <span>Faster (Pitch / Micro) ►</span>
+          </div>
         </div>
       </div>
 

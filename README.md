@@ -4,7 +4,14 @@ Interactive teaching instrument for **Prime Period Theory (PPT)** demonstrating 
 
 ## Key Capabilities
 
-- **Single Continuum Axis**: Seamless continuous DuPeriod coordinate $d = \log_2(f_{\text{TPL}} / f)$, bridging rhythmic space ($d > 0$) and pitch space ($d < 0$).
+- **Natural Timeline Continuum (Slower on Left, Faster on Right)**: Slider and ruler axes follow left-to-right orientation ($x = -d$). Slower rhythmic macro cycles (BPM / ms) sit on the left; faster micro pitch frequencies (Hz / semitones) sit on the right.
+- **Rich Presets**:
+  - **Duple Meter (1:2)**: Octave relation in pitch, 2-layer backbeat in rhythm.
+  - **Quadruple Meter (1:4)**: Double octave stack (1:2:4), 4/4 bar subdivision with hierarchical accents.
+  - **Hemiola (3:2)**: The canonical PPT Do-to-So fifth in pitch, 3-against-2 polyrhythm in rhythm.
+  - **Polyrhythms (4:3 and 5:4)**: Perfect fourth and pure Just major third.
+  - **Acoustic Piano**: Struck string physics with inharmonic string-stiffness stretch ($f_k = k \cdot f_0 \sqrt{1 + B k^2}$ where $B \approx 0.0004$) and acoustic decay envelope.
+  - **Sawtooth, Square, Clarinet, Plucked String, Church Bell, and Floating Free-Free Bars**.
 - **Master-Phase Audio Synthesis**: High-performance `AudioWorklet` maintaining continuous phase coherence across exact rational harmonic shapes without phase drift or clicking discontinuities during sliding.
 - **Continuous Perceptual Crossing Kernel**: Smooth crossfade across the $10\text{--}40\text{ Hz}$ transition zone (flutter and roughness) between discrete rhythmic impulses / poetic percussion and fused tonal sinusoids.
 - **Hardware-Accelerated WebGL Optics & Cosmetics**: Full 4-layer viewport architecture ported from `ppt-visualiser`:
@@ -43,5 +50,4 @@ npm run build
 ## Documentation
 
 - [North-Star Design Spec](docs/design-spec.md)
-- [Implementation Plan](https://ppt.midlifemuso.com/reference/)
 - [Prime Period Theory Official Reference](https://ppt.midlifemuso.com/reference/)
