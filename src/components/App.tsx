@@ -226,9 +226,86 @@ export const App: React.FC = () => {
   }, [scene.shapes, scene.placements]);
 
   const handleUpdateActiveShape = useCallback((updated: Shape) => {
+    setScene((prev) => {
+      // If the shape is a preset being modified, clone it into a user shape
+      if (updated.origin === 'preset') {
+        const userShape: Shape = {
+          ...updated,
+          id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+          name: `${updated.name} (Custom)`,
+          origin: 'user',
+        };
+        return {
+          ...prev,
+          shapes: [userShape, ...prev.shapes],
+          placements: prev.placements.map((pl, idx) =>
+            idx === 0 ? { ...pl, shapeId: userShape.id } : pl
+          ),
+        };
+      }
+
+      // If the shape is a new user shape not yet in shapes list, add it
+      const exists = prev.shapes.some((s) => s.id === updated.id);
+      if (!exists) {
+        return {
+          ...prev,
+          shapes: [updated, ...prev.shapes],
+          placements: prev.placements.map((pl, idx) =>
+            idx === 0 ? { ...pl, shapeId: updated.id } : pl
+          ),
+        };
+      }
+
+      return {
+        ...prev,
+        shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
+      };
+    });
+  }, []);
+
+  const handleDuplicateShape = useCallback((sourceShape: Shape) => {
+    const duplicated: Shape = {
+      ...sourceShape,
+      id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+      name: `${sourceShape.name} (Copy)`,
+      origin: 'user',
+      partials: sourceShape.partials.map((p) => ({
+        ...p,
+        id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+      })),
+    };
     setScene((prev) => ({
       ...prev,
-      shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
+      shapes: [duplicated, ...prev.shapes],
+      placements: prev.placements.map((pl, idx) =>
+        idx === 0 ? { ...pl, shapeId: duplicated.id } : pl
+      ),
+    }));
+  }, []);
+
+  const handleDeleteUserShape = useCallback((shapeId: string) => {
+    setScene((prev) => {
+      const remainingShapes = prev.shapes.filter(
+        (s) => s.id !== shapeId || s.origin === 'preset'
+      );
+      const fallbackId = remainingShapes[0]?.id || 'pure-tone';
+      return {
+        ...prev,
+        shapes: remainingShapes,
+        placements: prev.placements.map((pl) =>
+          pl.shapeId === shapeId ? { ...pl, shapeId: fallbackId } : pl
+        ),
+      };
+    });
+  }, []);
+
+  const handleCreateShape = useCallback((newShape: Shape) => {
+    setScene((prev) => ({
+      ...prev,
+      shapes: [newShape, ...prev.shapes],
+      placements: prev.placements.map((pl, idx) =>
+        idx === 0 ? { ...pl, shapeId: newShape.id } : pl
+      ),
     }));
   }, []);
 
@@ -326,6 +403,9 @@ export const App: React.FC = () => {
         onUpdateFilter={(newFilter) => setScene((prev) => ({ ...prev, filter: newFilter }))}
         allShapes={scene.shapes}
         onSelectShape={handleSelectPreset}
+        onDuplicateShape={handleDuplicateShape}
+        onDeleteShape={handleDeleteUserShape}
+        onCreateShape={handleCreateShape}
       />
 
       <SettingsDrawer

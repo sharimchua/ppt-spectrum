@@ -200,4 +200,40 @@ describe('RingClock Dynamic Compact Bands', () => {
     expect(bands.bandMin).toBeLessThanOrEqual(0);
     expect(bands.bandMax).toBeGreaterThanOrEqual(1);
   });
+
+  it('guarantees the TPL line (d = 0) is always visible regardless of placement octave', () => {
+    // Deep in rhythm regime (d = 5.0)
+    const rhythmScene: Scene = {
+      ...dummyScene,
+      placements: [
+        {
+          shapeId: pureToneShape.id,
+          d: 5.0,
+          gain: 1.0,
+          mute: false,
+          solo: false,
+        },
+      ],
+    };
+    const rhythmBands = calculateRingClockBands(rhythmScene, 'auto-compact', 4);
+    expect(rhythmBands.bandMin).toBeLessThanOrEqual(0);
+    expect(rhythmBands.bandMax).toBeGreaterThanOrEqual(5);
+
+    // Deep in pitch regime (d = -5.0)
+    const pitchScene: Scene = {
+      ...dummyScene,
+      placements: [
+        {
+          shapeId: pureToneShape.id,
+          d: -5.0,
+          gain: 1.0,
+          mute: false,
+          solo: false,
+        },
+      ],
+    };
+    const pitchBands = calculateRingClockBands(pitchScene, 'auto-compact', 4);
+    expect(pitchBands.bandMin).toBeLessThanOrEqual(-5);
+    expect(pitchBands.bandMax).toBeGreaterThanOrEqual(0);
+  });
 });

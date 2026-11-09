@@ -24,14 +24,11 @@ export function calculateRingClockBands(
     const primaryD = Math.round(scene.placements[0]?.d ?? 0);
     let bandMin = Math.round(primaryD - 3.5);
     let bandMax = bandMin + 7;
-    if (bandMin < -8) {
-      bandMin = -8;
-      bandMax = Math.min(8, bandMin + 7);
-    }
-    if (bandMax > 8) {
-      bandMax = 8;
-      bandMin = Math.max(-8, bandMax - 7);
-    }
+    // Always include 0 (TPL Limen)
+    bandMin = Math.min(0, bandMin);
+    bandMax = Math.max(0, bandMax);
+    bandMin = Math.max(-8, bandMin);
+    bandMax = Math.min(8, bandMax);
     return { bandMin, bandMax };
   }
 
@@ -65,37 +62,21 @@ export function calculateRingClockBands(
   let bMax = Math.ceil(maxD);
   const targetMinRings = Math.max(4, Math.floor(minRings));
 
-  // If Limen (d = 0) is nearby (within 2 octaves), encompass it for context
-  if (bMin > 0 && bMin <= 2) {
-    bMin = 0;
-  }
-  if (bMax < 0 && bMax >= -2) {
-    bMax = 0;
-  }
+  // The TPL line (d = 0) must always be visible regardless of what octaves are being shown
+  bMin = Math.min(0, bMin);
+  bMax = Math.max(0, bMax);
 
-  // Expand bounds symmetrically or towards 0 to guarantee minimum ring count
+  // Expand bounds symmetrically or towards partials to guarantee minimum ring count
   while ((bMax - bMin + 1) < targetMinRings && (bMin > -8 || bMax < 8)) {
-    if (bMin > 0 && bMin > -8) {
+    if (bMin > -8 && (bMax >= 8 || ((bMax - bMin) % 2 === 0))) {
       bMin--;
-    } else if (bMax < 0 && bMax < 8) {
+    } else if (bMax < 8) {
       bMax++;
+    } else if (bMin > -8) {
+      bMin--;
     } else {
-      if (bMin > -8 && (bMax >= 8 || ((bMax - bMin) % 2 === 0))) {
-        bMin--;
-      } else if (bMax < 8) {
-        bMax++;
-      } else if (bMin > -8) {
-        bMin--;
-      } else {
-        break;
-      }
+      break;
     }
-  }
-
-  // Add 1 ring padding for margin if range is still compact (< 8) and within bounds
-  if ((bMax - bMin + 1) < 8) {
-    if (bMin > -8 && bMin > 0) bMin--;
-    else if (bMax < 8 && bMax < 0) bMax++;
   }
 
   bMin = Math.max(-8, bMin);
@@ -113,27 +94,24 @@ function formatRingBandLabel(
   scene: Scene
 ): string {
   const isLimen = bandVal === 0;
-  if (isLimen && labelMode === 'duperiod') {
-    return 'TPL (0)';
-  }
 
   switch (labelMode) {
     case 'bpm': {
       const bpm = dToBpm(bandVal, scene.anchors.tplFrequencyHz);
-      return `${Math.round(bpm)} BPM`;
+      return isLimen ? `TPL (${Math.round(bpm)} BPM)` : `${Math.round(bpm)} BPM`;
     }
     case 'pitch': {
       const freq = dToFreq(bandVal, scene.anchors.tplFrequencyHz);
       const p = freqToPitchRegister(freq, scene.anchors.tuningA4Hz);
-      return `${p.note}${p.octave}`;
+      return isLimen ? `TPL (${p.note}${p.octave})` : `${p.note}${p.octave}`;
     }
     case 'solfege': {
       const addr = resolveDuPeriodAddress(bandVal);
-      return addr.syllable;
+      return isLimen ? `TPL (${addr.syllable})` : addr.syllable;
     }
     case 'duperiod':
     default:
-      return bandVal > 0 ? `+${bandVal}` : `${bandVal}`;
+      return isLimen ? 'TPL (0)' : bandVal > 0 ? `+${bandVal}` : `${bandVal}`;
   }
 }
 
@@ -252,10 +230,29 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
     // Limen title banner or off-screen beacon
     if (isLimenVisible) {
       const rLimen = getRadiusForD(0.0);
-      ctx.fillStyle = '#E13610';
+      const bannerText = 'TEMPORAL-PLACE LIMEN (25.8 Hz / 38.7 ms)';
+      ctx.save();
       ctx.font = 'bold 8px JetBrains Mono, monospace';
+      const textWidth = ctx.measureText(bannerText).width;
+
+      const bannerY =
+        rLimen <= minRadius + 6
+          ? centerY - rLimen - 10
+          : rLimen >= maxRadius - 6
+          ? centerY - rLimen + 12
+          : centerY - rLimen - 6;
+
+      ctx.fillStyle = 'rgba(11, 14, 23, 0.9)';
+      ctx.fillRect(centerX - textWidth / 2 - 4, bannerY - 7, textWidth + 8, 13);
+      ctx.strokeStyle = 'rgba(225, 54, 16, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(centerX - textWidth / 2 - 4, bannerY - 7, textWidth + 8, 13);
+
+      ctx.fillStyle = '#E13610';
       ctx.textAlign = 'center';
-      ctx.fillText('TEMPORAL-PLACE LIMEN (25.8 Hz / 38.7 ms)', centerX, centerY - rLimen - 5);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bannerText, centerX, bannerY - 1);
+      ctx.restore();
     } else if (bandMin > 0) {
       // Limen is inward toward centre hub
       const octavesInward = bandMin;

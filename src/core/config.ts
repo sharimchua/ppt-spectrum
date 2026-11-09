@@ -1,4 +1,4 @@
-import { Scene, CosmeticsConfig } from './types';
+import { Scene, CosmeticsConfig, Shape } from './types';
 import { PRESET_SHAPES } from './presets';
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
 
@@ -98,9 +98,15 @@ export function loadSavedScene(): Scene {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SCENE;
     const parsed = JSON.parse(raw);
+    const userShapes = Array.isArray(parsed.shapes)
+      ? parsed.shapes.filter((s: Shape) => s && s.origin !== 'preset')
+      : [];
+    const mergedShapes = [...PRESET_SHAPES, ...userShapes];
+
     return {
       ...DEFAULT_SCENE,
       ...parsed,
+      shapes: mergedShapes,
       cosmetics: {
         ...DEFAULT_COSMETICS,
         ...(parsed.cosmetics || {}),

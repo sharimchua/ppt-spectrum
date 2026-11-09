@@ -12,6 +12,9 @@ interface TraySheetProps {
   onUpdateFilter?: (filter: BandFilter) => void;
   allShapes?: Shape[];
   onSelectShape?: (shapeId: string) => void;
+  onDuplicateShape?: (shape: Shape) => void;
+  onDeleteShape?: (shapeId: string) => void;
+  onCreateShape?: (newShape: Shape) => void;
 }
 
 export const TraySheet: React.FC<TraySheetProps> = ({
@@ -23,6 +26,9 @@ export const TraySheet: React.FC<TraySheetProps> = ({
   onUpdateFilter,
   allShapes = [],
   onSelectShape,
+  onDuplicateShape,
+  onDeleteShape,
+  onCreateShape,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 30, y: 70 });
@@ -80,7 +86,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
       {/* 1. DESKTOP VIEW: Floating Draggable & Minimizable Window (md+) */}
       <div
         style={{ left: `${position.x}px`, top: `${position.y}px` }}
-        className="hidden md:flex fixed z-50 flex-col w-[420px] max-w-[calc(100vw-2rem)] bg-[#0b0e17]/95 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden transition-shadow select-none animate-in fade-in zoom-in-95 duration-150"
+        className="hidden md:flex fixed z-50 flex-col w-[490px] lg:w-[500px] max-w-[calc(100vw-2rem)] bg-[#0b0e17]/95 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden transition-shadow select-none animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Draggable Title Bar */}
         <div
@@ -119,7 +125,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
 
         {/* Window Content */}
         {!isMinimized && (
-          <div className="p-4 max-h-[75vh] overflow-y-auto">
+          <div className="p-3.5 max-h-[75vh] overflow-y-auto overflow-x-hidden">
             <ShapeEditor
               shape={activeShape}
               onUpdateShape={onUpdateShape}
@@ -127,6 +133,9 @@ export const TraySheet: React.FC<TraySheetProps> = ({
               onUpdateFilter={onUpdateFilter}
               allShapes={allShapes}
               onSelectShape={onSelectShape}
+              onDuplicateShape={onDuplicateShape}
+              onDeleteShape={onDeleteShape}
+              onCreateShape={onCreateShape}
             />
           </div>
         )}
@@ -152,7 +161,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
         </div>
 
         {/* Mobile Scrollable Body */}
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="p-3.5 overflow-y-auto overflow-x-hidden flex-1">
           <ShapeEditor
             shape={activeShape}
             onUpdateShape={onUpdateShape}
@@ -160,6 +169,9 @@ export const TraySheet: React.FC<TraySheetProps> = ({
             onUpdateFilter={onUpdateFilter}
             allShapes={allShapes}
             onSelectShape={onSelectShape}
+            onDuplicateShape={onDuplicateShape}
+            onDeleteShape={onDeleteShape}
+            onCreateShape={onCreateShape}
           />
         </div>
       </div>

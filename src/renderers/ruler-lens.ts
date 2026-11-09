@@ -104,9 +104,13 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
       const ghost = calculateGhostFundamental(shape, f0);
 
-      // Render Ghost Fundamental / Common Sam Anchor
+      // Render Ghost Fundamental / Common Sam Anchor only when there is no physical partial on that frequency
+      const hasPhysicalPartialAtGhost = partials.some(
+        (p) => p.filteredAmp > 0.001 && Math.abs(p.d - ghost.ghostD) < 0.04
+      );
+
       const gx = dToX(ghost.ghostD);
-      if (gx >= 0 && gx <= width) {
+      if (!hasPhysicalPartialAtGhost && gx >= 0 && gx <= width) {
         const ghostH = height * 0.52;
         const gy = baselineY - ghostH;
 
