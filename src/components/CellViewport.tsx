@@ -12,6 +12,8 @@ import { RingClockLensRenderer } from '../renderers/ring-clock-lens';
 import { CycleWheelLensRenderer } from '../renderers/cycle-wheel-lens';
 import { WaveformPhasorLensRenderer } from '../renderers/waveform-phasor-lens';
 import { PrimeProfileLensRenderer } from '../renderers/prime-profile-lens';
+import { EventLanesLensRenderer } from '../renderers/event-lanes-lens';
+import { AlignmentMeterLensRenderer } from '../renderers/alignment-meter-lens';
 import { Columns, Rows, Copy, Trash2 } from 'lucide-react';
 
 interface CellViewportProps {
@@ -57,6 +59,12 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         break;
       case 'prime-profile':
         renderer = new PrimeProfileLensRenderer();
+        break;
+      case 'event-lanes':
+        renderer = new EventLanesLensRenderer();
+        break;
+      case 'alignment-meter':
+        renderer = new AlignmentMeterLensRenderer();
         break;
       case 'ruler':
       default:
@@ -104,6 +112,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     { id: 'cycle-wheel', label: 'Cycle Wheel' },
     { id: 'waveform-phasor', label: 'Waveform' },
     { id: 'prime-profile', label: 'Prime Profile' },
+    { id: 'event-lanes', label: 'Event Lanes' },
+    { id: 'alignment-meter', label: 'Alignment Meter' },
   ];
 
   return (

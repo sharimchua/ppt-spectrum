@@ -12,6 +12,9 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/CellViewport.tsx` — Modular lens cell wrapper providing canvas high-DPI binding and in-place layout editor controls (lens switcher, split row/col, duplicate, remove).
 - `src/components/CaptureModal.tsx` — Rhythm tap pad with 11-limit DuPeriod rationaliser and microphone pitch detector.
 - `src/components/InfoModal.tsx` — Interactive 4-step theory walkthrough and primer for Prime Period Theory.
+- `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
+- `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
+- `src/components/ShapeEditor.tsx` — Interactive partial inspector, harmonic inharmonicity stretch macros ($B$), and rolloff damping controls.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
 
 ## Local Contracts

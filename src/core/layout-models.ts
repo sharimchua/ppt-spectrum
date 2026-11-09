@@ -5,7 +5,9 @@ export type SpectrumLensType =
   | 'ring-clock'
   | 'cycle-wheel'
   | 'waveform-phasor'
-  | 'prime-profile';
+  | 'prime-profile'
+  | 'event-lanes'
+  | 'alignment-meter';
 
 export interface LayoutCellNode {
   id: string;
@@ -586,6 +588,10 @@ export function getLensDisplayName(module: SpectrumLensType): string {
       return 'Waveform Phasor';
     case 'prime-profile':
       return 'Prime Profile';
+    case 'event-lanes':
+      return 'Event Lanes';
+    case 'alignment-meter':
+      return 'Alignment Meter';
     default:
       return 'Lens';
   }

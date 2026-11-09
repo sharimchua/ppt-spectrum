@@ -14,6 +14,8 @@ import {
   Minimize2,
   HelpCircle,
   ChevronDown,
+  Settings,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface ControlToolbarProps {
@@ -22,6 +24,7 @@ interface ControlToolbarProps {
   currentLayoutId: string;
   isEditMode?: boolean;
   isFullscreen?: boolean;
+  isShapeEditorOpen?: boolean;
   onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
@@ -30,6 +33,8 @@ interface ControlToolbarProps {
   onToggleEditMode?: () => void;
   onShareLayout?: () => void;
   onToggleFullscreen?: () => void;
+  onToggleSettings?: () => void;
+  onToggleShapeEditor?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
 }
@@ -40,6 +45,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   currentLayoutId,
   isEditMode = false,
   isFullscreen = false,
+  isShapeEditorOpen = false,
   onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
@@ -48,6 +54,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleEditMode,
   onShareLayout,
   onToggleFullscreen,
+  onToggleSettings,
+  onToggleShapeEditor,
   onOpenCapture,
   onOpenInfo,
 }) => {
@@ -259,6 +267,32 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Share Layout & Deep Link"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          {/* Shape Synthesiser Inspector Button */}
+          {onToggleShapeEditor && (
+            <button
+              onClick={onToggleShapeEditor}
+              className={`p-1.5 rounded-md border transition cursor-pointer ${
+                isShapeEditorOpen
+                  ? 'bg-red-600/30 border-red-500 text-red-300 shadow-[0_0_8px_rgba(225,54,16,0.4)]'
+                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+              title="Shape Partial Inspector & Inharmonicity Macros"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Settings Drawer Button */}
+          {onToggleSettings && (
+            <button
+              onClick={onToggleSettings}
+              className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+              title="Settings & Visual Cosmetics"
+            >
+              <Settings className="w-3.5 h-3.5" />
             </button>
           )}
 

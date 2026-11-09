@@ -11,7 +11,11 @@ The `src/renderers` domain contains all high-performance 2D Canvas and WebGL gra
 - `src/renderers/render-coordinator.ts` — Central 60 FPS `requestAnimationFrame` loop, cached viewport client bounds, real-time focus auto-mute, frame-time governor, and WCAG 2.2 Three-Flashes safety logic.
 - `src/renderers/ruler-lens.ts` — DuPeriod horizontal axis ($x = -d$), TPL transition zone ($10\text{--}40\text{ Hz}$), shape partial markers, and BandFilter window.
 - `src/renderers/ring-clock-lens.ts` — Concentric DuPeriod spiral clock extending polar pitch representations across the limen.
-- `src/renderers/cycle-wheel-lens.ts` — Circular polyrhythmic cycle wheel with spokes at coincidences and ghost fundamental cycle boundaries.
+- `src/renderers/cycle-wheel-lens.ts` — Circular polyrhythmic cycle wheel with spokes at coincidences, sample-accurate sweep playhead, and ghost fundamental cycle boundaries.
+- `src/renderers/waveform-phasor-lens.ts` — Composite travelling wave simulation with rotating partial phasors.
+- `src/renderers/prime-profile-lens.ts` — Prime harmonic spectrum bars partitioned by 2, 3, 5, 7, 11, and >11 prime families.
+- `src/renderers/event-lanes-lens.ts` — Horizontal partial ticker lanes with composite collision ripple track.
+- `src/renderers/alignment-meter-lens.ts` — Real-time Plomp-Levelt sensory roughness curve and Tenney harmonic complexity meter.
 
 ## Local Contracts
 

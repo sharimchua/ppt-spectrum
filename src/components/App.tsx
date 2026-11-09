@@ -24,6 +24,8 @@ import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { CaptureModal } from './CaptureModal';
 import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
+import { SettingsDrawer } from './SettingsDrawer';
+import { TraySheet } from './TraySheet';
 
 // Helper to extract layout slug from URL query or hash
 function extractLayoutSlugFromUrl(): string | null {
@@ -44,6 +46,8 @@ export const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
 
   // Initialize layout from URL slug if present, otherwise default to PRESET_SOLO
   const [layout, setLayout] = useState<LayoutDefinition>(() => {
@@ -219,6 +223,18 @@ export const App: React.FC = () => {
     setLayout(fallback);
   }, [layout.id]);
 
+  const activeShape = useMemo(() => {
+    const primaryId = scene.placements[0]?.shapeId;
+    return scene.shapes.find((s) => s.id === primaryId) || scene.shapes[0];
+  }, [scene.shapes, scene.placements]);
+
+  const handleUpdateActiveShape = useCallback((updated: Shape) => {
+    setScene((prev) => ({
+      ...prev,
+      shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
+    }));
+  }, []);
+
   const handleUpdateCell = useCallback((updatedCell: LayoutCellNode) => {
     setLayout((prev) => ({
       ...prev,
@@ -250,6 +266,7 @@ export const App: React.FC = () => {
         currentLayoutId={layout.id}
         isEditMode={isEditMode}
         isFullscreen={isFullscreen}
+        isShapeEditorOpen={isShapeEditorOpen}
         onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
@@ -258,6 +275,8 @@ export const App: React.FC = () => {
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
         onShareLayout={handleShareLayout}
         onToggleFullscreen={handleToggleFullscreen}
+        onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
+        onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
       />
@@ -298,6 +317,21 @@ export const App: React.FC = () => {
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
         onPlayDemo={handleTogglePlay}
+      />
+
+      <TraySheet
+        isOpen={isShapeEditorOpen}
+        onClose={() => setIsShapeEditorOpen(false)}
+        activeShape={activeShape}
+        onUpdateShape={handleUpdateActiveShape}
+      />
+
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        scene={scene}
+        onUpdateScene={setScene}
+        onOpenInfoModal={() => setIsInfoOpen(true)}
       />
     </div>
   );
