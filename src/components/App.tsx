@@ -1,34 +1,33 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Scene, Shape } from '../core/types';
 import { DEFAULT_SCENE, loadSavedScene, saveScene } from '../core/config';
 import { RenderCoordinator } from '../renderers/render-coordinator';
 import { AudioEngine } from '../audio/audio-engine';
-import { RegisteredLensRenderer } from '../renderers/render-coordinator';
-import { RulerLensRenderer } from '../renderers/ruler-lens';
-import { RingClockLensRenderer } from '../renderers/ring-clock-lens';
-import { CycleWheelLensRenderer } from '../renderers/cycle-wheel-lens';
-import { WaveformPhasorLensRenderer } from '../renderers/waveform-phasor-lens';
-import { PrimeProfileLensRenderer } from '../renderers/prime-profile-lens';
+import {
+  LayoutDefinition,
+  PRESET_SOLO,
+  SpectrumLensType,
+} from '../core/layout-models';
 import { SpectrumViewport } from './SpectrumViewport';
-import { ControlToolbar, ActiveLensTab } from './ControlToolbar';
+import { ControlToolbar } from './ControlToolbar';
+import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { CaptureModal } from './CaptureModal';
+import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 
 export const App: React.FC = () => {
   const [scene, setScene] = useState<Scene>(() => loadSavedScene() || DEFAULT_SCENE);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [activeLens, setActiveLens] = useState<ActiveLensTab>('ruler');
+  const [layout, setLayout] = useState<LayoutDefinition>(PRESET_SOLO);
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
+
+  // Check if intro should be shown on launch
+  const [isInfoOpen, setIsInfoOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEY_DONT_SHOW_INTRO) !== 'true';
+  });
 
   const coordinator = useMemo(() => new RenderCoordinator(scene), []);
   const audioEngine = useMemo(() => new AudioEngine(scene), []);
-  const lensCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Instantiated lenses
-  const rulerLens = useMemo(() => new RulerLensRenderer(), []);
-  const ringClockLens = useMemo(() => new RingClockLensRenderer(), []);
-  const cycleWheelLens = useMemo(() => new CycleWheelLensRenderer(), []);
-  const waveformPhasorLens = useMemo(() => new WaveformPhasorLensRenderer(), []);
-  const primeProfileLens = useMemo(() => new PrimeProfileLensRenderer(), []);
 
   // Sync state updates to audio engine and persistence
   useEffect(() => {
@@ -37,50 +36,13 @@ export const App: React.FC = () => {
     saveScene(scene);
   }, [scene, coordinator, audioEngine]);
 
-  // Register active lens with coordinator
-  useEffect(() => {
-    const canvas = lensCanvasRef.current;
-    if (!canvas) return;
-
-    let renderer: RegisteredLensRenderer = rulerLens;
-    if (activeLens === 'ring-clock') renderer = ringClockLens;
-    else if (activeLens === 'cycle-wheel') renderer = cycleWheelLens;
-    else if (activeLens === 'waveform-phasor') renderer = waveformPhasorLens;
-    else if (activeLens === 'prime-profile') renderer = primeProfileLens;
-
-    coordinator.registerLens('active-lens', canvas, renderer);
-
-    return () => {
-      coordinator.unregisterLens('active-lens');
-    };
-  }, [coordinator, activeLens, rulerLens, ringClockLens, cycleWheelLens, waveformPhasorLens, primeProfileLens]);
-
-  // High-DPI canvas resize
-  useEffect(() => {
-    const handleResize = () => {
-      const canvas = lensCanvasRef.current;
-      if (!canvas) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const handleTogglePlay = async () => {
     if (!isPlaying) {
       const ok = await audioEngine.unlock();
       if (ok) {
         setIsPlaying(true);
-        const canvas = lensCanvasRef.current;
-        if (canvas) {
-          coordinator.cosmeticsEngine.triggerShockwave(canvas.width / 2, canvas.height * 0.72, '#E13610', 90);
-          coordinator.cosmeticsEngine.spawnNoteSparks(canvas.width / 2, canvas.height * 0.72, '#FF4D4D', 1.0, 24);
-        }
+        coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
+        coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#FF4D4D', 1.0, 24);
       }
     } else {
       audioEngine.updateScene({
@@ -130,12 +92,28 @@ export const App: React.FC = () => {
       ],
     }));
 
-    // Trigger visual celebration
-    const canvas = lensCanvasRef.current;
-    if (canvas) {
-      coordinator.cosmeticsEngine.triggerShockwave(canvas.width / 2, canvas.height / 2, '#38bdf8', 120);
-      coordinator.cosmeticsEngine.spawnFluidDroplets(canvas.width / 2, canvas.height / 2, '#38bdf8', 1.0, 32);
-    }
+    coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#38bdf8', 120);
+    coordinator.cosmeticsEngine.spawnFluidDroplets(window.innerWidth / 2, window.innerHeight / 2, '#38bdf8', 1.0, 32);
+  };
+
+  const handleUpdateCellModule = (cellId: string, newModule: SpectrumLensType) => {
+    const updateRecursive = (node: any): any => {
+      if (node.type === 'cell') {
+        if (node.id === cellId) {
+          return { ...node, module: newModule, title: newModule };
+        }
+        return node;
+      }
+      return {
+        ...node,
+        children: node.children.map(updateRecursive),
+      };
+    };
+
+    setLayout((prev) => ({
+      ...prev,
+      root: updateRecursive(prev.root),
+    }));
   };
 
   return (
@@ -143,18 +121,24 @@ export const App: React.FC = () => {
       <ControlToolbar
         scene={scene}
         isPlaying={isPlaying}
-        activeLens={activeLens}
-        onSelectLens={setActiveLens}
+        currentLayoutId={layout.id}
+        onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
         onSelectPreset={handleSelectPreset}
         onToggleAudioMode={handleToggleAudioMode}
         onOpenCapture={() => setIsCaptureOpen(true)}
+        onOpenInfo={() => setIsInfoOpen(true)}
       />
 
       <SpectrumViewport scene={scene} coordinator={coordinator}>
-        <div className="relative w-full h-full">
-          <canvas ref={lensCanvasRef} className="absolute inset-0 block w-full h-full cursor-grab active:cursor-grabbing" />
+        <div className="relative w-full h-full p-2 sm:p-3">
+          <FlexLayoutRenderer
+            node={layout.root}
+            scene={scene}
+            coordinator={coordinator}
+            onUpdateCellModule={handleUpdateCellModule}
+          />
         </div>
       </SpectrumViewport>
 
@@ -163,6 +147,12 @@ export const App: React.FC = () => {
         onClose={() => setIsCaptureOpen(false)}
         onCaptureShape={handleCaptureShape}
         tplHz={scene.anchors.tplFrequencyHz}
+      />
+
+      <InfoModal
+        isOpen={isInfoOpen}
+        onClose={() => setIsInfoOpen(false)}
+        onPlayDemo={handleTogglePlay}
       />
     </div>
   );

@@ -1,32 +1,33 @@
 import React from 'react';
 import { Scene, Shape } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress } from '../core/axis';
-import { Play, Pause, Radio, Layers } from 'lucide-react';
-
-export type ActiveLensTab = 'ruler' | 'ring-clock' | 'cycle-wheel' | 'waveform-phasor' | 'prime-profile';
+import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
+import { Play, Pause, Radio, Layers, HelpCircle } from 'lucide-react';
 
 interface ControlToolbarProps {
   scene: Scene;
   isPlaying: boolean;
-  activeLens: ActiveLensTab;
-  onSelectLens: (lens: ActiveLensTab) => void;
+  currentLayoutId: string;
+  onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
   onSelectPreset: (shapeId: string) => void;
   onToggleAudioMode: () => void;
   onOpenCapture: () => void;
+  onOpenInfo: () => void;
 }
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   scene,
   isPlaying,
-  activeLens,
-  onSelectLens,
+  currentLayoutId,
+  onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
   onSelectPreset,
   onToggleAudioMode,
   onOpenCapture,
+  onOpenInfo,
 }) => {
   const activePlacement = scene.placements[0];
   const dVal = activePlacement ? activePlacement.d : 0;
@@ -34,12 +35,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   const bpm = dToBpm(dVal, scene.anchors.tplFrequencyHz);
   const addr = resolveDuPeriodAddress(dVal);
 
-  const lensButtons: { id: ActiveLensTab; label: string }[] = [
-    { id: 'ruler', label: 'Ruler' },
-    { id: 'ring-clock', label: 'Ring Clock' },
-    { id: 'cycle-wheel', label: 'Cycle Wheel' },
-    { id: 'waveform-phasor', label: 'Wave / Phasor' },
-    { id: 'prime-profile', label: 'Prime Profile' },
+  const layoutButtons: { id: string; label: string }[] = [
+    { id: 'solo', label: 'Solo Ruler' },
+    { id: 'duo-horizontal', label: 'Stacked Duo' },
+    { id: 'duo-vertical', label: 'Side-by-Side' },
+    { id: 'trio', label: 'Teaching Trio' },
   ];
 
   return (
@@ -50,7 +50,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onTogglePlay}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition cursor-pointer ${
               isPlaying
                 ? 'border-red-500 bg-red-600/30 text-red-400 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
                 : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500'
@@ -91,7 +91,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Right: Preset Selector, Audio Mode & Capture */}
+        {/* Right: Preset Selector, Audio Mode, Capture, Info */}
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenCapture}
@@ -116,7 +116,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
           <button
             onClick={onToggleAudioMode}
-            className={`px-2 py-1 rounded border text-[10px] font-mono transition ${
+            className={`px-2 py-1 rounded border text-[10px] font-mono transition cursor-pointer ${
               scene.audio.audioMode === 'poetic'
                 ? 'border-purple-500 bg-purple-950/40 text-purple-300'
                 : 'border-slate-700 bg-slate-800 text-slate-300'
@@ -125,20 +125,31 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           >
             {scene.audio.audioMode.toUpperCase()}
           </button>
+
+          <button
+            onClick={onOpenInfo}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+            title="Theory Primer & Walkthrough"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      {/* Sub-bar: Lens Selector Tabs */}
+      {/* Sub-bar: Layout Presets Selector */}
       <div className="flex items-center justify-between px-4 py-1.5 border-t border-slate-800/80 bg-[#06080e]/60 text-xs">
         <div className="flex items-center gap-1">
           <Layers className="h-3.5 w-3.5 text-slate-500 mr-1" />
-          <span className="text-[10px] uppercase font-bold text-slate-400 mr-2">Lens:</span>
-          {lensButtons.map((btn) => (
+          <span className="text-[10px] uppercase font-bold text-slate-400 mr-2">Layout:</span>
+          {layoutButtons.map((btn) => (
             <button
               key={btn.id}
-              onClick={() => onSelectLens(btn.id)}
+              onClick={() => {
+                const layout = PRESET_LAYOUTS[btn.id];
+                if (layout) onSelectLayout(layout);
+              }}
               className={`px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
-                activeLens === btn.id
+                currentLayoutId === btn.id
                   ? 'bg-slate-700 text-white font-bold border border-slate-600'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
