@@ -167,6 +167,20 @@ describe('Presets & Piano Inharmonicity', () => {
       expect(rVal).toBeCloseTo(1.0, 5);
     }
 
+    // Timbre presets: elementary waveforms (sine, triangle, square, saw) precede acoustic and inharmonic instruments
+    const timbreIds = timbrePresets.map((s) => s.id);
+    expect(timbreIds[0]).toBe('pure-tone');
+    expect(timbreIds[1]).toBe('triangle-like');
+    expect(timbreIds[2]).toBe('square-like');
+    expect(timbreIds[3]).toBe('saw-like');
+    expect(timbreIds.indexOf('piano')).toBeGreaterThan(timbreIds.indexOf('saw-like'));
+
+    // Rhythmic presets: simple binary metre precedes polyrhythms and full grooves
+    const rhythmIds = rhythmPresets.map((s) => s.id);
+    expect(rhythmIds[0]).toBe('duple-1-2');
+    expect(rhythmIds[1]).toBe('duple-1-4');
+    expect(rhythmIds[rhythmIds.length - 1]).toBe('four-on-the-floor');
+
     // Tresillo syncopation has distinct partial frequencies
     const tresillo = rhythmPresets.find((s) => s.id === 'tresillo-3-3-2');
     expect(tresillo).toBeDefined();

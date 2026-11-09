@@ -37,18 +37,30 @@ export function createPianoPartials(count: number = 12, B: number = 0.0004) {
 export const PRESET_SHAPES: Shape[] = [
   // ─────────────────────────────────────────────────────────────
   // 1. RHYTHMIC PATTERNS (Polyrhythms, Metres, Drum Grooves)
+  // Arranged in ascending rhythmic & metric complexity:
+  // Binary metre -> Foundational polyrhythms -> Syncopation -> Full drum groove
   // ─────────────────────────────────────────────────────────────
   {
-    id: 'four-on-the-floor',
-    name: '4 on the Floor (Club Groove)',
+    id: 'duple-1-2',
+    name: 'Duple (1:2 Octave / 2-Layer)',
     origin: 'preset',
     category: 'rhythm',
-    description: 'Classic 4/4 electronic drum groove: kick on all 4 quarter beats, snare on 2 & 4, and offbeat 8th-note open hi-hats. In pitch, transforms into an octave overtone stack.',
+    description: 'Fundamental and 2nd harmonic (octave in pitch, 2-layer pulse in rhythm). 2-prime power.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: 'Kick (4/Floor)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0.25, voice: 'snare', label: 'Snare (2 & 4)' },
-      { id: 'p3', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.65, phase: 0.0625, voice: 'hihat', label: 'Hi-Hat (Offbeat)' },
-      { id: 'p4', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 0.45, phase: 0.125, voice: 'clave', label: 'Clave (Sync)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Downbeat)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Backbeat)' },
+    ]
+  },
+  {
+    id: 'duple-1-4',
+    name: 'Quadruple (1:4 Double Octave / 4-Layer)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: '1 : 2 : 4 power-of-two octave stack. In rhythm, standard 4/4 meter subdivision with hierarchical accents.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Bar)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Half)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.55, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
     ]
   },
   {
@@ -96,29 +108,6 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
-    id: 'duple-1-2',
-    name: 'Duple (1:2 Octave / 2-Layer)',
-    origin: 'preset',
-    category: 'rhythm',
-    description: 'Fundamental and 2nd harmonic (octave in pitch, 2-layer pulse in rhythm). 2-prime power.',
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Downbeat)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Backbeat)' },
-    ]
-  },
-  {
-    id: 'duple-1-4',
-    name: 'Quadruple (1:4 Double Octave / 4-Layer)',
-    origin: 'preset',
-    category: 'rhythm',
-    description: '1 : 2 : 4 power-of-two octave stack. In rhythm, standard 4/4 meter subdivision with hierarchical accents.',
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Bar)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.75, phase: 0, voice: 'snare', label: '2 (Half)' },
-      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.55, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
-    ]
-  },
-  {
     id: 'tresillo-3-3-2',
     name: 'Tresillo Syncopation (3+3+2)',
     origin: 'preset',
@@ -131,9 +120,24 @@ export const PRESET_SHAPES: Shape[] = [
       { id: 'p4', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.55, phase: 0.0625, voice: 'hihat', label: '8 (Eighth Grid)' },
     ]
   },
+  {
+    id: 'four-on-the-floor',
+    name: '4 on the Floor (Club Groove)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: 'Classic 4/4 electronic drum groove: kick on all 4 quarter beats, snare on 2 & 4, and offbeat 8th-note open hi-hats. In pitch, transforms into an octave overtone stack.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: 'Kick (4/Floor)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0.25, voice: 'snare', label: 'Snare (2 & 4)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.65, phase: 0.0625, voice: 'hihat', label: 'Hi-Hat (Offbeat)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 0.45, phase: 0.125, voice: 'clave', label: 'Clave (Sync)' },
+    ]
+  },
 
   // ─────────────────────────────────────────────────────────────
   // 2. HARMONIES & CHORDS (Simulated Fundamentals & Overtones)
+  // Arranged in ascending harmonic complexity:
+  // 3-note triads (Major -> Minor -> Sus4) -> 4-note 7th chords (Dom7 -> Min7 -> Maj7)
   // ─────────────────────────────────────────────────────────────
   {
     id: 'major-triad-4-5-6',
@@ -162,6 +166,19 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
+    id: 'sus4-6-8-9',
+    name: 'Suspended 4th (6 : 8 : 9 Sus4)',
+    origin: 'preset',
+    category: 'harmony',
+    description: 'Suspended 4th triad in 1 : 4/3 : 3/2 proportions with the Root on the fundamental frequency (Do), perfect 4th (Fa), and perfect 5th (So).',
+    adsr: { attack: 0.04, decay: 1.1, sustain: 0.7, release: 0.35, damping: 0.2 },
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Root Do)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 3 }, amp: 0.85, phase: 0, voice: 'snare', label: '4/3 (4th Fa)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 3, den: 2 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '3/2 (5th So)' },
+    ]
+  },
+  {
     id: 'dominant-7th-4-5-6-7',
     name: 'Dominant 7th (4 : 5 : 6 : 7 Harmonic 7th)',
     origin: 'preset',
@@ -173,20 +190,6 @@ export const PRESET_SHAPES: Shape[] = [
       { id: 'p2', ratio: { kind: 'rational', num: 5, den: 4 }, amp: 0.85, phase: 0, voice: 'clave', label: '5/4 (3rd Mi)' },
       { id: 'p3', ratio: { kind: 'rational', num: 3, den: 2 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '3/2 (5th So)' },
       { id: 'p4', ratio: { kind: 'rational', num: 7, den: 4 }, amp: 0.65, phase: 0, voice: 'triangle', label: '7/4 (Harm 7th Te)' },
-    ]
-  },
-  {
-    id: 'major-7th-8-10-12-15',
-    name: 'Major 7th (8 : 10 : 12 : 15)',
-    origin: 'preset',
-    category: 'harmony',
-    description: 'Lush Just Major 7th chord in 1 : 5/4 : 3/2 : 15/8 proportions with the Root on the fundamental frequency (Do), Major 3rd (Mi), Perfect 5th (So), and bright major 7th leading tone (Ti).',
-    adsr: { attack: 0.04, decay: 1.1, sustain: 0.7, release: 0.35, damping: 0.25 },
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Root Do)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 4 }, amp: 0.85, phase: 0, voice: 'clave', label: '5/4 (3rd Mi)' },
-      { id: 'p3', ratio: { kind: 'rational', num: 3, den: 2 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '3/2 (5th So)' },
-      { id: 'p4', ratio: { kind: 'rational', num: 15, den: 8 }, amp: 0.65, phase: 0, voice: 'triangle', label: '15/8 (Maj 7th Ti)' },
     ]
   },
   {
@@ -204,25 +207,30 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
-    id: 'sus4-6-8-9',
-    name: 'Suspended 4th (6 : 8 : 9 Sus4)',
+    id: 'major-7th-8-10-12-15',
+    name: 'Major 7th (8 : 10 : 12 : 15)',
     origin: 'preset',
     category: 'harmony',
-    description: 'Suspended 4th triad in 1 : 4/3 : 3/2 proportions with the Root on the fundamental frequency (Do), perfect 4th (Fa), and perfect 5th (So).',
-    adsr: { attack: 0.04, decay: 1.1, sustain: 0.7, release: 0.35, damping: 0.2 },
+    description: 'Lush Just Major 7th chord in 1 : 5/4 : 3/2 : 15/8 proportions with the Root on the fundamental frequency (Do), Major 3rd (Mi), Perfect 5th (So), and bright major 7th leading tone (Ti).',
+    adsr: { attack: 0.04, decay: 1.1, sustain: 0.7, release: 0.35, damping: 0.25 },
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Root Do)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 3 }, amp: 0.85, phase: 0, voice: 'snare', label: '4/3 (4th Fa)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 4 }, amp: 0.85, phase: 0, voice: 'clave', label: '5/4 (3rd Mi)' },
       { id: 'p3', ratio: { kind: 'rational', num: 3, den: 2 }, amp: 0.75, phase: 0, voice: 'woodblock', label: '3/2 (5th So)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 15, den: 8 }, amp: 0.65, phase: 0, voice: 'triangle', label: '15/8 (Maj 7th Ti)' },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────
   // 3. TIMBRAL PROFILES (Acoustic Instruments & Synthetic Waves)
+  // Arranged in ascending timbral & inharmonic complexity:
+  // Elementary synthetic waves (Sine -> Triangle -> Square -> Saw)
+  // -> Acoustic harmonic instruments (Clarinet -> Plucked String -> Piano)
+  // -> Inharmonic idiophones (Vibraphone Bar -> Church Bell)
   // ─────────────────────────────────────────────────────────────
   {
     id: 'pure-tone',
-    name: 'Pure Tone / Single Beat',
+    name: 'Sine Wave (Pure Tone / Single Beat)',
     origin: 'preset',
     category: 'timbre',
     description: 'Fundamental only (single periodic component). Pure sine wave in pitch, steady metronome click in rhythm.',
@@ -232,13 +240,32 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
-    id: 'piano',
-    name: 'Acoustic Piano (Stretched String)',
+    id: 'triangle-like',
+    name: 'Triangle Wave (Warm / Flute)',
     origin: 'preset',
     category: 'timbre',
-    description: 'Struck steel string with inharmonic string-stiffness stretch (B = 0.0004), percussive hammer attack, and acoustic damping decay.',
-    adsr: { attack: 0.006, decay: 1.8, sustain: 0.22, release: 0.5, damping: 0.6 },
-    partials: createPianoPartials(10, 0.0004),
+    description: 'Odd integer harmonics with steep 1/k² roll-off (1, 1/9, 1/25, 1/49). Warm, mellow, fluty timbre.',
+    adsr: { attack: 0.02, decay: 0.3, sustain: 0.9, release: 0.15, damping: 0.0 },
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'woodblock', label: '1' },
+      { id: 'p3', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1 / 9, phase: 0.5, voice: 'triangle', label: '3' },
+      { id: 'p5', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 1 / 25, phase: 0, voice: 'clave', label: '5' },
+      { id: 'p7', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 1 / 49, phase: 0.5, voice: 'click', label: '7' },
+    ]
+  },
+  {
+    id: 'square-like',
+    name: 'Square Wave (Hollow Reed)',
+    origin: 'preset',
+    category: 'timbre',
+    description: 'Odd integer harmonics only (1, 3, 5, 7) with amp = 1/k. Hollow, woody resonance.',
+    adsr: { attack: 0.02, decay: 0.3, sustain: 0.85, release: 0.2, damping: 0.0 },
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
+      { id: 'p3', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1 / 3, phase: 0, voice: 'woodblock', label: '3' },
+      { id: 'p5', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 1 / 5, phase: 0, voice: 'clave', label: '5' },
+      { id: 'p7', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 1 / 7, phase: 0, voice: 'hihat', label: '7' },
+    ]
   },
   {
     id: 'saw-like',
@@ -256,20 +283,6 @@ export const PRESET_SHAPES: Shape[] = [
       { id: 'p6', ratio: { kind: 'rational', num: 6, den: 1 }, amp: 1 / 6, phase: 0, voice: 'triangle', label: '6' },
       { id: 'p7', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 1 / 7, phase: 0, voice: 'click', label: '7' },
       { id: 'p8', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 1 / 8, phase: 0, voice: 'click', label: '8' },
-    ]
-  },
-  {
-    id: 'square-like',
-    name: 'Square Wave (Hollow Reed)',
-    origin: 'preset',
-    category: 'timbre',
-    description: 'Odd integer harmonics only (1, 3, 5, 7) with amp = 1/k. Hollow, woody resonance.',
-    adsr: { attack: 0.02, decay: 0.3, sustain: 0.85, release: 0.2, damping: 0.0 },
-    partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1' },
-      { id: 'p3', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1 / 3, phase: 0, voice: 'woodblock', label: '3' },
-      { id: 'p5', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 1 / 5, phase: 0, voice: 'clave', label: '5' },
-      { id: 'p7', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 1 / 7, phase: 0, voice: 'hihat', label: '7' },
     ]
   },
   {
@@ -305,19 +318,13 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
-    id: 'bell',
-    name: 'Church Bell (Inharmonic Idiophone)',
+    id: 'piano',
+    name: 'Acoustic Piano (Stretched String)',
     origin: 'preset',
     category: 'timbre',
-    description: 'Acoustic bell with sub-octave hum, minor-third tierce, quint, and nominal octave with long metallic resonance.',
-    adsr: { attack: 0.002, decay: 2.8, sustain: 0.12, release: 0.8, damping: 0.4 },
-    partials: [
-      { id: 'p1', ratio: { kind: 'real', value: 0.5 }, amp: 0.8, phase: 0, voice: 'kick', label: 'Hum' },
-      { id: 'p2', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'snare', label: 'Prime' },
-      { id: 'p3', ratio: { kind: 'real', value: 1.2 }, amp: 0.7, phase: 0, voice: 'woodblock', label: 'Tierce' },
-      { id: 'p4', ratio: { kind: 'real', value: 1.5 }, amp: 0.6, phase: 0, voice: 'clave', label: 'Quint' },
-      { id: 'p5', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0, voice: 'triangle', label: 'Nominal' },
-    ]
+    description: 'Struck steel string with inharmonic string-stiffness stretch (B = 0.0004), percussive hammer attack, and acoustic damping decay.',
+    adsr: { attack: 0.006, decay: 1.8, sustain: 0.22, release: 0.5, damping: 0.6 },
+    partials: createPianoPartials(10, 0.0004),
   },
   {
     id: 'floating-bars',
@@ -331,6 +338,21 @@ export const PRESET_SHAPES: Shape[] = [
       { id: 'p2', ratio: { kind: 'real', value: 2.756 }, amp: 0.65, phase: 0, voice: 'woodblock', label: 'Mode 2' },
       { id: 'p3', ratio: { kind: 'real', value: 5.404 }, amp: 0.45, phase: 0, voice: 'clave', label: 'Mode 3' },
       { id: 'p4', ratio: { kind: 'real', value: 8.933 }, amp: 0.28, phase: 0, voice: 'triangle', label: 'Mode 4' },
+    ]
+  },
+  {
+    id: 'bell',
+    name: 'Church Bell (Inharmonic Idiophone)',
+    origin: 'preset',
+    category: 'timbre',
+    description: 'Acoustic bell with sub-octave hum, minor-third tierce, quint, and nominal octave with long metallic resonance.',
+    adsr: { attack: 0.002, decay: 2.8, sustain: 0.12, release: 0.8, damping: 0.4 },
+    partials: [
+      { id: 'p1', ratio: { kind: 'real', value: 0.5 }, amp: 0.8, phase: 0, voice: 'kick', label: 'Hum' },
+      { id: 'p2', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'snare', label: 'Prime' },
+      { id: 'p3', ratio: { kind: 'real', value: 1.2 }, amp: 0.7, phase: 0, voice: 'woodblock', label: 'Tierce' },
+      { id: 'p4', ratio: { kind: 'real', value: 1.5 }, amp: 0.6, phase: 0, voice: 'clave', label: 'Quint' },
+      { id: 'p5', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0, voice: 'triangle', label: 'Nominal' },
     ]
   }
 ];
