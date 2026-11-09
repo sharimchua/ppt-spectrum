@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Scene, Shape } from '../core/types';
 import { DEFAULT_SCENE, loadSavedScene, saveScene } from '../core/config';
 import { RenderCoordinator } from '../renderers/render-coordinator';
@@ -96,7 +96,22 @@ export const App: React.FC = () => {
   });
 
   const coordinator = useMemo(() => new RenderCoordinator(scene), []);
-  const audioEngine = useMemo(() => new AudioEngine(scene), []);
+  const audioEngine = useMemo(() => AudioEngine.getInstance(scene), []);
+  const sceneRef = useRef<Scene>(scene);
+  sceneRef.current = scene;
+
+  const updateScene = useCallback(
+    (updater: Scene | ((prev: Scene) => Scene)) => {
+      setScene((prev) => {
+        const next = typeof updater === 'function' ? (updater as (p: Scene) => Scene)(prev) : updater;
+        sceneRef.current = next;
+        audioEngine.updateScene(next);
+        coordinator.setScene(next);
+        return next;
+      });
+    },
+    [audioEngine, coordinator]
+  );
 
   // Connect AudioEngine sample-accurate telemetry to RenderCoordinator
   useEffect(() => {
@@ -156,7 +171,7 @@ export const App: React.FC = () => {
 
       const currentGlideD = startD + span * progress;
 
-      setScene((prev) => {
+      updateScene((prev) => {
         const updatedPlacements = prev.placements.map((p, idx) =>
           idx === 0 ? { ...p, d: currentGlideD } : p
         );
@@ -168,7 +183,7 @@ export const App: React.FC = () => {
 
     animId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animId);
-  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec, bookmarks.dwellSec]);
+  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec, bookmarks.dwellSec, updateScene]);
 
   // Persist last selected layout to localStorage
   useEffect(() => {
@@ -206,7 +221,7 @@ export const App: React.FC = () => {
   }, []);
 
   const handleNoteOn = useCallback((shapeId?: string) => {
-    audioEngine.noteOn(shapeId);
+    audioEngine.noteOn(shapeId, sceneRef.current);
     coordinator.triggerNoteStrike();
     coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
   }, [audioEngine, coordinator]);
@@ -216,7 +231,7 @@ export const App: React.FC = () => {
   }, [audioEngine]);
 
   const handleTriggerNote = useCallback((shapeId?: string) => {
-    audioEngine.triggerNote(shapeId);
+    audioEngine.triggerNote(shapeId, sceneRef.current);
     coordinator.triggerNoteStrike();
     coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
   }, [audioEngine, coordinator]);
@@ -226,7 +241,6 @@ export const App: React.FC = () => {
       const ok = await audioEngine.play();
       if (ok) {
         setIsPlaying(true);
-        handleTriggerNote();
         coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
       }
     } else {
@@ -270,7 +284,7 @@ export const App: React.FC = () => {
         setIsOscillating((prev) => !prev);
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        setScene((prev) => ({
+        updateScene((prev) => ({
           ...prev,
           filter: {
             ...prev.filter,
@@ -285,24 +299,22 @@ export const App: React.FC = () => {
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         const targetD = bookmarks.a.d;
-        setScene((prev) => ({
+        updateScene((prev) => ({
           ...prev,
           placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
         }));
-        handleTriggerNote();
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
         const targetD = bookmarks.b.d;
-        setScene((prev) => ({
+        updateScene((prev) => ({
           ...prev,
           placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
         }));
-        handleTriggerNote();
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
         // Move UP in frequency / pitch (decrease d)
         e.preventDefault();
         const step = e.shiftKey ? 0.5 : 1.0;
-        setScene((prev) => {
+        updateScene((prev) => {
           const curD = prev.placements[0]?.d ?? 0;
           const targetD = Math.max(-7, Math.min(7, curD - step));
           return {
@@ -310,12 +322,11 @@ export const App: React.FC = () => {
             placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
           };
         });
-        handleTriggerNote();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
         // Move DOWN in frequency / pitch (increase d)
         e.preventDefault();
         const step = e.shiftKey ? 0.5 : 1.0;
-        setScene((prev) => {
+        updateScene((prev) => {
           const curD = prev.placements[0]?.d ?? 0;
           const targetD = Math.max(-7, Math.min(7, curD + step));
           return {
@@ -323,7 +334,6 @@ export const App: React.FC = () => {
             placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
           };
         });
-        handleTriggerNote();
       }
     };
 
@@ -362,21 +372,21 @@ export const App: React.FC = () => {
   };
 
   const handleUpdatePlacementD = (d: number) => {
-    setScene((prev) => {
+    updateScene((prev) => {
       const updatedPlacements = prev.placements.map((p, idx) => (idx === 0 ? { ...p, d } : p));
       return { ...prev, placements: updatedPlacements };
     });
   };
 
   const handleSelectPreset = (shapeId: string) => {
-    setScene((prev) => {
+    updateScene((prev) => {
       const updatedPlacements = prev.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId } : p));
       return { ...prev, placements: updatedPlacements };
     });
   };
 
   const handleToggleAudioMode = () => {
-    setScene((prev) => ({
+    updateScene((prev) => ({
       ...prev,
       audio: {
         ...prev.audio,
@@ -458,7 +468,7 @@ export const App: React.FC = () => {
   }, [scene.shapes, scene.placements]);
 
   const handleUpdateActiveShape = useCallback((updated: Shape) => {
-    setScene((prev) => {
+    updateScene((prev) => {
       // If the shape is a preset being modified, clone it into a user shape
       if (updated.origin === 'preset') {
         const userShape: Shape = {
@@ -493,7 +503,7 @@ export const App: React.FC = () => {
         shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
       };
     });
-  }, []);
+  }, [updateScene]);
 
   const handleDuplicateShape = useCallback((sourceShape: Shape) => {
     const duplicated: Shape = {
@@ -506,17 +516,17 @@ export const App: React.FC = () => {
         id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
       })),
     };
-    setScene((prev) => ({
+    updateScene((prev) => ({
       ...prev,
       shapes: [duplicated, ...prev.shapes],
       placements: prev.placements.map((pl, idx) =>
         idx === 0 ? { ...pl, shapeId: duplicated.id } : pl
       ),
     }));
-  }, []);
+  }, [updateScene]);
 
   const handleDeleteUserShape = useCallback((shapeId: string) => {
-    setScene((prev) => {
+    updateScene((prev) => {
       const remainingShapes = prev.shapes.filter(
         (s) => s.id !== shapeId || s.origin === 'preset'
       );
@@ -529,17 +539,17 @@ export const App: React.FC = () => {
         ),
       };
     });
-  }, []);
+  }, [updateScene]);
 
   const handleCreateShape = useCallback((newShape: Shape) => {
-    setScene((prev) => ({
+    updateScene((prev) => ({
       ...prev,
       shapes: [newShape, ...prev.shapes],
       placements: prev.placements.map((pl, idx) =>
         idx === 0 ? { ...pl, shapeId: newShape.id } : pl
       ),
     }));
-  }, []);
+  }, [updateScene]);
 
   const handleUpdateCell = useCallback((updatedCell: LayoutCellNode) => {
     setLayout((prev) => ({
@@ -586,7 +596,7 @@ export const App: React.FC = () => {
         onToggleFullscreen={handleToggleFullscreen}
         onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
-        onToggleFilter={() => setScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
+        onToggleFilter={() => updateScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
       />
@@ -636,7 +646,7 @@ export const App: React.FC = () => {
         activeShape={activeShape}
         onUpdateShape={handleUpdateActiveShape}
         filter={scene.filter}
-        onUpdateFilter={(newFilter) => setScene((prev) => ({ ...prev, filter: newFilter }))}
+        onUpdateFilter={(newFilter) => updateScene((prev) => ({ ...prev, filter: newFilter }))}
         allShapes={scene.shapes}
         onSelectShape={handleSelectPreset}
         onDuplicateShape={handleDuplicateShape}
@@ -666,7 +676,7 @@ export const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         scene={scene}
-        onUpdateScene={setScene}
+        onUpdateScene={updateScene}
         onOpenInfoModal={() => setIsInfoOpen(true)}
       />
     </div>

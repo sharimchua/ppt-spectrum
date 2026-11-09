@@ -20,11 +20,50 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (event) => {
       const { type, payload } = event.data;
       if (type === 'UPDATE_SCENE') {
+        const wasPlaying = this.isPlaying;
         this.shapes = payload.shapes || [];
         this.audioMode = payload.audioMode || 'poetic';
         this.masterGain = payload.masterGain !== undefined ? payload.masterGain : 0.75;
         this.tplHz = payload.tplHz || 25.8;
         this.isPlaying = !!payload.isPlaying;
+
+        // If transport stopped, silence all active notes and auditions immediately
+        if (wasPlaying && !this.isPlaying) {
+          for (const st of this.noteStates.values()) {
+            st.isAuditioning = false;
+            st.isKeyDown = false;
+            st.isReleased = false;
+            st.noteAge = 0;
+            st.releaseAge = 0;
+            st.rhythmTurnsElapsed = 0;
+          }
+          for (const v of this.voiceStates.values()) {
+            v.active = false;
+          }
+        }
+
+        // Clean up stale noteStates / voiceStates for removed shapes
+        const activeIds = new Set(this.shapes.map((s) => s.shapeId));
+        for (const id of this.noteStates.keys()) {
+          if (!activeIds.has(id)) {
+            this.noteStates.delete(id);
+            this.smoothedD.delete(id);
+            this.masterPhases.delete(id);
+          }
+        }
+      } else if (type === 'STOP_ALL') {
+        this.isPlaying = false;
+        for (const st of this.noteStates.values()) {
+          st.isAuditioning = false;
+          st.isKeyDown = false;
+          st.isReleased = false;
+          st.noteAge = 0;
+          st.releaseAge = 0;
+          st.rhythmTurnsElapsed = 0;
+        }
+        for (const v of this.voiceStates.values()) {
+          v.active = false;
+        }
       } else if (type === 'SET_TARGET_D') {
         const { shapeId, targetD } = payload;
         this.smoothedD.set(shapeId, targetD);
@@ -32,12 +71,16 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const { shapeId } = payload || {};
         const targetIds = shapeId ? [shapeId] : (this.shapes.length > 0 ? this.shapes.map((s) => s.shapeId) : Array.from(this.noteStates.keys()));
         for (const id of targetIds) {
+          const targetShape = this.shapes.find((s) => s.shapeId === id);
+          const targetD = targetShape ? targetShape.placementD : (this.shapes[0]?.placementD ?? 0);
+          this.smoothedD.set(id, targetD);
           let st = this.noteStates.get(id);
           if (!st) {
-            st = { noteAge: 0, lastD: 0, isKeyDown: true, isAuditioning: true, isReleased: false, releaseAge: 0, releaseStartAmp: 1.0, rhythmTurnsElapsed: 0 };
+            st = { noteAge: 0, lastD: targetD, isKeyDown: true, isAuditioning: true, isReleased: false, releaseAge: 0, releaseStartAmp: 1.0, rhythmTurnsElapsed: 0 };
             this.noteStates.set(id, st);
           } else {
             st.noteAge = 0;
+            st.lastD = targetD;
             st.isKeyDown = true;
             st.isAuditioning = true;
             st.isReleased = false;
@@ -64,12 +107,16 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const { shapeId } = payload || {};
         const targetIds = shapeId ? [shapeId] : (this.shapes.length > 0 ? this.shapes.map((s) => s.shapeId) : Array.from(this.noteStates.keys()));
         for (const id of targetIds) {
+          const targetShape = this.shapes.find((s) => s.shapeId === id);
+          const targetD = targetShape ? targetShape.placementD : (this.shapes[0]?.placementD ?? 0);
+          this.smoothedD.set(id, targetD);
           let st = this.noteStates.get(id);
           if (!st) {
-            st = { noteAge: 0, lastD: 0, isKeyDown: false, isAuditioning: true, isReleased: false, releaseAge: 0, releaseStartAmp: 1.0, rhythmTurnsElapsed: 0 };
+            st = { noteAge: 0, lastD: targetD, isKeyDown: false, isAuditioning: true, isReleased: false, releaseAge: 0, releaseStartAmp: 1.0, rhythmTurnsElapsed: 0 };
             this.noteStates.set(id, st);
           } else {
             st.noteAge = 0;
+            st.lastD = targetD;
             st.isKeyDown = false;
             st.isAuditioning = true;
             st.isReleased = false;
@@ -116,8 +163,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         nState = { noteAge: 0, lastD: targetD, isKeyDown: false, isAuditioning: false, isReleased: false, releaseAge: 0, releaseStartAmp: 1.0, rhythmTurnsElapsed: 0 };
         this.noteStates.set(shapeId, nState);
       } else if (Math.abs(targetD - nState.lastD) > 0.05) {
-        // Re-trigger envelope on intentional musical pitch step / bookmark jump
-        nState.noteAge = 0;
+        // Re-trigger envelope on intentional musical pitch step only if continuous transport playback is actively running
+        if (this.isPlaying) {
+          nState.noteAge = 0;
+        }
         nState.lastD = targetD;
       }
 

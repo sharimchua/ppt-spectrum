@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SPECTRUM_WORKLET_CODE } from '../worklets/spectrum-synth.worklet';
-import { buildAudioPayloadShapes } from '../audio-engine';
+import { buildAudioPayloadShapes, AudioEngine } from '../audio-engine';
 import { DEFAULT_SCENE } from '../../core/config';
 import { Scene } from '../../core/types';
 
@@ -20,6 +20,34 @@ describe('Audio Synthesiser Worklet Source', () => {
     expect(SPECTRUM_WORKLET_CODE).toContain('const adsr = shape.adsr;');
     expect(SPECTRUM_WORKLET_CODE).toContain('const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;');
     expect(SPECTRUM_WORKLET_CODE).toContain('TRIGGER_NOTE');
+  });
+
+  it('implements STOP_ALL handler and immediately silences notes when playback ceases', () => {
+    expect(SPECTRUM_WORKLET_CODE).toContain("type === 'STOP_ALL'");
+    expect(SPECTRUM_WORKLET_CODE).toContain('wasPlaying && !this.isPlaying');
+  });
+});
+
+describe('AudioEngine Singleton Lifecycle', () => {
+  beforeEach(() => {
+    AudioEngine.resetInstanceForTesting();
+  });
+
+  it('enforces single instance across multiple constructors and accessors', () => {
+    const engine1 = AudioEngine.getInstance(DEFAULT_SCENE);
+    const engine2 = new AudioEngine(DEFAULT_SCENE);
+    const engine3 = AudioEngine.getInstance();
+
+    expect(engine1).toBe(engine2);
+    expect(engine2).toBe(engine3);
+  });
+
+  it('resets instance when destroyed or reset for testing', () => {
+    const engine1 = AudioEngine.getInstance(DEFAULT_SCENE);
+    AudioEngine.resetInstanceForTesting();
+    const engine2 = AudioEngine.getInstance(DEFAULT_SCENE);
+
+    expect(engine1).not.toBe(engine2);
   });
 });
 

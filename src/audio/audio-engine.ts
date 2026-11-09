@@ -1,4 +1,5 @@
 import { Scene, VoiceId, ADSREnvelope } from '../core/types';
+import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
 import { calculateFilterGain } from '../core/shape';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
@@ -55,6 +56,24 @@ export interface AudioTelemetryData {
 }
 
 export class AudioEngine {
+  private static instance: AudioEngine | null = null;
+
+  public static getInstance(initialScene?: Scene): AudioEngine {
+    if (!AudioEngine.instance) {
+      AudioEngine.instance = new AudioEngine(initialScene || DEFAULT_SCENE);
+    } else if (initialScene) {
+      AudioEngine.instance.updateScene(initialScene);
+    }
+    return AudioEngine.instance;
+  }
+
+  public static resetInstanceForTesting(): void {
+    if (AudioEngine.instance) {
+      AudioEngine.instance.destroy();
+      AudioEngine.instance = null;
+    }
+  }
+
   private ctx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private masterGainNode: GainNode | null = null;
@@ -64,17 +83,26 @@ export class AudioEngine {
   private isKeyDownLocal: boolean = false;
   private isAuditioningLocal: boolean = false;
 
-  private scene: Scene;
+  private scene!: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
   private latestTelemetryTime: number = 0;
 
   constructor(initialScene: Scene) {
+    if (AudioEngine.instance) {
+      AudioEngine.instance.updateScene(initialScene);
+      return AudioEngine.instance;
+    }
     this.scene = initialScene;
     if (typeof window !== 'undefined') {
-      window.addEventListener('focus', () => this.handleFocusChange(true));
-      window.addEventListener('blur', () => this.handleFocusChange(false));
+      window.addEventListener('focus', this.onFocus);
+      window.addEventListener('blur', this.onBlur);
+      (window as unknown as { __PPT_AUDIO_ENGINE__?: AudioEngine }).__PPT_AUDIO_ENGINE__ = this;
     }
+    AudioEngine.instance = this;
   }
+
+  private onFocus = (): void => this.handleFocusChange(true);
+  private onBlur = (): void => this.handleFocusChange(false);
 
   public async unlock(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
@@ -147,8 +175,15 @@ export class AudioEngine {
 
   public pause(): void {
     this.isPlaying = false;
+    this.isKeyDownLocal = false;
+    this.isAuditioningLocal = false;
     this.applyMasterGain();
     this.syncSceneToWorklet();
+    if (this.workletNode) {
+      this.workletNode.port.postMessage({
+        type: 'STOP_ALL',
+      });
+    }
   }
 
   public getIsPlaying(): boolean {
@@ -171,7 +206,10 @@ export class AudioEngine {
    * Note On: triggered when user presses down key T or presses Strike Note.
    * Starts note attack in pitch space (sustaining while held), or starts/loops rhythm cycles.
    */
-  public async noteOn(shapeId?: string): Promise<void> {
+  public async noteOn(shapeId?: string, sceneOverride?: Scene): Promise<void> {
+    if (sceneOverride) {
+      this.scene = sceneOverride;
+    }
     this.isKeyDownLocal = true;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
@@ -202,7 +240,10 @@ export class AudioEngine {
   /**
    * Triggers an acoustic note envelope strike.
    */
-  public async triggerNote(shapeId?: string): Promise<void> {
+  public async triggerNote(shapeId?: string, sceneOverride?: Scene): Promise<void> {
+    if (sceneOverride) {
+      this.scene = sceneOverride;
+    }
     this.isKeyDownLocal = false;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
@@ -295,12 +336,20 @@ export class AudioEngine {
   }
 
   public destroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', this.onFocus);
+      window.removeEventListener('blur', this.onBlur);
+      delete (window as unknown as { __PPT_AUDIO_ENGINE__?: AudioEngine }).__PPT_AUDIO_ENGINE__;
+    }
     if (this.ctx) {
-      this.ctx.close();
+      this.ctx.close().catch(() => {});
       this.ctx = null;
       this.workletNode = null;
       this.masterGainNode = null;
       this.isUnlocked = false;
+    }
+    if (AudioEngine.instance === this) {
+      AudioEngine.instance = null;
     }
   }
 }
