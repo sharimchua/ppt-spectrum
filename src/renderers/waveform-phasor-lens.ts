@@ -81,7 +81,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.beginPath();
 
     const waveWidth = splitX - 40;
-    const numCyclesDrawn = 2.5;
+    const numCyclesDrawn = 2.0;
     const xEnd = 20 + waveWidth;
     const yTop = waveCenterY - waveAmpScale - 16;
     const yBottom = waveCenterY + waveAmpScale + 16;
@@ -118,9 +118,9 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
 
       for (const p of partials) {
         if (p.filteredAmp <= 0.001) continue;
-        // Travel wave continuously with transportTime * effectiveVisualRate
+        // Travel wave continuously with transportTime, aligned to 12 o'clock Apex crest
         const wavePhase = (t - rotationTurns) * p.ratioValue + p.phase;
-        ySum += Math.sin(2 * Math.PI * wavePhase) * p.filteredAmp;
+        ySum += Math.cos(2 * Math.PI * wavePhase) * p.filteredAmp;
         ampNorm += p.filteredAmp;
       }
 
@@ -133,7 +133,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     }
     ctx.stroke();
 
-    // 1b. Mark "Sam" / Cycle Repetition Boundaries on the Waveform
+    // 1b. Mark "Sam" / Cycle Repetition Boundaries on the Waveform (Aligned to 12 o'clock Apex)
     const startCycle = Math.floor(-rotationTurns);
     const endCycle = Math.ceil(numCyclesDrawn - rotationTurns);
     let currentFrameHitWall = false;
@@ -144,13 +144,13 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       if (tBoundary >= 0 && tBoundary <= numCyclesDrawn) {
         const bx = 20 + (tBoundary / numCyclesDrawn) * waveWidth;
 
-        // Calculate wave Y at boundary point
+        // Calculate wave Y at boundary point (12 o'clock Apex crest)
         let samYSum = 0;
         let samNorm = 0;
         for (const p of partials) {
           if (p.filteredAmp <= 0.001) continue;
           const phaseAtSam = (tBoundary - rotationTurns) * p.ratioValue + p.phase;
-          samYSum += Math.sin(2 * Math.PI * phaseAtSam) * p.filteredAmp;
+          samYSum += Math.cos(2 * Math.PI * phaseAtSam) * p.filteredAmp;
           samNorm += p.filteredAmp;
         }
         const samY = waveCenterY - (samNorm > 0 ? (samYSum / samNorm) * waveAmpScale : 0);
@@ -187,11 +187,11 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Sam marker label
+        // Sam marker label - Aligned with Apex coincidence
         ctx.fillStyle = isAtContact ? '#ffffff' : '#E13610';
         ctx.font = 'bold 8px JetBrains Mono, monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`SAM / CYCLE`, bx, waveCenterY - waveAmpScale - 18);
+        ctx.fillText(`SAM / APEX`, bx, waveCenterY - waveAmpScale - 18);
 
         // Traveling waveform node (clean, solid dot without premature radial burst)
         const nodeRadius = isAtContact ? 5.5 : 4.5;

@@ -27,6 +27,7 @@ export interface BookmarkSettings {
   a: BookmarkPoint;
   b: BookmarkPoint;
   periodSec: number;
+  dwellSec?: number; // Destination rest duration at Bookmarks A and B
 }
 
 export const STORAGE_KEY_BOOKMARKS = 'ppt_spectrum_bookmarks_v1';
@@ -46,6 +47,7 @@ export const DEFAULT_BOOKMARKS: BookmarkSettings = {
     octave: 4,
   },
   periodSec: 10,
+  dwellSec: 1.5,
 };
 
 export function loadSavedBookmarks(): BookmarkSettings {
@@ -61,6 +63,7 @@ export function loadSavedBookmarks(): BookmarkSettings {
       ...parsed,
       a: { ...DEFAULT_BOOKMARKS.a, ...(parsed.a || {}) },
       b: { ...DEFAULT_BOOKMARKS.b, ...(parsed.b || {}) },
+      dwellSec: parsed.dwellSec !== undefined ? parsed.dwellSec : DEFAULT_BOOKMARKS.dwellSec,
     };
   } catch {
     return DEFAULT_BOOKMARKS;
@@ -411,7 +414,7 @@ export const MusicalBookmarksModal: React.FC<MusicalBookmarksModalProps> = ({
 
             {/* Sweep Duration / Speed Selector */}
             <div className="flex items-center justify-between gap-2 text-[11px] pt-1">
-              <span className="text-slate-400">Sweep Period:</span>
+              <span className="text-slate-400">Glide Speed (Transit):</span>
               <div className="flex items-center gap-1.5">
                 {[5, 10, 16, 24].map((sec) => (
                   <button
@@ -433,8 +436,32 @@ export const MusicalBookmarksModal: React.FC<MusicalBookmarksModalProps> = ({
               </div>
             </div>
 
+            {/* Destination Dwell / Hold Duration Selector */}
+            <div className="flex items-center justify-between gap-2 text-[11px] pt-1">
+              <span className="text-slate-400">Destination Dwell:</span>
+              <div className="flex items-center gap-1.5">
+                {[0, 1.0, 1.5, 2.5, 4.0].map((dSec) => (
+                  <button
+                    key={dSec}
+                    onClick={() => {
+                      const updated = { ...bookmarks, dwellSec: dSec };
+                      onUpdateBookmarks(updated);
+                      saveBookmarks(updated);
+                    }}
+                    className={`px-2 py-1 rounded font-mono font-semibold text-[10px] border transition cursor-pointer ${
+                      (bookmarks.dwellSec ?? DEFAULT_BOOKMARKS.dwellSec) === dSec
+                        ? 'bg-amber-950/80 border-amber-500 text-amber-200 shadow-sm'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {dSec === 0 ? '0s (None)' : `${dSec}s`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="text-[10px] text-slate-400 leading-relaxed">
-              Glides the fundamental continuously between <strong className="text-cyan-300">{bookmarks.a.label}</strong> and <strong className="text-amber-300">{bookmarks.b.label}</strong> with smooth sinusoidal easing, demonstrating how rhythm transforms into audible pitch.
+              Glides the fundamental continuously between <strong className="text-cyan-300">{bookmarks.a.label}</strong> and <strong className="text-amber-300">{bookmarks.b.label}</strong> with smooth easing, pausing at each destination to let students clearly absorb and compare the target pitch or rhythm.
             </div>
           </div>
         </div>

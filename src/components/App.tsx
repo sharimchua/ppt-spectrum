@@ -116,7 +116,7 @@ export const App: React.FC = () => {
     }
   }, [scene, coordinator, audioEngine, isOscillating]);
 
-  // Smooth Sinusoidal Continuum Sweep Oscillation
+  // Smooth Continuum Sweep Oscillation with Destination Dwell Time
   useEffect(() => {
     if (!isOscillating) return;
     let animId: number;
@@ -124,12 +124,35 @@ export const App: React.FC = () => {
     const startD = bookmarks.a.d;
     const targetD = bookmarks.b.d;
     const span = targetD - startD;
-    const periodMs = Math.max(1, bookmarks.periodSec) * 1000;
+
+    // Single one-way glide duration (half of periodSec)
+    const transitMs = Math.max(0.5, (bookmarks.periodSec || 10) / 2) * 1000;
+    // Dwell/hold duration at each destination
+    const dwellMs = Math.max(0, (bookmarks.dwellSec ?? 1.5)) * 1000;
+    // Full roundtrip cycle: (Transit A->B) + (Dwell at B) + (Transit B->A) + (Dwell at A)
+    const totalCycleMs = Math.max(100, 2 * transitMs + 2 * dwellMs);
 
     const step = (now: number) => {
       const elapsed = now - startTime;
-      const phase = (elapsed / periodMs) * 2 * Math.PI;
-      const progress = (1 - Math.cos(phase)) * 0.5;
+      const cycleTime = elapsed % totalCycleMs;
+
+      let progress: number;
+      if (cycleTime < transitMs) {
+        // Phase 1: Glide from Bookmark A to Bookmark B (Smooth Cosine Ease)
+        const tNorm = cycleTime / transitMs;
+        progress = (1 - Math.cos(Math.PI * tNorm)) * 0.5;
+      } else if (cycleTime < transitMs + dwellMs) {
+        // Phase 2: Dwell / Hold rock-steady at Bookmark B
+        progress = 1.0;
+      } else if (cycleTime < 2 * transitMs + dwellMs) {
+        // Phase 3: Glide from Bookmark B back to Bookmark A (Smooth Cosine Ease)
+        const tNorm = (cycleTime - (transitMs + dwellMs)) / transitMs;
+        progress = (1 + Math.cos(Math.PI * tNorm)) * 0.5;
+      } else {
+        // Phase 4: Dwell / Hold rock-steady at Bookmark A
+        progress = 0.0;
+      }
+
       const currentGlideD = startD + span * progress;
 
       setScene((prev) => {
@@ -144,7 +167,7 @@ export const App: React.FC = () => {
 
     animId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animId);
-  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec]);
+  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec, bookmarks.dwellSec]);
 
   // Persist last selected layout to localStorage
   useEffect(() => {

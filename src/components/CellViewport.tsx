@@ -48,15 +48,20 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Drag scrubbing & rotary jog wheel states
+  // Drag scrubbing & mobile rotary jog wheel states
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0, d: 0 });
-  const [showJogWheel, setShowJogWheel] = useState(false);
+  const [isTouchScrubbing, setIsTouchScrubbing] = useState(false);
+  const [wheelPos, setWheelPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [jogAngle, setJogAngle] = useState(0);
+  const lastAngleRef = useRef<number | null>(null);
   const jogCenterRef = useRef<{ cx: number; cy: number }>({ cx: 0, cy: 0 });
 
   const activePlacement = scene.placements[0];
   const currentD = activePlacement ? activePlacement.d : 0;
+  const currentDRef = useRef(currentD);
+  currentDRef.current = currentD;
+
   const freqHz = dToFreq(currentD, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(currentD, scene.anchors.tplFrequencyHz);
   const pitchInfo = freqToPitchRegister(freqHz, scene.anchors.tuningA4Hz);
@@ -187,48 +192,70 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     onUpdatePlacementD(Math.max(-7, Math.min(7, currentD + delta)));
   };
 
-  // Touch Drag scrub on mobile
+  // Touch rotary scrub on mobile (Dynamic iPod Click-Wheel)
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1 || isEditMode) return;
     const touch = e.touches[0];
-    setIsDragging(true);
-    setDragStartPos({ x: touch.clientX, y: touch.clientY, d: currentD });
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    // Desired wheel radius = 76px (152px diameter)
+    const radius = 76;
+    const padding = 12;
+
+    // Clamp center of wheel so it never clips outside cell container
+    const cx = Math.max(rect.left + radius + padding, Math.min(rect.right - radius - padding, touch.clientX));
+    const cy = Math.max(rect.top + radius + padding, Math.min(rect.bottom - radius - padding, touch.clientY));
+
+    jogCenterRef.current = { cx, cy };
+    setWheelPos({ x: cx - rect.left, y: cy - rect.top });
+
+    const dx = touch.clientX - cx;
+    const dy = touch.clientY - cy;
+    const initialAngle = Math.atan2(dy, dx);
+    lastAngleRef.current = initialAngle;
+    setJogAngle(initialAngle);
+
+    setDragStartPos({ x: touch.clientX, y: touch.clientY, d: currentDRef.current });
+    setIsTouchScrubbing(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !onUpdatePlacementD || e.touches.length !== 1) return;
-    const touch = e.touches[0];
-    const dx = touch.clientX - dragStartPos.x;
-    const sensitivity = 0.015;
-    const targetD = Math.max(-7, Math.min(7, dragStartPos.d - dx * sensitivity));
-    onUpdatePlacementD(targetD);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
-
-  // Circular / Rotary Jog Wheel Gesture (iPod click-wheel style)
-  const handleJogTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    jogCenterRef.current = { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 };
-  };
-
-  const handleJogTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!onUpdatePlacementD || e.touches.length !== 1) return;
+    if (!isTouchScrubbing || !onUpdatePlacementD || e.touches.length !== 1) return;
     const touch = e.touches[0];
     const dx = touch.clientX - jogCenterRef.current.cx;
     const dy = touch.clientY - jogCenterRef.current.cy;
-    const angle = Math.atan2(dy, dx);
+    const dist = Math.hypot(dx, dy);
 
-    let deltaAngle = angle - jogAngle;
-    if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
-    if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
-    setJogAngle(angle);
+    // Rotary circular scrubbing around wheel center (when touch is outside the inner deadzone > 16px)
+    if (dist > 16) {
+      const currentAngle = Math.atan2(dy, dx);
+      if (lastAngleRef.current !== null) {
+        let deltaAngle = currentAngle - lastAngleRef.current;
+        if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+        if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
 
-    // 1 full clockwise rotation (2π) = shifts spectrum by -1.5 DuPeriods (faster)
-    const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
-    onUpdatePlacementD(Math.max(-7, Math.min(7, currentD + deltaD)));
+        // 1 full clockwise rotation (2π) = shifts spectrum by -1.5 DuPeriods (faster/higher pitch)
+        const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
+        const targetD = Math.max(-7, Math.min(7, currentDRef.current + deltaD));
+        onUpdatePlacementD(targetD);
+        currentDRef.current = targetD;
+      }
+      lastAngleRef.current = currentAngle;
+      setJogAngle(currentAngle);
+    } else {
+      // Near center, fallback to gentle linear delta
+      const dLinearX = touch.clientX - dragStartPos.x;
+      const targetD = Math.max(-7, Math.min(7, dragStartPos.d - dLinearX * 0.015));
+      onUpdatePlacementD(targetD);
+      currentDRef.current = targetD;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsTouchScrubbing(false);
+    lastAngleRef.current = null;
   };
 
   const lensOptions: { id: SpectrumLensType; label: string }[] = [
@@ -271,21 +298,9 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         className="absolute inset-0 block w-full h-full cursor-grab active:cursor-grabbing touch-none"
       />
-
-      {/* Floating Scrubbing HUD pill when user is dragging or scrolling */}
-      {isDragging && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/60 shadow-xl flex items-center gap-2 text-xs font-mono animate-in fade-in zoom-in-95 duration-100">
-          <span className="text-ppt-do font-bold">◄</span>
-          <span className="text-white font-bold">
-            {currentD > 0 ? `${bpm.toFixed(0)} BPM` : pitchInfo.formatted}
-          </span>
-          <span className="text-slate-400">({currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)} ms` : `${freqHz.toFixed(1)} Hz`})</span>
-          <span className="text-cyan-400 font-semibold">{addr.formatted}</span>
-          <span className="text-ppt-do font-bold">►</span>
-        </div>
-      )}
 
       {/* Cell Header - only visible when in Edit Mode */}
       {isEditMode && (
@@ -416,44 +431,57 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         </div>
       )}
 
-      {/* Floating Jog Wheel Toggle on Mobile (Bottom Right of Cell) */}
-      <div className="absolute bottom-2 right-2 z-20 flex flex-col items-end gap-1.5">
-        <button
-          onClick={() => setShowJogWheel((prev) => !prev)}
-          className={`p-1.5 rounded-full border shadow-lg backdrop-blur-md transition-all cursor-pointer ${
-            showJogWheel
-              ? 'bg-red-600/40 border-red-500 text-white shadow-[0_0_12px_rgba(225,54,16,0.5)]'
-              : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-white opacity-40 hover:opacity-100 group-hover:opacity-100'
-          }`}
-          title="Toggle Rotary Jog Wheel Scrub (iPod click-wheel style)"
+      {/* Dynamic Mobile iPod-Style Rotary Jog Wheel: Visible only while touching the screen */}
+      {isTouchScrubbing && (
+        <div
+          className="pointer-events-none absolute z-40 animate-in fade-in zoom-in-90 duration-150 select-none"
+          style={{ left: `${wheelPos.x}px`, top: `${wheelPos.y}px`, transform: 'translate(-50%, -50%)' }}
         >
-          <Disc className={`w-4 h-4 ${showJogWheel ? 'animate-spin' : ''}`} />
-        </button>
-
-        {/* Rotary Dial Jog Wheel (iPod Click-Wheel circular motion) */}
-        {showJogWheel && (
-          <div
-            onTouchStart={handleJogTouchStart}
-            onTouchMove={handleJogTouchMove}
-            className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-slate-950/90 border-2 border-red-500/50 shadow-2xl backdrop-blur-xl flex items-center justify-center relative touch-none select-none cursor-grab active:cursor-grabbing animate-in zoom-in-95 duration-150"
-          >
+          <div className="w-40 h-40 rounded-full bg-slate-950/92 border-2 border-red-500/80 shadow-[0_0_30px_rgba(225,54,16,0.5)] backdrop-blur-xl flex items-center justify-center relative">
             {/* Click-wheel tactile tick marks around the ring */}
-            <div className="absolute inset-1 rounded-full border border-dashed border-red-400/30 pointer-events-none" />
-            <div className="absolute top-1 text-[8px] text-red-400 font-bold font-mono">◄ Slower</div>
-            <div className="absolute bottom-1 text-[8px] text-red-400 font-bold font-mono">Faster ►</div>
+            <div className="absolute inset-1.5 rounded-full border border-dashed border-red-400/40" />
 
-            {/* Center Dial Hub */}
-            <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 shadow-inner flex flex-col items-center justify-center text-center pointer-events-none">
-              <span className="text-[9px] font-bold text-white font-mono leading-none">
+            {/* Curved rotation direction labels */}
+            <div className="absolute top-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
+              <span>◄ ↺ SLOWER</span>
+            </div>
+            <div className="absolute bottom-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
+              <span>FASTER ↻ ►</span>
+            </div>
+
+            {/* Instructional gesture guide badge */}
+            <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 border border-slate-700/80 rounded-full px-2 py-0.5 text-[8px] font-mono font-semibold text-slate-300 shadow-md">
+              ↻ Rotate to Scrub
+            </div>
+
+            {/* Orbiting touch position indicator bead */}
+            {(() => {
+              const r = 62; // Orbit radius
+              const bx = Math.cos(jogAngle) * r;
+              const by = Math.sin(jogAngle) * r;
+              return (
+                <div
+                  className="absolute w-3.5 h-3.5 rounded-full bg-cyan-400 border border-white shadow-[0_0_10px_#22d3ee] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
+                  style={{ left: `calc(50% + ${bx}px)`, top: `calc(50% + ${by}px)` }}
+                />
+              );
+            })()}
+
+            {/* Center Dial Hub (iPod Center Button with live pitch/rhythm readout) */}
+            <div className="w-16 h-16 rounded-full bg-slate-900/95 border border-slate-700/90 shadow-inner flex flex-col items-center justify-center text-center">
+              <span className="text-[11px] font-bold text-white font-mono leading-none">
                 {currentD > 0 ? `${bpm.toFixed(0)}` : pitchInfo.note + pitchInfo.octave}
               </span>
               <span className="text-[7px] text-slate-400 font-mono mt-0.5">
-                {currentD > 0 ? 'BPM' : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
+                {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
+              </span>
+              <span className="text-[7px] text-cyan-400 font-mono font-semibold mt-0.5">
+                {addr.formatted}
               </span>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

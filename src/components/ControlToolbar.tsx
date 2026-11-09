@@ -187,8 +187,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           )}
         </div>
 
-        {/* Center: Continuum Timeline Slider & Parameter Readouts */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
+        {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop scrubber: >= 768px; mobile uses rotary touch scrubber) */}
+        <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
           <div className="flex-1 space-y-1">
             <div className="flex justify-between items-center text-[10px] font-mono leading-none select-none">
               <span className="text-slate-300">
