@@ -1,4 +1,5 @@
 import { Scene, PerformanceProfile, CosmeticsConfig } from '../core/types';
+import { dToFreq } from '../core/axis';
 import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
 import { WebGLPostProcessingPipeline, PostProcessingLight } from './webgl-post-processing';
@@ -57,6 +58,7 @@ export class RenderCoordinator {
   private consecutiveSlowFrames: number = 0;
   private throttledProfile: PerformanceProfile | null = null;
   private isFocused: boolean = true;
+  private edgeGlowAlpha: number = 0;
 
   // Cached DOM Rects to eliminate per-frame layout reflow
   private cachedPpRect: CachedRect | null = null;
@@ -227,7 +229,10 @@ export class RenderCoordinator {
     this.cosmeticsEngine.update(dtMs);
 
     const dynamicLights: PostProcessingLight[] = [];
-    const primaryShapeId = this.scene.placements[0]?.shapeId;
+    const primaryPlacement = this.scene.placements[0];
+    const primaryShapeId = primaryPlacement?.shapeId;
+    const d = primaryPlacement?.d ?? 0;
+    const f0 = dToFreq(d, this.scene.anchors.tplFrequencyHz);
     const audioPhase = (primaryShapeId && this.audioPhaseProvider) ? this.audioPhaseProvider(primaryShapeId) : 0;
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
 
@@ -304,6 +309,7 @@ export class RenderCoordinator {
       this.effectsCtx.scale(effScaleX, effScaleY);
       this.effectsCtx.clearRect(0, 0, ppW, ppH);
       this.cosmeticsEngine.render2DFallback(this.effectsCtx, ppW, ppH, effectiveCosmetics);
+      this.renderViewportEdgeGlow(this.effectsCtx, ppW, ppH, d, audioPhase, f0, isAudioActive, dtMs, transportTime);
       this.effectsCtx.restore();
     }
 
@@ -365,6 +371,92 @@ export class RenderCoordinator {
         break;
       }
     }
+    ctx.restore();
+  }
+
+  /**
+   * Renders a subtle edge glow around the viewport perimeter.
+   * - In rhythm space (d >= 0): pulsed downbeat glow locked to master phase.
+   * - In pitch space (d < 0): organic shimmer linked to fundamental pitch frequency.
+   * - Only active when audio is actively playing.
+   */
+  private renderViewportEdgeGlow(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    d: number,
+    audioPhase: number,
+    f0: number,
+    isAudioActive: boolean,
+    dtMs: number,
+    transportTime: number
+  ): void {
+    const targetAlpha = isAudioActive ? 1.0 : 0.0;
+    this.edgeGlowAlpha += (targetAlpha - this.edgeGlowAlpha) * Math.min(1.0, dtMs / 120);
+
+    if (this.edgeGlowAlpha < 0.005) return;
+
+    // Rhythm realm (d >= 0) vs Pitch realm (d < 0)
+    const isRhythm = d >= 0;
+    let glowIntensity = 0;
+    let r = 56;
+    let g = 189;
+    let b = 248;
+
+    if (isRhythm) {
+      // Downbeat pulse synced to master audio beat phase (theta in [0, 1))
+      const wrappedPhase = ((audioPhase % 1.0) + 1.0) % 1.0;
+      const beatEnv = Math.exp(-wrappedPhase * 4.5);
+      glowIntensity = (0.06 + 0.30 * beatEnv) * this.edgeGlowAlpha;
+      // Warm rhythmic amber on downbeats
+      r = 251;
+      g = 146;
+      b = 60;
+    } else {
+      // Pitch space: subtle organic shimmer linked to fundamental pitch frequency
+      const shimmerFreq = Math.min(50, Math.max(6, f0 * 0.12));
+      const shimmer = Math.sin(transportTime * shimmerFreq * Math.PI * 2) * 0.05;
+      const microFlicker = Math.cos(transportTime * shimmerFreq * 2.1) * 0.03;
+      glowIntensity = (0.14 + shimmer + microFlicker) * this.edgeGlowAlpha;
+      // Ethereal Solfège-tinted cyan-blue in pitch space
+      r = 56;
+      g = 189;
+      b = 248;
+    }
+
+    if (glowIntensity <= 0.001) return;
+
+    ctx.save();
+    const glowThickness = Math.max(16, Math.min(32, Math.min(w, h) * 0.04));
+
+    // Top border glow
+    const gradTop = ctx.createLinearGradient(0, 0, 0, glowThickness);
+    gradTop.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradTop.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradTop;
+    ctx.fillRect(0, 0, w, glowThickness);
+
+    // Bottom border glow
+    const gradBottom = ctx.createLinearGradient(0, h, 0, h - glowThickness);
+    gradBottom.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradBottom.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradBottom;
+    ctx.fillRect(0, h - glowThickness, w, glowThickness);
+
+    // Left border glow
+    const gradLeft = ctx.createLinearGradient(0, 0, glowThickness, 0);
+    gradLeft.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradLeft.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradLeft;
+    ctx.fillRect(0, 0, glowThickness, h);
+
+    // Right border glow
+    const gradRight = ctx.createLinearGradient(w, 0, w - glowThickness, 0);
+    gradRight.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradRight.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = gradRight;
+    ctx.fillRect(w - glowThickness, 0, glowThickness, h);
+
     ctx.restore();
   }
 
