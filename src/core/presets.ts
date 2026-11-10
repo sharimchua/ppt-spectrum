@@ -122,8 +122,8 @@ export const PRESET_SHAPES: Shape[] = [
     category: 'rhythm',
     description: 'The prototypical PPT 3:2 relation: a perfect fifth in pitch, a hemiola polyrhythm in rhythm.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '2 (Do)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 0.85, phase: 0, voice: 'woodblock', label: '3 (So)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 2-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 3, den: 2 }, amp: 0.85, phase: 0, voice: 'woodblock', label: '3/2 (Fifth / 3-Pulse)' },
     ]
   },
   {
@@ -133,8 +133,8 @@ export const PRESET_SHAPES: Shape[] = [
     category: 'rhythm',
     description: '4:3 polyrhythm in rhythm space, perfect fourth interval in pitch space.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 3, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '3 (Pulse)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.85, phase: 0, voice: 'snare', label: '4 (Cross)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 3-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 4, den: 3 }, amp: 0.85, phase: 0, voice: 'snare', label: '4/3 (Fourth / 4-Pulse)' },
     ]
   },
   {
@@ -144,8 +144,8 @@ export const PRESET_SHAPES: Shape[] = [
     category: 'rhythm',
     description: '5:4 ratio: 5-prime quintuplet polyrhythm in rhythm, pure Just major third in pitch.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Do)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 1 }, amp: 0.85, phase: 0, voice: 'clave', label: '5 (Mi)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 4-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 5, den: 4 }, amp: 0.85, phase: 0, voice: 'clave', label: '5/4 (Major Third / 5-Pulse)' },
     ]
   },
   {
@@ -155,8 +155,8 @@ export const PRESET_SHAPES: Shape[] = [
     category: 'rhythm',
     description: '7:4 ratio: septuplet cross-rhythm in tempo space, blue harmonic minor seventh in pitch space.',
     partials: [
-      { id: 'p1', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '4 (Root)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 7, den: 1 }, amp: 0.8, phase: 0, voice: 'triangle', label: '7 (Harmonic 7th)' },
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 4-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 7, den: 4 }, amp: 0.8, phase: 0, voice: 'triangle', label: '7/4 (Harmonic 7th / 7-Pulse)' },
     ]
   },
   {

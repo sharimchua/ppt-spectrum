@@ -81,13 +81,26 @@ describe('Rational Algebra & Prime Limits', () => {
 });
 
 describe('Alignment & Ghost Fundamental', () => {
-  it('computes ghost fundamental for a 3:2 hemiola / fifth', () => {
+  it('computes coincidence super-cycle and fundamental for a 3:2 hemiola / fifth anchored at scene root', () => {
     const hemiola = PRESET_SHAPES.find((s) => s.id === 'hemiola-3-2')!;
     const f0 = 100;
     const ghost = calculateGhostFundamental(hemiola, f0);
-    // Ratios are 2 and 3 => GCD is 1 => ghost freq = 100 Hz * 1 = 100 Hz
     expect(ghost.ghostFreqHz).toBe(100);
     expect(ghost.cycleDurationSec).toBe(0.01);
+
+    const coincidence = calculateCoincidenceCycle(hemiola, f0);
+    // Lower frequency is at 1/1, upper is 3/2 => D = lcm(1, 2) = 2 turns
+    expect(coincidence.rootTurnsToAlign).toBe(2);
+    expect(coincidence.isCompactSuperCycle).toBe(true);
+    expect(coincidence.superCycleDurationSec).toBeCloseTo(0.02, 4);
+
+    const poly43 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-4-3')!;
+    const coinc43 = calculateCoincidenceCycle(poly43, f0);
+    expect(coinc43.rootTurnsToAlign).toBe(3);
+
+    const poly54 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-5-4')!;
+    const coinc54 = calculateCoincidenceCycle(poly54, f0);
+    expect(coinc54.rootTurnsToAlign).toBe(4);
   });
 
   it('evaluates Plomp-Levelt roughness', () => {
