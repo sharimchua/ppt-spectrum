@@ -16,6 +16,8 @@ import {
   duplicateCellInTree,
   addCellToTree,
   updateCellInTree,
+  nudgeCellFlex,
+  equaliseCellFlex,
   encodeLayoutToSlug,
   decodeLayoutFromSlug,
   getAllCellNodes,
@@ -39,6 +41,8 @@ export interface UseLayoutStateResult {
   handleDuplicateCell: (targetCellId: string) => void;
   handleAddCell: (direction?: LayoutFlexDirection, module?: SpectrumLensType) => void;
   handleUpdateCell: (updatedCell: LayoutCellNode) => void;
+  handleNudgeCellFlex: (targetCellId: string, delta: number) => void;
+  handleEqualiseCellFlex: (targetCellId: string) => void;
   handleResetLayout: () => void;
   handleShareLayout: () => void;
 }
@@ -150,6 +154,22 @@ export function useLayoutState(): UseLayoutStateResult {
     });
   }, []);
 
+  const handleNudgeCellFlex = useCallback((targetCellId: string, delta: number) => {
+    setLayout((prev) => {
+      const updated = markLayoutCustom(prev, nudgeCellFlex(prev.root, targetCellId, delta));
+      setCustomLayout(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleEqualiseCellFlex = useCallback((targetCellId: string) => {
+    setLayout((prev) => {
+      const updated = markLayoutCustom(prev, equaliseCellFlex(prev.root, targetCellId));
+      setCustomLayout(updated);
+      return updated;
+    });
+  }, []);
+
   const handleResetLayout = useCallback(() => {
     const fallback = PRESET_LAYOUTS[layout.id] || PRESET_SOLO;
     setLayout(fallback);
@@ -181,6 +201,8 @@ export function useLayoutState(): UseLayoutStateResult {
     handleDuplicateCell,
     handleAddCell,
     handleUpdateCell,
+    handleNudgeCellFlex,
+    handleEqualiseCellFlex,
     handleResetLayout,
     handleShareLayout,
   };

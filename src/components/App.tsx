@@ -112,6 +112,8 @@ export const App: React.FC = () => {
     handleUpdateCell,
     handleResetLayout,
     handleShareLayout,
+    handleNudgeCellFlex,
+    handleEqualiseCellFlex,
   } = useLayoutState();
 
   // Shape library, presets, and session history stack
@@ -273,6 +275,8 @@ export const App: React.FC = () => {
             onSplitCell={handleSplitCell}
             onRemoveCell={handleRemoveCell}
             onDuplicateCell={handleDuplicateCell}
+            onNudgeCellFlex={handleNudgeCellFlex}
+            onEqualiseCellFlex={handleEqualiseCellFlex}
           />
         </div>
       </SpectrumViewport>

@@ -27,6 +27,12 @@ interface FlexLayoutRendererProps {
   onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
   onRemoveCell?: (targetCellId: string) => void;
   onDuplicateCell?: (targetCellId: string) => void;
+  onNudgeCellFlex?: (targetCellId: string, delta: number) => void;
+  onEqualiseCellFlex?: (targetCellId: string) => void;
+  // Spatial context from parent container
+  parentDirection?: LayoutFlexDirection;
+  siblingCount?: number;
+  localSharePercent?: number;
 }
 
 export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
@@ -46,6 +52,11 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   onSplitCell,
   onRemoveCell,
   onDuplicateCell,
+  onNudgeCellFlex,
+  onEqualiseCellFlex,
+  parentDirection,
+  siblingCount,
+  localSharePercent,
 }) => {
   if (node.type === 'cell') {
     return (
@@ -72,6 +83,11 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onSplitCell={onSplitCell}
           onRemoveCell={onRemoveCell}
           onDuplicateCell={onDuplicateCell}
+          parentDirection={parentDirection}
+          siblingCount={siblingCount}
+          localSharePercent={localSharePercent}
+          onNudgeCellFlex={onNudgeCellFlex}
+          onEqualiseCellFlex={onEqualiseCellFlex}
         />
       </div>
     );
@@ -79,37 +95,52 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
 
   // Container node
   const isRow = node.direction === 'row';
+  const totalFlex = node.children.reduce((acc, c) => acc + (c.flex ?? 1), 0);
+
   return (
     <div
       className={`relative w-full h-full flex min-w-0 min-h-0 ${
         isRow ? 'flex-col sm:flex-row' : 'flex-col'
+      } ${
+        isEditMode
+          ? 'p-1 rounded-2xl border border-dashed border-purple-500/25 bg-purple-950/10'
+          : ''
       }`}
       style={{
         flex: node.flex ?? 1,
         gap: `${node.gap ?? 8}px`,
       }}
     >
-      {node.children.map((child) => (
-        <FlexLayoutRenderer
-          key={child.id}
-          node={child}
-          scene={scene}
-          coordinator={coordinator}
-          onUpdatePlacementD={onUpdatePlacementD}
-          onUpdateFilterCentreD={onUpdateFilterCentreD}
-          onUpdateFilterParams={onUpdateFilterParams}
-          onUpdateCell={onUpdateCell}
-          onTogglePlay={onTogglePlay}
-          onOpenRadialMenuAt={onOpenRadialMenuAt}
-          isEditMode={isEditMode}
-          isFilterEditMode={isFilterEditMode}
-          filterControlParam={filterControlParam}
-          canDelete={canDelete}
-          onSplitCell={onSplitCell}
-          onRemoveCell={onRemoveCell}
-          onDuplicateCell={onDuplicateCell}
-        />
-      ))}
+      {node.children.map((child) => {
+        const childFlex = child.flex ?? 1;
+        const childSharePercent = Math.round((childFlex / (totalFlex || 1)) * 100);
+        return (
+          <FlexLayoutRenderer
+            key={child.id}
+            node={child}
+            scene={scene}
+            coordinator={coordinator}
+            onUpdatePlacementD={onUpdatePlacementD}
+            onUpdateFilterCentreD={onUpdateFilterCentreD}
+            onUpdateFilterParams={onUpdateFilterParams}
+            onUpdateCell={onUpdateCell}
+            onTogglePlay={onTogglePlay}
+            onOpenRadialMenuAt={onOpenRadialMenuAt}
+            isEditMode={isEditMode}
+            isFilterEditMode={isFilterEditMode}
+            filterControlParam={filterControlParam}
+            canDelete={canDelete}
+            onSplitCell={onSplitCell}
+            onRemoveCell={onRemoveCell}
+            onDuplicateCell={onDuplicateCell}
+            onNudgeCellFlex={onNudgeCellFlex}
+            onEqualiseCellFlex={onEqualiseCellFlex}
+            parentDirection={node.direction}
+            siblingCount={node.children.length}
+            localSharePercent={childSharePercent}
+          />
+        );
+      })}
     </div>
   );
 };

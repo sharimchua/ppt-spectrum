@@ -19,7 +19,21 @@ import { PhasorLensRenderer } from '../renderers/phasor-lens';
 import { PrimeProfileLensRenderer } from '../renderers/prime-profile-lens';
 import { EventLanesLensRenderer } from '../renderers/event-lanes-lens';
 import { AlignmentMeterLensRenderer } from '../renderers/alignment-meter-lens';
-import { Columns, Rows, Copy, Trash2, Tag, Disc, Play, Pause } from 'lucide-react';
+import {
+  Columns,
+  Rows,
+  Copy,
+  Trash2,
+  Tag,
+  Disc,
+  Play,
+  Pause,
+  MoveHorizontal,
+  MoveVertical,
+  Minus,
+  Plus,
+  Equal,
+} from 'lucide-react';
 
 interface CellViewportProps {
   cell: LayoutCellNode;
@@ -39,6 +53,11 @@ interface CellViewportProps {
   onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
   onRemoveCell?: (targetCellId: string) => void;
   onDuplicateCell?: (targetCellId: string) => void;
+  onNudgeCellFlex?: (targetCellId: string, delta: number) => void;
+  onEqualiseCellFlex?: (targetCellId: string) => void;
+  parentDirection?: LayoutFlexDirection;
+  siblingCount?: number;
+  localSharePercent?: number;
 }
 
 export const CellViewport: React.FC<CellViewportProps> = ({
@@ -58,6 +77,11 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onSplitCell,
   onRemoveCell,
   onDuplicateCell,
+  onNudgeCellFlex,
+  onEqualiseCellFlex,
+  parentDirection,
+  siblingCount,
+  localSharePercent,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -684,6 +708,53 @@ export const CellViewport: React.FC<CellViewportProps> = ({
               </>
             )}
           </div>
+
+          {/* Centre: Directional Sizing / Flex Weight Controls (visible when cell has siblings) */}
+          {siblingCount !== undefined && siblingCount > 1 && onNudgeCellFlex && (
+            <div
+              className="pointer-events-auto flex items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md px-1.5 py-1 rounded-md border border-purple-500/50 shadow-md text-purple-300"
+              title={
+                parentDirection === 'row'
+                  ? `Adjust cell width within this row (${localSharePercent ?? 50}% share)`
+                  : `Adjust cell height within this column (${localSharePercent ?? 50}% share)`
+              }
+            >
+              {parentDirection === 'row' ? (
+                <MoveHorizontal className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              ) : (
+                <MoveVertical className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              )}
+              <span className="text-[10px] font-mono font-semibold text-slate-200">
+                {parentDirection === 'row' ? 'Width' : 'Height'} {localSharePercent ?? 50}%
+              </span>
+              <button
+                onClick={() => onNudgeCellFlex(cell.id, -0.25)}
+                className="p-0.5 rounded hover:bg-purple-900/50 text-slate-300 hover:text-white transition cursor-pointer"
+                title={`Narrow ${parentDirection === 'row' ? 'width' : 'height'}`}
+                aria-label={`Decrease ${parentDirection === 'row' ? 'width' : 'height'}`}
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onNudgeCellFlex(cell.id, 0.25)}
+                className="p-0.5 rounded hover:bg-purple-900/50 text-slate-300 hover:text-white transition cursor-pointer"
+                title={`Expand ${parentDirection === 'row' ? 'width' : 'height'}`}
+                aria-label={`Increase ${parentDirection === 'row' ? 'width' : 'height'}`}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+              {onEqualiseCellFlex && (
+                <button
+                  onClick={() => onEqualiseCellFlex(cell.id)}
+                  className="p-0.5 rounded hover:bg-purple-900/50 text-slate-300 hover:text-white transition cursor-pointer ml-0.5 border-l border-slate-700/60 pl-1"
+                  title={`Equalise all sibling ${parentDirection === 'row' ? 'widths' : 'heights'} in this group`}
+                  aria-label={`Equalise sibling ${parentDirection === 'row' ? 'widths' : 'heights'}`}
+                >
+                  <Equal className="w-3 h-3 text-purple-300 hover:text-white" />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Right: In Edit Mode, display action tools on both mobile and desktop */}
           <div className="flex pointer-events-auto items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">

@@ -13,6 +13,8 @@ import {
   encodeLayoutToSlug,
   decodeLayoutFromSlug,
   markLayoutCustom,
+  nudgeCellFlex,
+  equaliseCellFlex,
   LayoutDefinition,
 } from '../layout-models';
 import { calculateRingClockBands } from '../../renderers/ring-clock-lens';
@@ -263,5 +265,49 @@ describe('RingClock Dynamic Compact Bands', () => {
     expect(decoded).not.toBeNull();
     const decodedCells = getAllCellNodes(decoded!.layout.root);
     expect(decodedCells[1].module).toBe('phasor');
+  });
+
+  it('nudges cell flex up and down with clamped bounds (0.25 to 4.0)', () => {
+    const root = splitCellInTree(PRESET_SOLO.root, 'cell-main', 'row', 'cycle-wheel');
+    const cells = getAllCellNodes(root);
+    const firstCellId = cells[0].id;
+    expect(cells[0].flex).toBe(1);
+
+    // Nudge up by +0.25
+    const nudgedUp = nudgeCellFlex(root, firstCellId, 0.25);
+    const cellAUp = findCellNodeById(nudgedUp, firstCellId);
+    expect(cellAUp?.flex).toBe(1.25);
+
+    // Nudge down by -0.5
+    const nudgedDown = nudgeCellFlex(nudgedUp, firstCellId, -0.5);
+    const cellADown = findCellNodeById(nudgedDown, firstCellId);
+    expect(cellADown?.flex).toBe(0.75);
+
+    // Clamps at minimum 0.25
+    const clampedMin = nudgeCellFlex(nudgedDown, firstCellId, -10);
+    const cellMin = findCellNodeById(clampedMin, firstCellId);
+    expect(cellMin?.flex).toBe(0.25);
+
+    // Clamps at maximum 4.0
+    const clampedMax = nudgeCellFlex(nudgedDown, firstCellId, 10);
+    const cellMax = findCellNodeById(clampedMax, firstCellId);
+    expect(cellMax?.flex).toBe(4.0);
+  });
+
+  it('equalises all sibling cell flex weights within the parent container to 1', () => {
+    const root = splitCellInTree(PRESET_SOLO.root, 'cell-main', 'row', 'cycle-wheel');
+    const cells = getAllCellNodes(root);
+    const firstCellId = cells[0].id;
+    const secondCellId = cells[1].id;
+
+    // Nudge one sibling up
+    const weighted = nudgeCellFlex(root, firstCellId, 1.5);
+    expect(findCellNodeById(weighted, firstCellId)?.flex).toBe(2.5);
+    expect(findCellNodeById(weighted, secondCellId)?.flex).toBe(1);
+
+    // Equalise sibling group
+    const equalised = equaliseCellFlex(weighted, firstCellId);
+    expect(findCellNodeById(equalised, firstCellId)?.flex).toBe(1);
+    expect(findCellNodeById(equalised, secondCellId)?.flex).toBe(1);
   });
 });

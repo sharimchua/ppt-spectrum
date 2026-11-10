@@ -372,11 +372,10 @@ export function splitCellInTree(
       };
 
       if (container.direction === direction) {
-        // Insert directly into current container
+        // Insert directly into current container with clean unit weights
         const newChildren = [...container.children];
-        const halfFlex = (targetCell.flex || 1) / 2;
-        newChildren[childIndex] = { ...targetCell, flex: halfFlex };
-        newChildren.splice(childIndex + 1, 0, { ...newCell, flex: halfFlex });
+        newChildren[childIndex] = { ...targetCell, flex: 1 };
+        newChildren.splice(childIndex + 1, 0, { ...newCell, flex: 1 });
         return {
           ...container,
           children: newChildren,
@@ -536,6 +535,64 @@ export function moveCellInTree(
   }
 
   return reorder(root);
+}
+
+/**
+ * Nudges a cell's flex weighting up or down relative to its siblings in the same container.
+ * Clamps flex between 0.25 and 4.0 in steps of delta (typically 0.25).
+ */
+export function nudgeCellFlex(
+  root: LayoutContainerNode,
+  targetCellId: string,
+  delta: number
+): LayoutContainerNode {
+  function update(container: LayoutContainerNode): LayoutContainerNode {
+    const idx = container.children.findIndex(
+      (c) => c.type === 'cell' && c.id === targetCellId
+    );
+    if (idx !== -1) {
+      const targetCell = container.children[idx] as LayoutCellNode;
+      const currentFlex = targetCell.flex ?? 1;
+      const newFlex = Math.max(0.25, Math.min(4.0, Math.round((currentFlex + delta) * 100) / 100));
+      const newChildren = [...container.children];
+      newChildren[idx] = { ...targetCell, flex: newFlex };
+      return { ...container, children: newChildren };
+    }
+    return {
+      ...container,
+      children: container.children.map((c) =>
+        c.type === 'container' ? update(c) : c
+      ),
+    };
+  }
+  return update(root);
+}
+
+/**
+ * Resets all sibling cells in the target cell's immediate parent container to equal 1.0 flex weighting.
+ */
+export function equaliseCellFlex(
+  root: LayoutContainerNode,
+  targetCellId: string
+): LayoutContainerNode {
+  function update(container: LayoutContainerNode): LayoutContainerNode {
+    const hasTarget = container.children.some(
+      (c) => c.type === 'cell' && c.id === targetCellId
+    );
+    if (hasTarget) {
+      const newChildren = container.children.map((c) =>
+        c.type === 'cell' ? { ...c, flex: 1 } : c
+      );
+      return { ...container, children: newChildren };
+    }
+    return {
+      ...container,
+      children: container.children.map((c) =>
+        c.type === 'container' ? update(c) : c
+      ),
+    };
+  }
+  return update(root);
 }
 
 /**
