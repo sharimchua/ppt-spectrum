@@ -5,7 +5,7 @@ import {
   LayoutFlexDirection,
   SpectrumLensType,
 } from '../core/layout-models';
-import { Scene } from '../core/types';
+import { Scene, BandFilter } from '../core/types';
 import { RenderCoordinator } from '../renderers/render-coordinator';
 import { CellViewport } from './CellViewport';
 
@@ -15,6 +15,7 @@ interface FlexLayoutRendererProps {
   coordinator: RenderCoordinator;
   onUpdatePlacementD?: (d: number) => void;
   onUpdateFilterCentreD?: (centreD: number) => void;
+  onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
@@ -30,6 +31,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   coordinator,
   onUpdatePlacementD,
   onUpdateFilterCentreD,
+  onUpdateFilterParams,
   onUpdateCell,
   isEditMode = false,
   canDelete = false,
@@ -51,6 +53,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           coordinator={coordinator}
           onUpdatePlacementD={onUpdatePlacementD}
           onUpdateFilterCentreD={onUpdateFilterCentreD}
+          onUpdateFilterParams={onUpdateFilterParams}
           onUpdateCell={onUpdateCell}
           isEditMode={isEditMode}
           canDelete={canDelete}
@@ -82,6 +85,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           coordinator={coordinator}
           onUpdatePlacementD={onUpdatePlacementD}
           onUpdateFilterCentreD={onUpdateFilterCentreD}
+          onUpdateFilterParams={onUpdateFilterParams}
           onUpdateCell={onUpdateCell}
           isEditMode={isEditMode}
           canDelete={canDelete}

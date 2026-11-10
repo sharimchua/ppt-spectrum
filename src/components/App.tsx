@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Scene, Shape } from '../core/types';
+import { Scene, Shape, BandFilter } from '../core/types';
 import { DEFAULT_SCENE, loadSavedScene, saveScene } from '../core/config';
 import { RenderCoordinator } from '../renderers/render-coordinator';
 import { AudioEngine } from '../audio/audio-engine';
@@ -499,6 +499,17 @@ export const App: React.FC = () => {
     }));
   }, [updateScene]);
 
+  const handleUpdateFilterParams = useCallback((params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => {
+    updateScene((prev) => ({
+      ...prev,
+      filter: {
+        ...prev.filter,
+        enabled: true,
+        ...params,
+      },
+    }));
+  }, [updateScene]);
+
   const handleSelectPreset = useCallback((shapeId: string) => {
     pushShapeHistory(shapeId);
     updateScene((prev) => {
@@ -765,6 +776,7 @@ export const App: React.FC = () => {
             coordinator={coordinator}
             onUpdatePlacementD={handleUpdatePlacementD}
             onUpdateFilterCentreD={handleUpdateFilterCentreD}
+            onUpdateFilterParams={handleUpdateFilterParams}
             onUpdateCell={handleUpdateCell}
             isEditMode={isEditMode}
             canDelete={canDelete}

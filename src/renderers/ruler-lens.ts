@@ -166,7 +166,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
       // Filter Mode Badge
       const trackingLabel = filter.trackingMode === 'relative' ? 'RELATIVE' : 'FIXED';
-      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct)`;
+      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct, skirt=${filter.softnessD.toFixed(1)} oct)`;
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const bWidth = ctx.measureText(badgeText).width;
       const badgeX = Math.max(bWidth / 2 + 10, Math.min(width - bWidth / 2 - 10, filterCenterX));

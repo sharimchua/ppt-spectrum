@@ -274,12 +274,21 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                 </div>
               </div>
               <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
-                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
-                  Shift+Scrub
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm whitespace-nowrap">
+                  Shift+Drag/Wheel
                 </kbd>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-200 font-medium">Scrub Band Filter</span>
-                  <span className="text-[9px] text-slate-400">Shift + Drag or Wheel moves Filter</span>
+                  <span className="text-[11px] text-slate-200 font-medium">Filter Width &amp; Centre</span>
+                  <span className="text-[9px] text-slate-400">Vertical adjusts width; horizontal scrubs centre</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm whitespace-nowrap">
+                  Ctrl+Shift+Drag
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Filter Skirt</span>
+                  <span className="text-[9px] text-slate-400">Vertical drag or wheel adjusts skirt roll-off</span>
                 </div>
               </div>
               <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
