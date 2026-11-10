@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, SlidersHorizontal, Minimize2, Maximize2, Move } from 'lucide-react';
 import { Shape, BandFilter } from '../core/types';
-import { ShapeEditor } from './ShapeEditor';
+import { ShapeEditor } from './shape-editor/ShapeEditor';
 
 interface TraySheetProps {
   isOpen: boolean;

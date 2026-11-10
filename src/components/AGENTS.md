@@ -14,13 +14,28 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/InfoModal.tsx` — Interactive 4-step theory walkthrough and primer for Prime Period Theory.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
 - `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
-- `src/components/ShapeEditor.tsx` — Interactive partial inspector, harmonic inharmonicity stretch macros ($B$), and rolloff damping controls.
+- `src/components/shape-editor/ShapeEditor.tsx` — Modular shape inspector container and tab orchestrator.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
 - `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a full-canvas BandFilter edit mode (`centre`, `width`, `skirt`).
 - `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor.
 - `src/components/bookmarks-storage.ts` — Bookmark data contracts, defaults, and localStorage persistence (`loadSavedBookmarks`, `saveBookmarks`).
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
+
+### Shape Editor (`src/components/shape-editor/`)
+
+- `ShapeEditor.tsx` — Container coordinating tabs and delegating actions to `useShapeEditing`.
+- `shape-editor-data.ts` — Voice options, interval presets, and acoustic ADSR instrument envelope presets.
+- `useShapeEditing.ts` — Hook binding active shape to pure core shape-editing mutations and preset forks.
+- `ShapeLibraryHeader.tsx` — Preset/user shape selector dropdown, fork/duplicate/delete/new controls, and tab buttons.
+- `PartialsTab.tsx` — Voice anchor cards container, overtone macros, and add-anchor controls.
+- `OvertoneMacros.tsx` — Inharmonicity stretch coefficient (B) and spectral damping macro buttons.
+- `VoiceAnchorCard.tsx` — Voice anchor card with ratio, DuMetric offset, percussion voice, gain, and nested partial rows.
+- `AnchorPartialRow.tsx` — Single harmonic partial row with ratio selector, amplitude slider, phase offset, and mute/delete controls.
+- `EnvelopeTab.tsx` — Acoustic ADSR envelope tab with interactive curve, instrument presets, and parameter sliders.
+- `AdsrCurve.tsx` — SVG ADSR curve visualiser with high-harmonic damping overlay and phase labels.
+- `adsr-curve-geometry.ts` — Pure mathematical calculation of SVG bezier curve geometry and anchor coordinates.
+- `FilterTab.tsx` — Acoustic formant lens controls, tracking mode switcher, aperture mode selector, and frequency sliders.
 
 ### Custom Hooks (`src/components/hooks/`)
 
