@@ -11,6 +11,8 @@ import { PostProcessingLight } from './webgl-post-processing';
 export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
   public id = 'alignment-meter';
   private dynamicLights: PostProcessingLight[] = [];
+  private visualPitchTurns: number = 0;
+  private lastTransportTime: number = 0;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -21,7 +23,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     width: number,
     height: number,
     scene: Scene,
-    _transportTime: number = 0,
+    transportTime: number = 0,
     audioPhase: number = 0,
     isAudioActive: boolean = false
   ): void {
@@ -34,6 +36,24 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const isPitchSpace = f0 >= 20;
+
+    // Synchronise unwrapped root turns with Event Lanes and Cycle Wheel
+    const dt = this.lastTransportTime > 0 ? Math.min(0.1, Math.max(0, transportTime - this.lastTransportTime)) : 0.016;
+    this.lastTransportTime = transportTime;
+
+    let unwrappedRootTurns = 0;
+    if (isAudioActive) {
+      if (f0 <= 25.8) {
+        unwrappedRootTurns = audioPhase;
+        this.visualPitchTurns = audioPhase;
+      } else {
+        this.visualPitchTurns += dt * 1.0;
+        unwrappedRootTurns = this.visualPitchTurns;
+      }
+    } else {
+      this.visualPitchTurns = 0;
+    }
+
     // Run Unified Realignment & Coincidence Analysis across all active voice anchors and partials
     const analysis: RealignmentAnalysis = calculateRealignmentAnalysis(
       shape,
@@ -203,115 +223,289 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     }
 
     // 3. Composite Realignment Convergence Wave
-    // Coordinate grid and integer cycle downbeat lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(plotLeft, waveBottom);
-    ctx.lineTo(plotRight, waveBottom);
-    ctx.stroke();
+    if (analysis.isAperiodic) {
+      // ─────────────────────────────────────────────────────────────
+      // APERIODIC / INHARMONIC DUAL WINDOW:
+      // Left: Initial Onset / Pickup Bar (showing pristine strike at tau = 0)
+      // Right: Ongoing Inharmonic Horizon (streaming live rolling wave to show non-realignment)
+      // ─────────────────────────────────────────────────────────────
+      const pickupW = Math.max(45, Math.floor(plotW * 0.22));
+      const ongoingLeft = plotLeft + pickupW + 12;
+      const ongoingW = Math.max(30, plotRight - ongoingLeft);
 
-    ctx.save();
-    ctx.setLineDash([2, 3]);
-    for (let c = 0; c <= Math.floor(windowCycles); c++) {
-      const cx = plotLeft + (c / windowCycles) * plotW;
-      ctx.strokeStyle = c === 0 ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
-      ctx.beginPath();
-      ctx.moveTo(cx, waveTop - 4);
-      ctx.lineTo(cx, waveBottom);
-      ctx.stroke();
-
-      // Axis labels
-      ctx.fillStyle = c === 0 ? '#fbbf24' : '#64748b';
-      ctx.font = '7.5px JetBrains Mono, monospace';
-      const cycleLabel = c === 0 ? 'τ=0 (Downbeat)' : `τ=${c} (${c}x Cycle)`;
-      ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : 18), waveBottom + (isShort ? 10 : 12));
-    }
-    ctx.restore();
-
-    // Plot constructive interference filled area
-    const samples = analysis.samplePoints;
-    const numS = samples.length;
-
-    if (numS > 1) {
+      // Section A: Initial Onset (Pickup Bar)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(plotLeft, waveBottom);
+      ctx.lineTo(plotLeft + pickupW, waveBottom);
+      ctx.stroke();
 
-      for (let s = 0; s < numS; s++) {
-        const sx = plotLeft + (s / (numS - 1)) * plotW;
-        const sy = waveBottom - samples[s] * waveH;
-        ctx.lineTo(sx, sy);
+      // Double barline / boundary
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(plotLeft + pickupW + 4, waveTop);
+      ctx.lineTo(plotLeft + pickupW + 4, waveBottom);
+      ctx.moveTo(plotLeft + pickupW + 7, waveTop);
+      ctx.lineTo(plotLeft + pickupW + 7, waveBottom);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 7px JetBrains Mono, monospace';
+      ctx.fillText('ONSET 𝄀𝄀', plotLeft + pickupW - (isCompact ? 28 : 36), waveTop + 8);
+      ctx.fillText('τ=0 (Strike)', plotLeft, waveBottom + 10);
+
+      // Render pickup curve from tau = 0 to tau = 0.5
+      const pickupSamples = 32;
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, waveBottom);
+      for (let i = 0; i <= pickupSamples; i++) {
+        const tau = (i / pickupSamples) * 0.5;
+        const x = plotLeft + (i / pickupSamples) * pickupW;
+        // Constructive interference at tau
+        let cosSum = 0;
+        let pulseSum = 0;
+        let tAmp = 0;
+        for (const tr of analysis.tracks) {
+          for (const pr of tr.partials) {
+            const cp = pr.ratioValue * tau + pr.phase;
+            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
+            const sv = Math.sin(Math.PI * cp);
+            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
+            tAmp += pr.amp;
+          }
+        }
+        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const y = waveBottom - val * waveH;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(plotLeft + pickupW, waveBottom);
+      ctx.closePath();
+
+      const pickupGrad = ctx.createLinearGradient(0, waveTop, 0, waveBottom);
+      pickupGrad.addColorStop(0, 'rgba(251, 191, 36, 0.35)');
+      pickupGrad.addColorStop(1, 'rgba(15, 23, 42, 0.02)');
+      ctx.fillStyle = pickupGrad;
+      ctx.fill();
+
+      // Strike indicator diamond at tau = 0
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, waveBottom - waveH - 4);
+      ctx.lineTo(plotLeft + 3.5, waveBottom - waveH);
+      ctx.lineTo(plotLeft, waveBottom - waveH + 4);
+      ctx.lineTo(plotLeft - 3.5, waveBottom - waveH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.font = 'bold 7px JetBrains Mono, monospace';
+      ctx.fillText('100% STRIKE', plotLeft + 5, waveBottom - waveH + 3);
+
+      // Section B: Ongoing Inharmonic Horizon (Rolling Window)
+      const rollingTurnsSpan = 3.5;
+      const rollingStartTurn = isAudioActive ? Math.max(0.5, unwrappedRootTurns) : 1.0;
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ongoingLeft, waveBottom);
+      ctx.lineTo(plotRight, waveBottom);
+      ctx.stroke();
+
+      // Dashed 100% Realignment Threshold Line (Unreached)
+      ctx.save();
+      ctx.setLineDash([2, 4]);
+      ctx.strokeStyle = 'rgba(251, 113, 133, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(ongoingLeft, waveTop);
+      ctx.lineTo(plotRight, waveTop);
+      ctx.stroke();
+      ctx.fillStyle = '#f87171';
+      ctx.font = '7px JetBrains Mono, monospace';
+      ctx.fillText('100% REALIGNMENT THRESHOLD (UNREACHED IN APERIODIC SPACE)', ongoingLeft + 6, waveTop + 8);
+      ctx.restore();
+
+      // Sample and draw the rolling ongoing window
+      const ongoingSamples = Math.min(180, Math.floor(ongoingW / 2));
+      ctx.beginPath();
+      ctx.moveTo(ongoingLeft, waveBottom);
+
+      for (let i = 0; i <= ongoingSamples; i++) {
+        const tau = rollingStartTurn + (i / ongoingSamples) * rollingTurnsSpan;
+        const x = ongoingLeft + (i / ongoingSamples) * ongoingW;
+        let cosSum = 0;
+        let pulseSum = 0;
+        let tAmp = 0;
+        for (const tr of analysis.tracks) {
+          for (const pr of tr.partials) {
+            const cp = pr.ratioValue * tau + pr.phase;
+            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
+            const sv = Math.sin(Math.PI * cp);
+            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
+            tAmp += pr.amp;
+          }
+        }
+        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const y = waveBottom - val * waveH;
+        ctx.lineTo(x, y);
       }
       ctx.lineTo(plotRight, waveBottom);
       ctx.closePath();
 
-      const grad = ctx.createLinearGradient(0, waveTop, 0, waveBottom);
-      grad.addColorStop(0, analysis.isAperiodic ? 'rgba(251, 113, 133, 0.25)' : 'rgba(56, 189, 248, 0.28)');
-      grad.addColorStop(1, 'rgba(15, 23, 42, 0.02)');
-      ctx.fillStyle = grad;
+      const ongoingGrad = ctx.createLinearGradient(0, waveTop, 0, waveBottom);
+      ongoingGrad.addColorStop(0, 'rgba(251, 113, 133, 0.22)');
+      ongoingGrad.addColorStop(1, 'rgba(15, 23, 42, 0.02)');
+      ctx.fillStyle = ongoingGrad;
       ctx.fill();
 
-      // Neon stroke line
-      ctx.strokeStyle = analysis.isAperiodic ? '#fb7185' : '#38bdf8';
+      // Ongoing wave stroke
+      ctx.strokeStyle = '#fb7185';
       ctx.lineWidth = 1.8;
       ctx.beginPath();
-      for (let s = 0; s < numS; s++) {
-        const sx = plotLeft + (s / (numS - 1)) * plotW;
-        const sy = waveBottom - samples[s] * waveH;
-        if (s === 0) ctx.moveTo(sx, sy);
-        else ctx.lineTo(sx, sy);
+      for (let i = 0; i <= ongoingSamples; i++) {
+        const tau = rollingStartTurn + (i / ongoingSamples) * rollingTurnsSpan;
+        const x = ongoingLeft + (i / ongoingSamples) * ongoingW;
+        let cosSum = 0;
+        let pulseSum = 0;
+        let tAmp = 0;
+        for (const tr of analysis.tracks) {
+          for (const pr of tr.partials) {
+            const cp = pr.ratioValue * tau + pr.phase;
+            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
+            const sv = Math.sin(Math.PI * cp);
+            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
+            tAmp += pr.amp;
+          }
+        }
+        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const y = waveBottom - val * waveH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
       ctx.stroke();
-    }
 
-    // Convergence Diamond Markers
-    for (const peak of analysis.peaks) {
-      if (peak.value < 0.62) continue;
-      const px = plotLeft + (peak.tau / windowCycles) * plotW;
-      const py = waveBottom - peak.value * waveH;
-
-      ctx.fillStyle = peak.isDownbeat ? '#fbbf24' : '#38bdf8';
+      // Ongoing window bottom label
+      ctx.fillStyle = '#64748b';
+      ctx.font = '7.5px JetBrains Mono, monospace';
+      ctx.fillText(
+        isAudioActive
+          ? `Ongoing Horizon: τ=${rollingStartTurn.toFixed(1)} to ${(rollingStartTurn + rollingTurnsSpan).toFixed(1)}`
+          : `Ongoing Horizon: τ=1.0 to ${(1.0 + rollingTurnsSpan).toFixed(1)}`,
+        ongoingLeft,
+        waveBottom + 10
+      );
+    } else {
+      // ─────────────────────────────────────────────────────────────
+      // PERIODIC / HARMONIC HARMONY WINDOW:
+      // Charts the full cycle window synchronized with the supercycle
+      // ─────────────────────────────────────────────────────────────
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(px, py - 4.5);
-      ctx.lineTo(px + 3.5, py);
-      ctx.lineTo(px, py + 4.5);
-      ctx.lineTo(px - 3.5, py);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(plotLeft, waveBottom);
+      ctx.lineTo(plotRight, waveBottom);
+      ctx.stroke();
 
-      // Peak badge
-      if (peak.value >= 0.75) {
-        ctx.fillStyle = peak.isDownbeat ? '#fde047' : '#7dd3fc';
-        ctx.font = 'bold 7px JetBrains Mono, monospace';
-        ctx.fillText(peak.isDownbeat ? 'REALIGN' : 'COINCIDE', px - 12, py - 6);
+      ctx.save();
+      ctx.setLineDash([2, 3]);
+      for (let c = 0; c <= Math.floor(windowCycles); c++) {
+        const cx = plotLeft + (c / windowCycles) * plotW;
+        ctx.strokeStyle = c === 0 ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
+        ctx.beginPath();
+        ctx.moveTo(cx, waveTop - 4);
+        ctx.lineTo(cx, waveBottom);
+        ctx.stroke();
 
-        if (isAudioActive) {
-          this.dynamicLights.push({
-            x: px,
-            y: py,
-            velocity: peak.value,
-            colorHex: peak.isDownbeat ? '#FBBF24' : '#38BDF8',
-          });
+        ctx.fillStyle = c === 0 ? '#fbbf24' : '#64748b';
+        ctx.font = '7.5px JetBrains Mono, monospace';
+        const cycleLabel = c === 0 ? 'τ=0 (Downbeat)' : `τ=${c} (${c}x Cycle)`;
+        ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : 18), waveBottom + (isShort ? 10 : 12));
+      }
+      ctx.restore();
+
+      const samples = analysis.samplePoints;
+      const numS = samples.length;
+
+      if (numS > 1) {
+        ctx.beginPath();
+        ctx.moveTo(plotLeft, waveBottom);
+
+        for (let s = 0; s < numS; s++) {
+          const sx = plotLeft + (s / (numS - 1)) * plotW;
+          const sy = waveBottom - samples[s] * waveH;
+          ctx.lineTo(sx, sy);
+        }
+        ctx.lineTo(plotRight, waveBottom);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, waveTop, 0, waveBottom);
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
+        grad.addColorStop(1, 'rgba(15, 23, 42, 0.02)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let s = 0; s < numS; s++) {
+          const sx = plotLeft + (s / (numS - 1)) * plotW;
+          const sy = waveBottom - samples[s] * waveH;
+          if (s === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+      }
+
+      // Convergence Diamond Markers for periodic shapes
+      for (const peak of analysis.peaks) {
+        if (peak.value < 0.62) continue;
+        const px = plotLeft + (peak.tau / windowCycles) * plotW;
+        const py = waveBottom - peak.value * waveH;
+
+        ctx.fillStyle = peak.isDownbeat ? '#fbbf24' : '#38bdf8';
+        ctx.beginPath();
+        ctx.moveTo(px, py - 4.5);
+        ctx.lineTo(px + 3.5, py);
+        ctx.lineTo(px, py + 4.5);
+        ctx.lineTo(px - 3.5, py);
+        ctx.closePath();
+        ctx.fill();
+
+        if (peak.value >= 0.72) {
+          ctx.fillStyle = peak.isDownbeat ? '#fde047' : '#7dd3fc';
+          ctx.font = 'bold 7px JetBrains Mono, monospace';
+          ctx.fillText(peak.isDownbeat ? 'REALIGN' : 'COINCIDE', px - 12, py - 6);
+
+          if (isAudioActive) {
+            this.dynamicLights.push({
+              x: px,
+              y: py,
+              velocity: peak.value,
+              colorHex: peak.isDownbeat ? '#FBBF24' : '#38BDF8',
+            });
+          }
         }
       }
-    }
 
-    // Live animated transport playhead
-    if (isAudioActive || audioPhase > 0) {
-      const playheadTau = ((audioPhase * windowCycles) % windowCycles + windowCycles) % windowCycles;
-      const playheadX = plotLeft + (playheadTau / windowCycles) * plotW;
+      // Synchronised Transport Playhead (Periodic Window)
+      if (isAudioActive || unwrappedRootTurns > 0) {
+        const playheadTau = ((unwrappedRootTurns % windowCycles) + windowCycles) % windowCycles;
+        const playheadX = plotLeft + (playheadTau / windowCycles) * plotW;
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(playheadX, mainTop);
-      ctx.lineTo(playheadX, waveBottom);
-      ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(playheadX, mainTop);
+        ctx.lineTo(playheadX, waveBottom);
+        ctx.stroke();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(playheadX, waveBottom, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(playheadX, waveBottom, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // Status label at bottom-left

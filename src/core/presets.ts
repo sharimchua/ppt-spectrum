@@ -527,14 +527,15 @@ export const PRESET_SHAPES: Shape[] = [
     name: 'Church Bell (Inharmonic Idiophone)',
     origin: 'preset',
     category: 'timbre',
-    description: 'Acoustic bell with sub-octave hum, minor-third tierce, quint, and nominal octave with long metallic resonance.',
+    description: 'Acoustic church bell with authentic inharmonic modes: sub-octave hum, strike prime, minor-third tierce, quint, and nominal with long metallic resonance.',
     adsr: { attack: 0.002, decay: 2.8, sustain: 0.12, release: 0.8, damping: 0.4 },
     partials: [
-      { id: 'p1', ratio: { kind: 'real', value: 0.5 }, amp: 0.8, phase: 0, voice: 'kick', label: 'Hum' },
-      { id: 'p2', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'snare', label: 'Prime' },
-      { id: 'p3', ratio: { kind: 'real', value: 1.2 }, amp: 0.7, phase: 0, voice: 'woodblock', label: 'Tierce' },
-      { id: 'p4', ratio: { kind: 'real', value: 1.5 }, amp: 0.6, phase: 0, voice: 'clave', label: 'Quint' },
-      { id: 'p5', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0, voice: 'triangle', label: 'Nominal' },
+      { id: 'p1', ratio: { kind: 'real', value: 0.504 }, amp: 0.85, phase: 0, voice: 'kick', label: 'Hum (0.50x)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'snare', label: 'Prime (1.00x)' },
+      { id: 'p3', ratio: { kind: 'real', value: 1.183 }, amp: 0.75, phase: 0, voice: 'woodblock', label: 'Tierce (1.18x)' },
+      { id: 'p4', ratio: { kind: 'real', value: 1.506 }, amp: 0.60, phase: 0, voice: 'clave', label: 'Quint (1.51x)' },
+      { id: 'p5', ratio: { kind: 'real', value: 2.014 }, amp: 0.80, phase: 0, voice: 'triangle', label: 'Nominal (2.01x)' },
+      { id: 'p6', ratio: { kind: 'real', value: 2.512 }, amp: 0.45, phase: 0, voice: 'hihat', label: 'Superquint (2.51x)' },
     ]
   }
 ];
