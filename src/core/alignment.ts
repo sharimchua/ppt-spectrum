@@ -217,19 +217,21 @@ export const CANONICAL_INTERVAL_MARKERS: ConsonantIntervalMarker[] = [
 ];
 
 /**
- * Calculates William Sethares' Sensory Dissonance curve for a timbre swept across an octave of interval probes (1.0 to 2.0).
- * Uses consistent base fundamental scaling to avoid register warps.
+ * Calculates William Sethares' Sensory Dissonance & Consonance curve for a timbre swept across an octave of interval probes (1.0 to 2.0).
+ * Anchored to a standardized acoustic reference fundamental (220 Hz) so the timbre's intrinsic harmonic consonance
+ * and polyrhythmic coincidence profile remains scale-invariant across register sweeps, while fully capturing
+ * the acoustic effects of inharmonic and aperiodic partials (such as piano string inharmonicity and bells).
  */
 export function calculateSetharesCurve(
   activePartials: { freqHz: number; filteredAmp: number; ratioValue: number }[],
-  f0: number,
+  _f0?: number,
   numPoints: number = 64
 ): { points: { ratio: number; roughness: number }[]; maxRoughness: number } {
-  if (activePartials.length === 0 || f0 <= 0) {
+  if (activePartials.length === 0) {
     return { points: [], maxRoughness: 0.001 };
   }
 
-  const baseF0 = Math.max(20, f0);
+  const refF0 = 220;
   const points: { ratio: number; roughness: number }[] = [];
   let maxRoughness = 0.001;
 
@@ -239,10 +241,11 @@ export function calculateSetharesCurve(
 
     for (const p of activePartials) {
       if (p.filteredAmp <= 0.001) continue;
+      const f1 = refF0 * p.ratioValue;
       for (const probe of activePartials) {
         if (probe.filteredAmp <= 0.001) continue;
-        const probeFreq = baseF0 * ratio * probe.ratioValue;
-        rSum += calculatePlompLevelt(p.freqHz, p.filteredAmp, probeFreq, probe.filteredAmp * 0.85);
+        const f2 = refF0 * ratio * probe.ratioValue;
+        rSum += calculatePlompLevelt(f1, p.filteredAmp, f2, probe.filteredAmp * 0.85);
       }
     }
 

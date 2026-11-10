@@ -132,6 +132,20 @@ describe('Alignment & Ghost Fundamental', () => {
     expect(CANONICAL_INTERVAL_MARKERS.length).toBe(7);
   });
 
+  it('faithfully calculates dissonance landscape for inharmonic partials without warping across sweeps', () => {
+    // Inharmonic bell partials (1.0, 2.76, 5.40)
+    const inharmonicPartials = [
+      { freqHz: 100, filteredAmp: 1.0, ratioValue: 1.0 },
+      { freqHz: 276, filteredAmp: 0.7, ratioValue: 2.76 },
+      { freqHz: 540, filteredAmp: 0.5, ratioValue: 5.40 },
+    ];
+    const curveRhythm = calculateSetharesCurve(inharmonicPartials, 2);
+    const curvePitch = calculateSetharesCurve(inharmonicPartials, 440);
+    // Scale-invariant landscape: roughness curves evaluate identically regardless of scene f0
+    expect(curveRhythm.maxRoughness).toBeCloseTo(curvePitch.maxRoughness, 4);
+    expect(curveRhythm.points[10].roughness).toBeCloseTo(curvePitch.points[10].roughness, 4);
+  });
+
   it('calculates Supercycle timeline events across polyrhythmic root turns', () => {
     const hemiola = PRESET_SHAPES.find((s) => s.id === 'hemiola-3-2')!;
     const timelines = calculateSupercycleTimeline(hemiola, 2);
