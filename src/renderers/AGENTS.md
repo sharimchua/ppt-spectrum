@@ -23,3 +23,17 @@ The `src/renderers` domain contains all high-performance 2D Canvas and WebGL gra
 - **Zero Software Blurs**: `ctx.shadowBlur = 0` in per-frame animation loops. Optical bloom and halation are offloaded to the WebGL shader pipeline.
 - **Preallocated Buffers**: Zero heap object allocations in high-frequency particle and heightfield loops.
 - **Photosensitivity / Flash Safety**: Partials $\le 3\text{ Hz}$ emit discrete beat ripples/shockwaves; partials $> 3\text{ Hz}$ smoothly blend into continuous steady-state Solfège-tinted glow and rotating phasors.
+- **Lint-enforced**: no React or `src/components` imports; any `ctx.shadowBlur = <non-zero>` assignment is an error.
+
+## Lens Contract
+
+Every lens implements `RegisteredLensRenderer` (exported from `render-coordinator.ts`): a string `id` matching its `SpectrumLensType`, a `render(ctx, width, height, scene, transportTime, audioPhase?, isAudioActive?, labelMode?, configOverrides?, noteAge?)` method, and optionally `getDynamicLights()` to feed the WebGL light sources. `render` is called every frame by `RenderCoordinator` — no allocation, no React access.
+
+## Playbook: Adding a New Lens
+
+1. Create `src/renderers/<name>-lens.ts` exporting a class implementing `RegisteredLensRenderer`.
+2. Add the id to the `SpectrumLensType` union in `src/core/layout-models.ts`, and its display title in the title lookup near the end of that file.
+3. Instantiate it in the `switch (cell.module)` and add it to `lensOptions` in `src/components/CellViewport.tsx`.
+4. Add it to the Ownership list above, and describe it in `InfoModal.tsx` and `README.md` where the other lenses are listed.
+5. Extract pure geometry/maths helpers as named exports and unit test them in `src/renderers/__tests__/`.
+6. Run `npm run check`.

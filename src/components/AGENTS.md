@@ -16,6 +16,15 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
 - `src/components/ShapeEditor.tsx` — Interactive partial inspector, harmonic inharmonicity stretch macros ($B$), and rolloff damping controls.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
+- `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a full-canvas BandFilter edit mode (`centre`, `width`, `skirt`).
+- `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor with `localStorage` persistence (`loadSavedBookmarks`, `saveBookmarks`).
+- `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
+
+## Maintainability Notes
+
+- `App.tsx` (~1,100 lines) and `ShapeEditor.tsx` (~1,450 lines) are oversized. When touching them, extract cohesive custom hooks (e.g. deeplink, keyboard shortcuts, audio lifecycle) or subcomponents into new files rather than adding more inline logic.
+- Non-component exports (constants, persistence helpers) in `.tsx` files trigger `react-refresh/only-export-components` warnings; place new helpers in a sibling `.ts` module instead.
+- Existing `react-hooks/exhaustive-deps` warnings are tracked by the lint warning ratchet. Fix them deliberately (refs are often intentional for 60 FPS paths); do not add new ones.
 
 ## Local Contracts
 

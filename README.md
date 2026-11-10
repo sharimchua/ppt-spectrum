@@ -61,9 +61,15 @@ npm run dev
 # Run unit tests
 npm test
 
+# Lint (architectural guardrails) and full pre-commit check
+npm run lint
+npm run check   # typecheck + lint + tests
+
 # Production build
 npm run build
 ```
+
+Contributor and AI-agent working contracts live in the [AGENTS.md](AGENTS.md) hierarchy.
 
 ## Documentation
 

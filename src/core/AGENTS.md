@@ -14,8 +14,19 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/alignment.ts` — Ghost fundamental, coincidence counting, Plomp-Levelt roughness curves, and Tenney complexity.
 - `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Duple 1:2, Quadruple 1:4, Hemiola 3:2, Polyrhythms 4:3 & 5:4, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar).
 - `src/core/config.ts` — Default application configuration, sanitisation, and localStorage persistence.
-- `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialization for deep linking.
+- `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialisation for deep linking.
 - `src/core/decompose.ts` — Dynamic 11-limit DuPeriod interval quantisation for tapped rhythm inputs.
+
+### Tests (`src/core/__tests__/`)
+
+- `core.test.ts` — Axis maths, rational algebra and prime limits, alignment and ghost fundamental, BandFilter, presets and piano inharmonicity, graphics profile persistence.
+- `decompose.test.ts` — Rhythm decomposer and 11-limit quantiser.
+- `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
+- `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
+
+## Known Exceptions
+
+- `config.ts` reads/writes `window.localStorage` for scene persistence, guarded by `typeof window === 'undefined'` so it remains safe under Node/Vitest. It is the **only** file exempted from the `no-restricted-globals` lint rule in [eslint.config.js](../../eslint.config.js). Do not add browser access elsewhere in `src/core`; inject it from the calling layer.
 
 ## Shared Library Architecture Note
 
@@ -27,3 +38,5 @@ The layout tree structures and algorithms in `layout-models.ts` (`splitCellInTre
 - Australian English spelling must be maintained in all comments and documentation.
 - Round-trip conversions between $d$, $f$, period, and BPM must be tested to high precision.
 - Layout slug roundtrips (`encodeLayoutToSlug` <-> `decodeLayoutFromSlug`) must produce structurally identical layout trees.
+- Lint-enforced: no imports from `react`, `src/audio`, `src/renderers`, or `src/components`, and no browser globals (see Known Exceptions).
+- Every new exported function needs a unit test in `src/core/__tests__/`.
