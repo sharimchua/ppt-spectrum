@@ -4,9 +4,10 @@
  * frequencies ("440Hz"), tempo ("120BPM"), and DuPeriod coordinates ("d:1.5").
  */
 
-import { RangeEndpoint } from './filter-types';
+import { FilterReference, RangeEndpoint } from './filter-types';
 import { Ratio } from './types';
-import { reduceRational } from './rational';
+import { reduceRational, ratioToValue } from './rational';
+import { TPL_FREQUENCY_HZ } from './ppt-constants';
 
 /**
  * Parses a string input into a strongly-typed RangeEndpoint.
@@ -136,4 +137,63 @@ export function formatEndpoint(endpoint: RangeEndpoint): string {
     default:
       return '';
   }
+}
+
+/**
+ * Converts a RangeEndpoint to a representation suitable for the target coordinate reference.
+ * When converting to 'absolute': relative units (cents, ratio, edo) are converted to DuPeriod 'd'.
+ * When converting to 'scene' or 'anchor': absolute units (d, hz, bpm) are converted to 'cents'.
+ * Switching between 'scene' and 'anchor' preserves existing relative representations.
+ */
+export function convertEndpointForReference(
+  endpoint: RangeEndpoint | null,
+  targetRef: FilterReference,
+  tplHz: number = TPL_FREQUENCY_HZ
+): RangeEndpoint | null {
+  if (!endpoint) return null;
+
+  if (targetRef === 'absolute') {
+    if (endpoint.unit === 'd' || endpoint.unit === 'hz' || endpoint.unit === 'bpm') {
+      return endpoint;
+    }
+    // Relative units -> DuPeriod d: d = -x, where x is pitch-height in octaves
+    if (endpoint.unit === 'cents') {
+      const d = -endpoint.value / 1200.0;
+      return { unit: 'd', value: Math.round(d * 100) / 100 };
+    }
+    if (endpoint.unit === 'ratio') {
+      const r = ratioToValue(endpoint.ratio);
+      const d = -Math.log2(Math.max(1e-6, r));
+      return { unit: 'd', value: Math.round(d * 100) / 100 };
+    }
+    if (endpoint.unit === 'edo') {
+      const periodRatio = endpoint.period ? ratioToValue(endpoint.period) : 2.0;
+      const d = -((endpoint.steps / Math.max(1, endpoint.divisions)) * Math.log2(periodRatio));
+      return { unit: 'd', value: Math.round(d * 100) / 100 };
+    }
+    return endpoint;
+  }
+
+  // targetRef is 'scene' or 'anchor' (relative)
+  if (endpoint.unit === 'cents' || endpoint.unit === 'ratio' || endpoint.unit === 'edo') {
+    return endpoint;
+  }
+  // Absolute units -> cents: x is pitch-height in octaves, cents = x * 1200
+  if (endpoint.unit === 'd') {
+    const cents = Math.round(-endpoint.value * 1200.0);
+    return { unit: 'cents', value: cents };
+  }
+  if (endpoint.unit === 'hz') {
+    const x = Math.log2(Math.max(1e-6, endpoint.value) / tplHz);
+    const cents = Math.round(x * 1200.0);
+    return { unit: 'cents', value: cents };
+  }
+  if (endpoint.unit === 'bpm') {
+    const freqHz = Math.max(1e-6, endpoint.value) / 60.0;
+    const x = Math.log2(freqHz / tplHz);
+    const cents = Math.round(x * 1200.0);
+    return { unit: 'cents', value: cents };
+  }
+
+  return endpoint;
 }

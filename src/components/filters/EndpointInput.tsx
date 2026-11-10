@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FilterReference, RangeEndpoint } from '../../core/filter-types';
-import { parseEndpoint, formatEndpoint } from '../../core/endpoint-parse';
+import { parseEndpoint, formatEndpoint, convertEndpointForReference } from '../../core/endpoint-parse';
 
 interface EndpointInputProps {
   label: string;
@@ -47,6 +47,15 @@ export const EndpointInput: React.FC<EndpointInputProps> = ({
         setIsError(false);
         onChange(parsed);
         setText(formatEndpoint(parsed));
+        return;
+      }
+
+      // If typed unit belongs to the other reference, convert it seamlessly
+      const converted = convertEndpointForReference(parsed, reference);
+      if (converted) {
+        setIsError(false);
+        onChange(converted);
+        setText(formatEndpoint(converted));
         return;
       }
     }

@@ -136,20 +136,20 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
         {/* Reference Selector for Range Conditions */}
         {(activeTab === 'spectral' || activeTab === 'interval' || activeTab === 'harmonic') && (
           <div className="flex items-center justify-between px-4 py-2 bg-slate-950/60 border-b border-slate-800/60 text-xs">
-            <span className="text-[11px] text-slate-400">Anchor Coordinate:</span>
+            <span className="text-[11px] text-slate-400 font-medium">Coordinate Reference:</span>
             <div className="flex items-center gap-1">
               {(['scene', 'anchor', 'absolute'] as FilterReference[]).map((ref) => (
                 <button
                   key={ref}
                   type="button"
                   onClick={() => setSelectedReference(ref)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase transition-colors ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer ${
                     selectedReference === ref
                       ? 'bg-sky-500 text-slate-950 font-bold'
                       : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {ref}
+                  {ref === 'scene' ? 'Scene (Rel)' : ref === 'anchor' ? 'Anchor (Rel)' : 'Absolute'}
                 </button>
               ))}
             </div>

@@ -128,13 +128,20 @@ export function updateCondition(
   conditionId: string,
   updated: FilterCondition
 ): Scene {
+  const nextConditions = scene.filter.conditions.map((c: FilterCondition) =>
+    c.id === conditionId ? updated : c
+  );
+  let nextTrackingMode = scene.filter.trackingMode;
+  if (updated.kind === 'range' && (scene.filter.focus?.conditionId === conditionId || !scene.filter.focus)) {
+    nextTrackingMode = updated.reference === 'absolute' ? 'fixed' : 'relative';
+  }
+
   return {
     ...scene,
     filter: {
       ...scene.filter,
-      conditions: scene.filter.conditions.map((c: FilterCondition) =>
-        c.id === conditionId ? updated : c
-      ),
+      conditions: nextConditions,
+      ...(nextTrackingMode !== undefined ? { trackingMode: nextTrackingMode } : {}),
     },
   };
 }
@@ -291,7 +298,6 @@ export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Fil
 
   const halfW = targetWidthD / 2.0;
   const isRelative = targetTracking === 'relative';
-  const reference = isRelative ? 'scene' : 'absolute';
 
   const nextConds = [...filter.conditions];
   let targetCondIdx = -1;
@@ -305,6 +311,11 @@ export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Fil
     targetCondIdx = nextConds.findIndex((c: FilterCondition) => c.kind === 'range');
     targetSpanIdx = 0;
   }
+
+  const existingRef = targetCondIdx !== -1 && nextConds[targetCondIdx].kind === 'range'
+    ? (nextConds[targetCondIdx] as RangeCondition).reference
+    : 'scene';
+  const reference = isRelative ? (existingRef === 'anchor' ? 'anchor' : 'scene') : 'absolute';
 
   // Construct new span
   let newSpan;
