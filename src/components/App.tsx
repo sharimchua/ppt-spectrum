@@ -1,25 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Scene, Shape, BandFilter } from '../core/types';
-import { DEFAULT_SCENE, loadSavedScene, saveScene } from '../core/config';
-import { RenderCoordinator } from '../renderers/render-coordinator';
-import { AudioEngine } from '../audio/audio-engine';
-import {
-  LayoutDefinition,
-  LayoutCellNode,
-  LayoutFlexDirection,
-  SpectrumLensType,
-  PRESET_SOLO,
-  PRESET_DUO_HORIZONTAL,
-  PRESET_LAYOUTS,
-  splitCellInTree,
-  removeCellFromTree,
-  duplicateCellInTree,
-  addCellToTree,
-  updateCellInTree,
-  encodeLayoutToSlug,
-  decodeLayoutFromSlug,
-  getAllCellNodes,
-} from '../core/layout-models';
+/**
+ * Main application shell.
+ * Composes viewport, toolbar, layout renderer, modals, and custom hooks.
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
+import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
@@ -27,141 +12,29 @@ import { CaptureModal } from './CaptureModal';
 import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
-import { MusicalBookmarksModal, loadSavedBookmarks, saveBookmarks, createBookmarkPointFromD, BookmarkSettings } from './MusicalBookmarksModal';
+import { MusicalBookmarksModal } from './MusicalBookmarksModal';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
-import { RadialMenuOverlay, FilterControlParam } from './RadialMenuOverlay';
-import { Check } from 'lucide-react';
-
-const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
-const STORAGE_KEY_CUSTOM_LAYOUT = 'ppt_spectrum_custom_layout_v1';
-
-// Helper to extract layout slug from URL query or hash
-function extractLayoutSlugFromUrl(): string | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  const querySlug = params.get('layout');
-  if (querySlug) return querySlug;
-
-  if (window.location.hash) {
-    const match = window.location.hash.match(/layout=([^&]+)/);
-    if (match) return decodeURIComponent(match[1]);
-  }
-  return null;
-}
-
-function loadInitialCustomLayout(): LayoutDefinition | null {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY_CUSTOM_LAYOUT);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.root) {
-          return {
-            ...parsed,
-            id: 'custom',
-            name: parsed.name || 'Custom Layout',
-          };
-        }
-      }
-    } catch {
-      // Fall through
-    }
-  }
-  return null;
-}
-
-function loadInitialLayout(): LayoutDefinition {
-  // 1. URL parameter takes highest precedence (for deep links)
-  const slug = extractLayoutSlugFromUrl();
-  if (slug) {
-    const decoded = decodeLayoutFromSlug(slug);
-    if (decoded) return decoded.layout;
-  }
-
-  // Small portrait screens default to a stacked Duo Split layout for optimal lens visibility
-  const isMobilePortrait =
-    typeof window !== 'undefined' &&
-    window.innerWidth < 768 &&
-    window.innerHeight > window.innerWidth;
-
-  // 2. Persisted last selected layout in localStorage
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY_LAYOUT);
-      if (saved) {
-        // Upgrade mobile portrait from solo to Duo Split so users never get trapped on solo
-        if (isMobilePortrait && saved === 'solo') {
-          return PRESET_DUO_HORIZONTAL;
-        }
-        if (PRESET_LAYOUTS[saved]) {
-          return PRESET_LAYOUTS[saved];
-        }
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.root) {
-          return parsed as LayoutDefinition;
-        }
-      }
-    } catch {
-      // Fall through to default
-    }
-  }
-
-  return isMobilePortrait ? PRESET_DUO_HORIZONTAL : PRESET_SOLO;
-}
+import { RadialMenuOverlay } from './RadialMenuOverlay';
+import { FilterEditHud } from './FilterEditHud';
+import { useSceneEngine } from './hooks/useSceneEngine';
+import { useLayoutState } from './hooks/useLayoutState';
+import { useTransport } from './hooks/useTransport';
+import { useBookmarks } from './hooks/useBookmarks';
+import { useShapeLibrary } from './hooks/useShapeLibrary';
+import { useFilterControls } from './hooks/useFilterControls';
+import { useKeyboardShortcuts, KeyboardActions } from './hooks/useKeyboardShortcuts';
+import { useFullscreen } from './hooks/useFullscreen';
 
 export const App: React.FC = () => {
-  const [scene, setScene] = useState<Scene>(() => loadSavedScene() || DEFAULT_SCENE);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  // Modal visibility states
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState<boolean>(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
-  const [isOscillating, setIsOscillating] = useState<boolean>(false);
-  const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
+  const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
   const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
-  const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
-
-  // Session-only history of selected shapes for quick Up/Down arrow navigation
-  const [, setShapeHistory] = useState<{ stack: string[]; index: number }>(() => {
-    const initialId = scene.placements[0]?.shapeId || 'hemiola-3-2';
-    return { stack: [initialId], index: 0 };
-  });
-
-  const pushShapeHistory = useCallback((shapeId: string) => {
-    setShapeHistory((prev) => {
-      if (prev.stack[prev.index] === shapeId) return prev;
-      const truncated = prev.stack.slice(0, prev.index + 1);
-      const nextStack = [...truncated, shapeId];
-      return { stack: nextStack, index: nextStack.length - 1 };
-    });
-  }, []);
-
-  // Initialize layout from URL slug, last saved layout, or default to PRESET_SOLO
-  const initialLoadedLayout = useMemo(() => loadInitialLayout(), []);
-  const [layout, setLayout] = useState<LayoutDefinition>(initialLoadedLayout);
-  const [customLayout, setCustomLayout] = useState<LayoutDefinition | null>(() => {
-    const savedCustom = loadInitialCustomLayout();
-    if (savedCustom) return savedCustom;
-    if (
-      initialLoadedLayout &&
-      (initialLoadedLayout.id === 'custom' ||
-        initialLoadedLayout.id.startsWith('custom') ||
-        !PRESET_LAYOUTS[initialLoadedLayout.id])
-    ) {
-      return {
-        ...initialLoadedLayout,
-        id: 'custom',
-        name: 'Custom Layout',
-      };
-    }
-    return null;
-  });
-
-  const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
 
   // Check if intro primer modal should be shown on launch
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(() => {
@@ -169,453 +42,117 @@ export const App: React.FC = () => {
     return localStorage.getItem(STORAGE_KEY_DONT_SHOW_INTRO) !== 'true';
   });
 
-  const coordinator = useMemo(() => new RenderCoordinator(scene), []);
-  const audioEngine = useMemo(() => AudioEngine.getInstance(scene), []);
-  const sceneRef = useRef<Scene>(scene);
-  sceneRef.current = scene;
+  // Fullscreen management
+  const { isFullscreen, toggleFullscreen } = useFullscreen();
 
-  const updateScene = useCallback(
-    (updater: Scene | ((prev: Scene) => Scene)) => {
-      setScene((prev) => {
-        const next = typeof updater === 'function' ? (updater as (p: Scene) => Scene)(prev) : updater;
-        sceneRef.current = next;
-        audioEngine.updateScene(next);
-        coordinator.setScene(next);
-        return next;
-      });
+  // Temporary holder for oscillating state before useBookmarks initialisation
+  const [isOscillatingInit, setIsOscillatingInit] = useState<boolean>(false);
+
+  // Core scene engine (RenderCoordinator, AudioEngine, debounced save)
+  const { scene, sceneRef, updateScene, coordinator, audioEngine } = useSceneEngine(isOscillatingInit);
+
+  // Primary placement coordinate updates
+  const handleUpdatePlacementD = useCallback(
+    (d: number) => {
+      updateScene((prev) => setPrimaryPlacementD(prev, d));
     },
-    [audioEngine, coordinator]
+    [updateScene]
   );
 
-  // Connect AudioEngine sample-accurate telemetry to RenderCoordinator
-  useEffect(() => {
-    coordinator.setAudioPhaseProvider((shapeId) => audioEngine.getMasterPhase(shapeId));
-    coordinator.setIsAudioActiveProvider(() => audioEngine.isAudioActive());
-    coordinator.setNoteAgeProvider((shapeId) => audioEngine.getNoteAge(shapeId));
-  }, [coordinator, audioEngine]);
+  const handleStepPrimaryD = useCallback(
+    (step: number) => {
+      updateScene((prev) => stepPrimaryPlacementD(prev, step));
+    },
+    [updateScene]
+  );
 
-  // Sync state updates to audio engine and persistence (debounced to avoid localStorage thrash during 60 FPS sweep)
-  useEffect(() => {
-    coordinator.setScene(scene);
-    audioEngine.updateScene(scene);
-    if (!isOscillating) {
-      const timer = setTimeout(() => {
-        saveScene(scene);
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [scene, coordinator, audioEngine, isOscillating]);
+  // Audio transport and note triggering
+  const {
+    isPlaying,
+    getViewportCenter,
+    handleNoteOn,
+    handleNoteOff,
+    handleTriggerNote,
+    handleTogglePlay,
+  } = useTransport({ coordinator, audioEngine, sceneRef });
 
-  // Smooth Continuum Sweep Oscillation with Destination Dwell Time
-  useEffect(() => {
-    if (!isOscillating) return;
-    let animId: number;
-    const startTime = performance.now();
-    const startD = bookmarks.a.d;
-    const targetD = bookmarks.b.d;
-    const span = targetD - startD;
+  // Musical bookmarks and continuum sweep oscillation
+  const {
+    bookmarks,
+    setBookmarks,
+    isOscillating,
+    toggleOscillating,
+    handleJumpBookmarkA,
+    handleJumpBookmarkB,
+    handleSetBookmarkA,
+    handleSetBookmarkB,
+    setBookmarkFromCurrent,
+  } = useBookmarks({
+    sceneRef,
+    updateScene,
+    coordinator,
+    setPrimaryD: handleUpdatePlacementD,
+  });
 
-    // Single one-way glide duration (half of periodSec)
-    const transitMs = Math.max(0.5, (bookmarks.periodSec || 10) / 2) * 1000;
-    // Dwell/hold duration at each destination
-    const dwellMs = Math.max(0, (bookmarks.dwellSec ?? 1.5)) * 1000;
-    // Full roundtrip cycle: (Transit A->B) + (Dwell at B) + (Transit B->A) + (Dwell at A)
-    const totalCycleMs = Math.max(100, 2 * transitMs + 2 * dwellMs);
+  // Keep useSceneEngine oscillating state gate synced with useBookmarks
+  if (isOscillating !== isOscillatingInit) {
+    setIsOscillatingInit(isOscillating);
+  }
 
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const cycleTime = elapsed % totalCycleMs;
+  // Modular layout tree state and operations
+  const {
+    layout,
+    setLayout,
+    customLayout,
+    canDelete,
+    handleSplitCell,
+    handleRemoveCell,
+    handleDuplicateCell,
+    handleAddCell,
+    handleUpdateCell,
+    handleResetLayout,
+    handleShareLayout,
+  } = useLayoutState();
 
-      let progress: number;
-      if (cycleTime < transitMs) {
-        // Phase 1: Glide from Bookmark A to Bookmark B (Smooth Cosine Ease)
-        const tNorm = cycleTime / transitMs;
-        progress = (1 - Math.cos(Math.PI * tNorm)) * 0.5;
-      } else if (cycleTime < transitMs + dwellMs) {
-        // Phase 2: Dwell / Hold rock-steady at Bookmark B
-        progress = 1.0;
-      } else if (cycleTime < 2 * transitMs + dwellMs) {
-        // Phase 3: Glide from Bookmark B back to Bookmark A (Smooth Cosine Ease)
-        const tNorm = (cycleTime - (transitMs + dwellMs)) / transitMs;
-        progress = (1 + Math.cos(Math.PI * tNorm)) * 0.5;
-      } else {
-        // Phase 4: Dwell / Hold rock-steady at Bookmark A
-        progress = 0.0;
-      }
+  // Shape library, presets, and session history stack
+  const {
+    activeShape,
+    handleSelectPreset,
+    handleUpdateActiveShape,
+    handleDuplicateShape,
+    handleDeleteUserShape,
+    handleCreateShape,
+    handleCaptureShape,
+    historyBack,
+    historyForward,
+  } = useShapeLibrary({ scene, updateScene, coordinator, getViewportCenter });
 
-      const currentGlideD = startD + span * progress;
+  // Band filter controls and HUD edit state
+  const {
+    isFilterEditMode,
+    setIsFilterEditMode,
+    filterControlParam,
+    setFilterControlParam,
+    handleUpdateFilterCentreD,
+    handleUpdateFilterParams,
+    handleEnterFilterEditMode,
+    handleCycleFilterMode,
+    toggleFilter,
+    toggleFilterEditMode,
+  } = useFilterControls({ updateScene });
 
-      updateScene((prev) => {
-        const updatedPlacements = prev.placements.map((p, idx) =>
-          idx === 0 ? { ...p, d: currentGlideD } : p
-        );
-        return { ...prev, placements: updatedPlacements };
-      });
-
-      animId = requestAnimationFrame(step);
-    };
-
-    animId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animId);
-  }, [isOscillating, bookmarks.a.d, bookmarks.b.d, bookmarks.periodSec, bookmarks.dwellSec, updateScene]);
-
-  // Persist last selected layout to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(layout));
-      } catch (err) {
-        console.warn('[Layout] Failed to save last layout:', err);
-      }
-    }
-  }, [layout]);
-
-  // Persist custom layout to localStorage
-  useEffect(() => {
-    if (customLayout && typeof window !== 'undefined' && window.localStorage) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY_CUSTOM_LAYOUT, JSON.stringify(customLayout));
-      } catch (err) {
-        console.warn('[Layout] Failed to save custom layout:', err);
-      }
-    }
-  }, [customLayout]);
-
-  // Handle URL hash changes dynamically (#layout=<slug>)
-  useEffect(() => {
-    const handleHashChange = () => {
-      const slug = extractLayoutSlugFromUrl();
-      if (slug) {
-        const decoded = decodeLayoutFromSlug(slug);
-        if (decoded) {
-          setLayout(decoded.layout);
-          if (!PRESET_LAYOUTS[decoded.layout.id]) {
-            const custom: LayoutDefinition = {
-              ...decoded.layout,
-              id: 'custom',
-              name: decoded.layout.name || 'Custom Layout',
-            };
-            setCustomLayout(custom);
-          }
-        }
-      }
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // Fullscreen change listener
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
-
-  const getViewportCenter = useCallback(() => {
-    const pp = coordinator.getPostProcessingCanvas();
-    if (pp && pp.clientWidth > 0 && pp.clientHeight > 0) {
-      return { cx: pp.clientWidth / 2, cy: pp.clientHeight / 2 };
-    }
-    return { cx: window.innerWidth / 2, cy: window.innerHeight / 2 };
-  }, [coordinator]);
-
-  const handleNoteOn = useCallback((shapeId?: string) => {
-    audioEngine.noteOn(shapeId, sceneRef.current);
-    coordinator.triggerNoteStrike();
-    const { cx, cy } = getViewportCenter();
-    coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
-  }, [audioEngine, coordinator, getViewportCenter]);
-
-  const handleNoteOff = useCallback((shapeId?: string) => {
-    audioEngine.noteOff(shapeId);
-  }, [audioEngine]);
-
-  const handleTriggerNote = useCallback((shapeId?: string) => {
-    audioEngine.triggerNote(shapeId, sceneRef.current);
-    coordinator.triggerNoteStrike();
-    const { cx, cy } = getViewportCenter();
-    coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
-  }, [audioEngine, coordinator, getViewportCenter]);
-
-  const handleTogglePlay = useCallback(async () => {
-    if (!audioEngine.getIsPlaying()) {
-      setIsPlaying(true);
-      const { cx, cy } = getViewportCenter();
-      coordinator.cosmeticsEngine.triggerShockwave(cx, cy, '#E13610', 100);
-      await audioEngine.play();
-    } else {
-      audioEngine.pause();
-      setIsPlaying(false);
-    }
-  }, [audioEngine, coordinator, getViewportCenter]);
-
-  // Keyboard shortcuts:
-  // - Spacebar: toggles simulation/audio playback (intercepted in capture phase so focused buttons/dropdowns don't steal it)
-  // - 'l' / 'L': toggles Shape Library & Synthesiser tray
-  // - Shift + 'L': opens Quick Shape Search Modal with autocomplete
-  // - 's' / 'S': toggles continuum sweep oscillation
-  // - 'f' / 'F': toggles band filter aperture
-  // - 't' / 'T': triggers/strikes acoustic ADSR note
-  // - 'a' / 'A': jump fundamental to Bookmark A (Shift + A sets Bookmark A to current d)
-  // - 'b' / 'B': jump fundamental to Bookmark B (Shift + B sets Bookmark B to current d)
-  // - Left/Right arrows: step fundamental by 1 DuMetric octave (Shift + Left/Right steps by 0.5 octave)
-  // - Up/Down arrows: navigate back and forth through session shape selection history
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // If Quick Shape Search Modal is open, let it handle its own keyboard navigation
-      if (isQuickSearchOpen) {
-        return;
-      }
-
-      // Ignore browser modifier combinations (e.g. Ctrl+S, Ctrl+A, Alt+F)
-      if (e.ctrlKey || e.altKey || e.metaKey) {
-        return;
-      }
-
-      const target = e.target as HTMLElement | null;
-      const isTextInput =
-        target &&
-        ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable);
-
-      if (isTextInput) {
-        return;
-      }
-
-      // Spacebar Focus Guard: always toggle play/pause unless Capture Modal is open (where Space taps the rhythm pad)
-      if (e.code === 'Space' || e.key === ' ') {
-        if (isCaptureOpen) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (
-          document.activeElement instanceof HTMLElement &&
-          (document.activeElement.tagName === 'BUTTON' ||
-            document.activeElement.tagName === 'SELECT' ||
-            document.activeElement.tagName === 'INPUT')
-        ) {
-          document.activeElement.blur();
-        }
-        handleTogglePlay();
-        return;
-      }
-
-      if (e.key === 'l' || e.key === 'L') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          setIsQuickSearchOpen((prev) => !prev);
-        } else {
-          setIsShapeEditorOpen((prev) => !prev);
-        }
-        return;
-      }
-
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (e.key === 's' || e.key === 'S') {
-        e.preventDefault();
-        setIsOscillating((prev) => !prev);
-      } else if (e.key === 'e' || e.key === 'E') {
-        e.preventDefault();
-        setIsFilterEditMode((prev) => {
-          const next = !prev;
-          if (next) {
-            updateScene((sc) => ({ ...sc, filter: { ...sc.filter, enabled: true } }));
-          }
-          return next;
-        });
-      } else if (e.key === 'f' || e.key === 'F') {
-        e.preventDefault();
-        updateScene((prev) => ({
-          ...prev,
-          filter: {
-            ...prev.filter,
-            enabled: !prev.filter?.enabled,
-          },
-        }));
-      } else if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        if (!e.repeat) {
-          handleNoteOn();
-        }
-      } else if (e.key === 'a' || e.key === 'A') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          const curD = sceneRef.current.placements[0]?.d ?? 0;
-          const nextPoint = createBookmarkPointFromD(curD);
-          setBookmarks((prev) => {
-            const updated = { ...prev, a: nextPoint };
-            saveBookmarks(updated);
-            return updated;
-          });
-          coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, 48, '#38bdf8', 0.9, 14);
-        } else {
-          const targetD = bookmarks.a.d;
-          updateScene((prev) => ({
-            ...prev,
-            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-          }));
-        }
-      } else if (e.key === 'b' || e.key === 'B') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          const curD = sceneRef.current.placements[0]?.d ?? 0;
-          const nextPoint = createBookmarkPointFromD(curD);
-          setBookmarks((prev) => {
-            const updated = { ...prev, b: nextPoint };
-            saveBookmarks(updated);
-            return updated;
-          });
-          coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, 48, '#f59e0b', 0.9, 14);
-        } else {
-          const targetD = bookmarks.b.d;
-          updateScene((prev) => ({
-            ...prev,
-            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-          }));
-        }
-      } else if (e.key === 'ArrowRight') {
-        // Move UP in frequency / pitch (decrease d)
-        e.preventDefault();
-        const step = e.shiftKey ? 0.5 : 1.0;
-        updateScene((prev) => {
-          const curD = prev.placements[0]?.d ?? 0;
-          const targetD = Math.max(-7, Math.min(7, curD - step));
-          return {
-            ...prev,
-            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-          };
-        });
-      } else if (e.key === 'ArrowLeft') {
-        // Move DOWN in frequency / pitch (increase d)
-        e.preventDefault();
-        const step = e.shiftKey ? 0.5 : 1.0;
-        updateScene((prev) => {
-          const curD = prev.placements[0]?.d ?? 0;
-          const targetD = Math.max(-7, Math.min(7, curD + step));
-          return {
-            ...prev,
-            placements: prev.placements.map((p, idx) => (idx === 0 ? { ...p, d: targetD } : p)),
-          };
-        });
-      } else if (e.key === 'ArrowUp') {
-        // Navigate BACK in session shape selection history
-        e.preventDefault();
-        setShapeHistory((prev) => {
-          if (prev.index <= 0) return prev;
-          const nextIndex = prev.index - 1;
-          const targetShapeId = prev.stack[nextIndex];
-          if (targetShapeId) {
-            updateScene((sc) => ({
-              ...sc,
-              placements: sc.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId: targetShapeId } : p)),
-            }));
-          }
-          return { ...prev, index: nextIndex };
-        });
-      } else if (e.key === 'ArrowDown') {
-        // Navigate FORWARD in session shape selection history
-        e.preventDefault();
-        setShapeHistory((prev) => {
-          if (prev.index >= prev.stack.length - 1) return prev;
-          const nextIndex = prev.index + 1;
-          const targetShapeId = prev.stack[nextIndex];
-          if (targetShapeId) {
-            updateScene((sc) => ({
-              ...sc,
-              placements: sc.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId: targetShapeId } : p)),
-            }));
-          }
-          return { ...prev, index: nextIndex };
-        });
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (isQuickSearchOpen) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        handleNoteOff();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-    window.addEventListener('keyup', handleKeyUp, { capture: true });
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, { capture: true });
-      window.removeEventListener('keyup', handleKeyUp, { capture: true });
-    };
-  }, [isPlaying, isCaptureOpen, isQuickSearchOpen, handleTriggerNote, handleNoteOn, handleNoteOff, bookmarks, updateScene, coordinator]);
-
-  const handleToggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  };
-
-  const handleUpdatePlacementD = (d: number) => {
-    updateScene((prev) => {
-      const updatedPlacements = prev.placements.map((p, idx) => (idx === 0 ? { ...p, d } : p));
-      return { ...prev, placements: updatedPlacements };
-    });
-  };
-
-  const handleUpdateFilterCentreD = useCallback((centreD: number) => {
+  // Audio mode toggle
+  const handleToggleAudioMode = useCallback(() => {
     updateScene((prev) => ({
       ...prev,
-      filter: {
-        ...prev.filter,
-        enabled: true,
-        centreD,
+      audio: {
+        ...prev.audio,
+        audioMode: prev.audio.audioMode === 'poetic' ? 'literal' : 'poetic',
       },
     }));
   }, [updateScene]);
 
-  const handleUpdateFilterParams = useCallback((params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => {
-    updateScene((prev) => ({
-      ...prev,
-      filter: {
-        ...prev.filter,
-        enabled: true,
-        ...params,
-      },
-    }));
-  }, [updateScene]);
-
-  const handleEnterFilterEditMode = useCallback((param: FilterControlParam = 'centre') => {
-    setFilterControlParam(param);
-    setIsFilterEditMode(true);
-    updateScene((prev) => ({
-      ...prev,
-      filter: {
-        ...prev.filter,
-        enabled: true,
-      },
-    }));
-  }, [updateScene]);
-
+  // Radial menu opening handlers
   const handleOpenRadialMenu = useCallback(() => {
     setRadialMenuAnchor(null);
     setIsRadialMenuOpen(true);
@@ -626,294 +163,45 @@ export const App: React.FC = () => {
     setIsRadialMenuOpen(true);
   }, []);
 
-  const handleJumpBookmarkA = useCallback(() => {
-    handleUpdatePlacementD(bookmarks.a.d);
-  }, [bookmarks.a.d]);
-
-  const handleJumpBookmarkB = useCallback(() => {
-    handleUpdatePlacementD(bookmarks.b.d);
-  }, [bookmarks.b.d]);
-
-  const handleSetBookmarkA = useCallback(() => {
-    const curD = scene.placements[0]?.d ?? 0;
-    const pt = createBookmarkPointFromD(curD);
-    setBookmarks((prev) => {
-      const next = { ...prev, a: pt };
-      saveBookmarks(next);
-      return next;
-    });
-  }, [scene.placements]);
-
-  const handleSetBookmarkB = useCallback(() => {
-    const curD = scene.placements[0]?.d ?? 0;
-    const pt = createBookmarkPointFromD(curD);
-    setBookmarks((prev) => {
-      const next = { ...prev, b: pt };
-      saveBookmarks(next);
-      return next;
-    });
-  }, [scene.placements]);
-
-  const handleCycleFilterMode = useCallback(() => {
-    updateScene((prev) => {
-      const f = prev.filter;
-      if (!f || !f.enabled) {
-        return { ...prev, filter: { ...f, enabled: true, mode: 'band-pass' } };
-      }
-      if (f.mode === 'band-pass') {
-        return { ...prev, filter: { ...f, enabled: true, mode: 'low-pass' } };
-      }
-      if (f.mode === 'low-pass') {
-        return { ...prev, filter: { ...f, enabled: true, mode: 'high-pass' } };
-      }
-      return { ...prev, filter: { ...f, enabled: false, mode: 'band-pass' } };
-    });
-  }, [updateScene]);
-
-  const handleSelectPreset = useCallback((shapeId: string) => {
-    pushShapeHistory(shapeId);
-    updateScene((prev) => {
-      const updatedPlacements = prev.placements.map((p, idx) => (idx === 0 ? { ...p, shapeId } : p));
-      return { ...prev, placements: updatedPlacements };
-    });
-  }, [pushShapeHistory, updateScene]);
-
-  const handleToggleAudioMode = () => {
-    updateScene((prev) => ({
-      ...prev,
-      audio: {
-        ...prev.audio,
-        audioMode: prev.audio.audioMode === 'poetic' ? 'literal' : 'poetic',
-      },
-    }));
-  };
-
-  const handleCaptureShape = (capturedShape: Shape, dPosition: number) => {
-    pushShapeHistory(capturedShape.id);
-    updateScene((prev) => ({
-      ...prev,
-      shapes: [capturedShape, ...prev.shapes],
-      placements: [
-        {
-          shapeId: capturedShape.id,
-          d: dPosition,
-          gain: 0.85,
-          mute: false,
-          solo: false,
-        },
-      ],
-    }));
-
-    const { cx, cy } = getViewportCenter();
-    coordinator.cosmeticsEngine.triggerShockwave(cx, cy, '#38bdf8', 120);
-    coordinator.cosmeticsEngine.spawnFluidDroplets(cx, cy, '#38bdf8', 1.0, 32);
-  };
-
-  // Modular Layout Tree Editing Handlers
-  const handleSplitCell = useCallback(
-    (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => {
-      setLayout((prev) => {
-        const updated: LayoutDefinition = {
-          ...prev,
-          id: 'custom',
-          name: 'Custom Layout',
-          root: splitCellInTree(prev.root, targetCellId, direction, newModule),
-        };
-        setCustomLayout(updated);
-        return updated;
-      });
-    },
-    []
+  // Keyboard shortcut actions
+  const keyboardActions = useMemo<KeyboardActions>(
+    () => ({
+      onTogglePlay: handleTogglePlay,
+      onToggleShapeEditor: () => setIsShapeEditorOpen((prev) => !prev),
+      onToggleQuickSearch: () => setIsQuickSearchOpen((prev) => !prev),
+      onToggleOscillate: toggleOscillating,
+      onToggleFilterEditMode: toggleFilterEditMode,
+      onToggleFilter: toggleFilter,
+      onNoteOn: () => handleNoteOn(),
+      onNoteOff: () => handleNoteOff(),
+      onJumpBookmarkA: handleJumpBookmarkA,
+      onJumpBookmarkB: handleJumpBookmarkB,
+      onSetBookmarkFromCurrent: setBookmarkFromCurrent,
+      onStepPrimaryD: handleStepPrimaryD,
+      onHistoryBack: historyBack,
+      onHistoryForward: historyForward,
+    }),
+    [
+      handleTogglePlay,
+      toggleOscillating,
+      toggleFilterEditMode,
+      toggleFilter,
+      handleNoteOn,
+      handleNoteOff,
+      handleJumpBookmarkA,
+      handleJumpBookmarkB,
+      setBookmarkFromCurrent,
+      handleStepPrimaryD,
+      historyBack,
+      historyForward,
+    ]
   );
 
-  const handleRemoveCell = useCallback((targetCellId: string) => {
-    setLayout((prev) => {
-      const updated: LayoutDefinition = {
-        ...prev,
-        id: 'custom',
-        name: 'Custom Layout',
-        root: removeCellFromTree(prev.root, targetCellId),
-      };
-      setCustomLayout(updated);
-      return updated;
-    });
-  }, []);
-
-  const handleDuplicateCell = useCallback((targetCellId: string) => {
-    setLayout((prev) => {
-      const updated: LayoutDefinition = {
-        ...prev,
-        id: 'custom',
-        name: 'Custom Layout',
-        root: duplicateCellInTree(prev.root, targetCellId),
-      };
-      setCustomLayout(updated);
-      return updated;
-    });
-  }, []);
-
-  const handleAddCell = useCallback(
-    (direction: LayoutFlexDirection = 'row', module: SpectrumLensType = 'cycle-wheel') => {
-      setLayout((prev) => {
-        const updated: LayoutDefinition = {
-          ...prev,
-          id: 'custom',
-          name: 'Custom Layout',
-          root: addCellToTree(prev.root, direction, module),
-        };
-        setCustomLayout(updated);
-        return updated;
-      });
-    },
-    []
-  );
-
-  const handleResetLayout = useCallback(() => {
-    const fallback = PRESET_LAYOUTS[layout.id] || PRESET_SOLO;
-    setLayout(fallback);
-  }, [layout.id]);
-
-  const activeShape = useMemo(() => {
-    const primaryId = scene.placements[0]?.shapeId;
-    return scene.shapes.find((s) => s.id === primaryId) || scene.shapes[0];
-  }, [scene.shapes, scene.placements]);
-
-  const handleUpdateActiveShape = useCallback((updated: Shape) => {
-    updateScene((prev) => {
-      // If the shape is a preset being modified, clone it into a user shape
-      if (updated.origin === 'preset') {
-        const userShape: Shape = {
-          ...updated,
-          id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-          name: `${updated.name} (Custom)`,
-          origin: 'user',
-        };
-        pushShapeHistory(userShape.id);
-        return {
-          ...prev,
-          shapes: [userShape, ...prev.shapes],
-          placements: prev.placements.map((pl, idx) =>
-            idx === 0 ? { ...pl, shapeId: userShape.id } : pl
-          ),
-        };
-      }
-
-      // If the shape is a new user shape not yet in shapes list, add it
-      const exists = prev.shapes.some((s) => s.id === updated.id);
-      if (!exists) {
-        pushShapeHistory(updated.id);
-        return {
-          ...prev,
-          shapes: [updated, ...prev.shapes],
-          placements: prev.placements.map((pl, idx) =>
-            idx === 0 ? { ...pl, shapeId: updated.id } : pl
-          ),
-        };
-      }
-
-      return {
-        ...prev,
-        shapes: prev.shapes.map((s) => (s.id === updated.id ? updated : s)),
-      };
-    });
-  }, [updateScene, pushShapeHistory]);
-
-  const handleDuplicateShape = useCallback((sourceShape: Shape) => {
-    const duplicated: Shape = {
-      ...sourceShape,
-      id: `user-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-      name: `${sourceShape.name} (Copy)`,
-      origin: 'user',
-      anchors: sourceShape.anchors
-        ? sourceShape.anchors.map((a) => ({
-            ...a,
-            id: `a-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-            partials: a.partials.map((p) => ({
-              ...p,
-              id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-            })),
-          }))
-        : undefined,
-      partials: sourceShape.partials.map((p) => ({
-        ...p,
-        id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
-      })),
-    };
-    pushShapeHistory(duplicated.id);
-    updateScene((prev) => ({
-      ...prev,
-      shapes: [duplicated, ...prev.shapes],
-      placements: prev.placements.map((pl, idx) =>
-        idx === 0 ? { ...pl, shapeId: duplicated.id } : pl
-      ),
-    }));
-  }, [updateScene, pushShapeHistory]);
-
-  const handleDeleteUserShape = useCallback((shapeId: string) => {
-    setShapeHistory((prev) => {
-      const nextStack = prev.stack.filter((id) => id !== shapeId);
-      if (nextStack.length === 0) {
-        return { stack: ['hemiola-3-2'], index: 0 };
-      }
-      return {
-        stack: nextStack,
-        index: Math.min(prev.index, nextStack.length - 1),
-      };
-    });
-    updateScene((prev) => {
-      const remainingShapes = prev.shapes.filter(
-        (s) => s.id !== shapeId || s.origin === 'preset'
-      );
-      const fallbackId = remainingShapes[0]?.id || 'pure-tone';
-      return {
-        ...prev,
-        shapes: remainingShapes,
-        placements: prev.placements.map((pl) =>
-          pl.shapeId === shapeId ? { ...pl, shapeId: fallbackId } : pl
-        ),
-      };
-    });
-  }, [updateScene]);
-
-  const handleCreateShape = useCallback((newShape: Shape) => {
-    pushShapeHistory(newShape.id);
-    updateScene((prev) => ({
-      ...prev,
-      shapes: [newShape, ...prev.shapes],
-      placements: prev.placements.map((pl, idx) =>
-        idx === 0 ? { ...pl, shapeId: newShape.id } : pl
-      ),
-    }));
-  }, [updateScene, pushShapeHistory]);
-
-  const handleUpdateCell = useCallback((updatedCell: LayoutCellNode) => {
-    setLayout((prev) => {
-      const updated: LayoutDefinition = {
-        ...prev,
-        id: 'custom',
-        name: 'Custom Layout',
-        root: updateCellInTree(prev.root, updatedCell),
-      };
-      setCustomLayout(updated);
-      return updated;
-    });
-  }, []);
-
-  const handleShareLayout = useCallback(() => {
-    const slug = encodeLayoutToSlug(layout);
-    if (!slug) return;
-
-    const url = new URL(window.location.href);
-    url.searchParams.set('layout', slug);
-    const shareableUrl = url.toString();
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareableUrl).catch(() => {});
-    }
-  }, [layout]);
-
-  const allCells = getAllCellNodes(layout.root);
-  const canDelete = allCells.length > 1;
+  useKeyboardShortcuts({
+    isCaptureOpen,
+    isQuickSearchOpen,
+    actions: keyboardActions,
+  });
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0d13] text-slate-100 font-sans">
@@ -926,7 +214,7 @@ export const App: React.FC = () => {
         isFullscreen={isFullscreen}
         isShapeEditorOpen={isShapeEditorOpen}
         isOscillating={isOscillating}
-        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        onToggleOscillate={toggleOscillating}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         bookmarks={bookmarks}
         onSelectLayout={setLayout}
@@ -935,10 +223,10 @@ export const App: React.FC = () => {
         onToggleAudioMode={handleToggleAudioMode}
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
         onShareLayout={handleShareLayout}
-        onToggleFullscreen={handleToggleFullscreen}
+        onToggleFullscreen={toggleFullscreen}
         onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
-        onToggleFilter={() => updateScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
+        onToggleFilter={toggleFilter}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenRadialMenu={handleOpenRadialMenu}
@@ -946,71 +234,13 @@ export const App: React.FC = () => {
 
       {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
       {isFilterEditMode && (
-        <div className="absolute top-14 sm:top-16 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-40 flex flex-wrap items-center justify-between sm:justify-center gap-2 px-3 py-1.5 rounded-xl bg-[#080d1a]/95 border border-sky-500/60 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md animate-in slide-in-from-top-2 duration-150 text-xs font-mono select-none">
-          {/* Badge & Mode */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-            <span className="font-bold text-sky-200 uppercase tracking-wider text-[11px]">Filter Edit</span>
-            <button
-              onClick={handleCycleFilterMode}
-              className="px-1.5 py-0.5 rounded bg-sky-950/80 border border-sky-500/50 text-[10px] text-sky-300 uppercase hover:bg-sky-900/60 transition cursor-pointer"
-              title="Cycle Filter Mode (Band-pass, Low-pass, High-pass)"
-            >
-              {scene.filter?.mode || 'band-pass'}
-            </button>
-          </div>
-
-          <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
-
-          {/* Parameter Selector Pills */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setFilterControlParam('centre')}
-              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-                filterControlParam === 'centre'
-                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
-              }`}
-              title="Scrub Filter Centre Frequency (Drag on cells)"
-            >
-              Centre ({scene.filter?.centreD.toFixed(2) ?? '0.00'})
-            </button>
-            <button
-              onClick={() => setFilterControlParam('width')}
-              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-                filterControlParam === 'width'
-                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
-              }`}
-              title="Scrub Filter Bandwidth (Drag on cells)"
-            >
-              Width ({scene.filter?.widthD.toFixed(1) ?? '4.0'})
-            </button>
-            <button
-              onClick={() => setFilterControlParam('skirt')}
-              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-                filterControlParam === 'skirt'
-                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
-              }`}
-              title="Scrub Filter Skirt Softness (Drag on cells)"
-            >
-              Skirt ({scene.filter?.softnessD.toFixed(1) ?? '1.0'})
-            </button>
-          </div>
-
-          <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
-
-          {/* Done Button */}
-          <button
-            onClick={() => setIsFilterEditMode(false)}
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-600/30 border border-emerald-500/60 text-emerald-200 hover:bg-emerald-600/50 font-semibold text-[10px] transition cursor-pointer shrink-0"
-            title="Finish Filter Editing"
-          >
-            <Check className="w-3 h-3 text-emerald-400" />
-            <span>Done</span>
-          </button>
-        </div>
+        <FilterEditHud
+          filter={scene.filter}
+          controlParam={filterControlParam}
+          onSelectParam={setFilterControlParam}
+          onCycleMode={handleCycleFilterMode}
+          onDone={() => setIsFilterEditMode(false)}
+        />
       )}
 
       <SpectrumViewport
@@ -1086,7 +316,7 @@ export const App: React.FC = () => {
           setIsBookmarksOpen(false);
         }}
         isOscillating={isOscillating}
-        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        onToggleOscillate={toggleOscillating}
         onTriggerNote={() => handleTriggerNote()}
       />
 
@@ -1114,13 +344,13 @@ export const App: React.FC = () => {
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
         onUpdateFilterParams={handleUpdateFilterParams}
-        onToggleFilter={() => updateScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
+        onToggleFilter={toggleFilter}
         onCycleFilterMode={handleCycleFilterMode}
         onOpenLibrary={() => setIsShapeEditorOpen(true)}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         isOscillating={isOscillating}
-        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        onToggleOscillate={toggleOscillating}
         bookmarks={bookmarks}
         onSetBookmarkA={handleSetBookmarkA}
         onSetBookmarkB={handleSetBookmarkB}

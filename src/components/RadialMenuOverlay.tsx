@@ -14,7 +14,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { Scene, BandFilter } from '../core/types';
-import { BookmarkSettings } from './MusicalBookmarksModal';
+import { BookmarkSettings } from './bookmarks-storage';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
 
 export interface RadialMenuOverlayProps {

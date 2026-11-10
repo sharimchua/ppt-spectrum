@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Scene } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
-import { BookmarkSettings } from './MusicalBookmarksModal';
+import { BookmarkSettings } from './bookmarks-storage';
 import {
   Play,
   Pause,

@@ -17,8 +17,22 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/ShapeEditor.tsx` — Interactive partial inspector, harmonic inharmonicity stretch macros ($B$), and rolloff damping controls.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
 - `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a full-canvas BandFilter edit mode (`centre`, `width`, `skirt`).
-- `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor with `localStorage` persistence (`loadSavedBookmarks`, `saveBookmarks`).
+- `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor.
+- `src/components/bookmarks-storage.ts` — Bookmark data contracts, defaults, and localStorage persistence (`loadSavedBookmarks`, `saveBookmarks`).
+- `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
+
+### Custom Hooks (`src/components/hooks/`)
+
+- `useSceneEngine.ts` — Synchronous RenderCoordinator/AudioEngine updates, debounced scene persistence, and telemetry binding.
+- `useLayoutState.ts` — Modular layout tree state, cell splitting/removal, deeplink sharing, and hashchange listeners.
+- `layout-persistence.ts` — Layout URL slug extraction, localStorage loaders, and storage keys.
+- `useTransport.ts` — Playback transport state, note strikes, and viewport cosmetic shockwaves/sparks.
+- `useBookmarks.ts` — Musical bookmarks, A/B jump and set, and requestAnimationFrame continuum sweep loop.
+- `useShapeLibrary.ts` — Preset selection, user shape creation, duplication, deletion, capture, and undo/redo history stack.
+- `useFilterControls.ts` — BandFilter aperture edit mode, parameter selection, and mode cycling.
+- `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
+- `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 
 ## Maintainability Notes
 
