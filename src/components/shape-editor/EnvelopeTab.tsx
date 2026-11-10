@@ -1,6 +1,7 @@
 /**
  * Envelope tab component.
- * Displays acoustic ADSR envelope controls, instrument envelope presets, and interactive sliders.
+ * Mobile-first acoustic ADSR envelope controls, instrument envelope presets, and interactive sliders.
+ * Australian English spelling maintained.
  */
 
 import React from 'react';
@@ -25,14 +26,16 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
   onNoteOff,
 }) => {
   return (
-    <div className="space-y-3.5 p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
+    <div className="space-y-3.5 p-3 rounded-lg bg-slate-900/60 border border-slate-800 overflow-x-hidden">
       {/* Header row with Title and Strike Note preview button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-amber-400" />
-          <div>
-            <span className="font-semibold text-white block">Acoustic ADSR Envelope</span>
-            <span className="text-[9px] text-amber-400 font-mono">Time-varying amplitude in pitch space</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Activity className="w-4 h-4 text-amber-400 shrink-0" />
+          <div className="min-w-0">
+            <span className="font-semibold text-white block text-xs truncate">Acoustic ADSR Envelope</span>
+            <span className="text-[9px] text-amber-400 font-mono block truncate">
+              Dynamic amplitude in pitch space
+            </span>
           </div>
         </div>
         {(onTriggerNote || onNoteOn) && (
@@ -43,7 +46,7 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
             onTouchStart={onNoteOn || onTriggerNote}
             onTouchEnd={onNoteOff}
             onClick={!onNoteOn ? onTriggerNote : undefined}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow-md cursor-pointer select-none"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow-md cursor-pointer select-none shrink-0 active:scale-95"
             title="Strike acoustic note with current ADSR envelope (Hot key: T - tap or hold)"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
@@ -57,27 +60,27 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
       </div>
 
       {/* Interactive SVG Envelope Curve Visualisation */}
-      <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/90 space-y-1">
-        <div className="flex justify-between text-[10px] font-mono text-slate-400">
+      <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/90 space-y-1.5">
+        <div className="flex flex-wrap justify-between text-[10px] font-mono text-slate-400 gap-1">
           <span className="text-amber-400 font-semibold">Envelope Contour:</span>
-          <span className="text-slate-400">
-            A: {(adsr.attack * 1000).toFixed(0)}ms | D: {adsr.decay.toFixed(2)}s | S: {(adsr.sustain * 100).toFixed(0)}% | R: {adsr.release.toFixed(2)}s
+          <span>
+            A: {(adsr.attack * 1000).toFixed(0)}ms · D: {adsr.decay.toFixed(2)}s · S: {(adsr.sustain * 100).toFixed(0)}% · R: {adsr.release.toFixed(2)}s
           </span>
         </div>
 
         <AdsrCurve adsr={adsr} />
       </div>
 
-      {/* Instrument Acoustic Presets */}
+      {/* Instrument Acoustic Presets - Horizontal Scrollable Chips on Mobile */}
       <div className="space-y-1.5">
         <span className="text-[11px] text-slate-300 font-medium">Instrument Envelopes:</span>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
           {ADSR_INSTRUMENT_PRESETS.map((preset) => (
             <button
               key={preset.label}
               type="button"
               onClick={() => onUpdateAdsr(preset.adsr)}
-              className="py-1 px-2 rounded text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer"
+              className="py-1.5 px-2.5 rounded-md text-[10px] font-semibold transition border border-slate-800 bg-slate-950/60 hover:bg-amber-950/50 hover:border-amber-500/60 text-slate-300 hover:text-amber-200 cursor-pointer shrink-0 active:scale-95 shadow-sm"
             >
               {preset.label}
             </button>
@@ -86,7 +89,7 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
       </div>
 
       {/* Interactive Sliders */}
-      <div className="space-y-3 pt-1 border-t border-slate-800/80">
+      <div className="space-y-3 pt-2 border-t border-slate-800/80">
         {/* Attack */}
         <div className="space-y-1">
           <div className="flex justify-between text-[11px] font-mono">
@@ -100,7 +103,7 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
             step="0.001"
             value={adsr.attack}
             onChange={(e) => onUpdateAdsr({ attack: parseFloat(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+            className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
           />
         </div>
 
@@ -117,7 +120,7 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
             step="0.05"
             value={adsr.decay}
             onChange={(e) => onUpdateAdsr({ decay: parseFloat(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+            className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
           />
         </div>
 
@@ -134,7 +137,7 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
             step="0.01"
             value={adsr.sustain}
             onChange={(e) => onUpdateAdsr({ sustain: parseFloat(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+            className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
           />
         </div>
 
@@ -146,30 +149,33 @@ export const EnvelopeTab: React.FC<EnvelopeTabProps> = ({
           </div>
           <input
             type="range"
-            min="0.02"
+            min="0.01"
             max="3.0"
-            step="0.02"
+            step="0.05"
             value={adsr.release}
             onChange={(e) => onUpdateAdsr({ release: parseFloat(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+            className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
           />
         </div>
 
-        {/* Harmonic Damping */}
-        <div className="space-y-1">
+        {/* Harmonic Damping Factor */}
+        <div className="space-y-1 pt-1 border-t border-slate-800/60">
           <div className="flex justify-between text-[11px] font-mono">
-            <span className="text-slate-300">Harmonic Damping (High-Frequency Dissipation):</span>
-            <span className="text-cyan-400 font-semibold">{((adsr.damping || 0) * 100).toFixed(0)}%</span>
+            <span className="text-slate-300">Harmonic Damping:</span>
+            <span className="text-cyan-400 font-semibold">{(adsr.damping || 0).toFixed(2)}x</span>
           </div>
           <input
             type="range"
             min="0.0"
-            max="1.0"
-            step="0.02"
+            max="3.0"
+            step="0.05"
             value={adsr.damping || 0}
             onChange={(e) => onUpdateAdsr({ damping: parseFloat(e.target.value) })}
-            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-cyan-400"
+            className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-cyan-500 block"
           />
+          <div className="text-[9px] text-slate-500">
+            Higher values cause upper harmonic partials to dissipate faster during decay.
+          </div>
         </div>
       </div>
     </div>

@@ -146,8 +146,11 @@ export const TraySheet: React.FC<TraySheetProps> = ({
 
       {/* 2. MOBILE VIEW: Full-screen / Bottom Touch Sheet (< md) */}
       <div className="md:hidden fixed inset-0 z-50 bg-[#090c14]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-200">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 bg-slate-700/80 rounded-full mx-auto my-2 shrink-0" />
+
         {/* Mobile Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <SlidersHorizontal className="w-4 h-4 text-ppt-do shrink-0" />
             <span className="font-bold text-xs text-white truncate">
@@ -164,7 +167,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
         </div>
 
         {/* Mobile Scrollable Body */}
-        <div className="p-3.5 overflow-y-auto overflow-x-hidden flex-1">
+        <div className="p-3.5 pb-8 overflow-y-auto overflow-x-hidden flex-1">
           <ShapeEditor
             shape={activeShape}
             onUpdateShape={onUpdateShape}

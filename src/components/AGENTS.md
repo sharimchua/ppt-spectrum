@@ -43,6 +43,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `shape-editor-data.ts` — Voice options, interval presets, and acoustic ADSR instrument envelope presets.
 - `useShapeEditing.ts` — Hook binding active shape to pure core shape-editing mutations and preset forks.
 - `ShapeLibraryHeader.tsx` — Preset/user shape selector dropdown, fork/duplicate/delete/new controls, and tab buttons.
+- `ShapePicker.tsx` — Mobile-first shape picker with category filter chips and structured dropdown.
+- `ShapeActionsMenu.tsx` — Mobile-first action toolbar supporting fork, rename, duplicate, delete, and new shape creation.
 - `PartialsTab.tsx` — Voice anchor cards container, overtone macros, and add-anchor controls.
 - `OvertoneMacros.tsx` — Inharmonicity stretch coefficient (B) and spectral damping macro buttons.
 - `VoiceAnchorCard.tsx` — Voice anchor card with ratio, DuMetric offset, percussion voice, gain, and nested partial rows.
