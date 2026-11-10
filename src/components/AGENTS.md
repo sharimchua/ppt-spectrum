@@ -49,9 +49,16 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 
-## Maintainability Notes
+### Tests (`src/components/__tests__/`)
 
-- `App.tsx` (~1,100 lines) and `ShapeEditor.tsx` (~1,450 lines) are oversized. When touching them, extract cohesive custom hooks (e.g. deeplink, keyboard shortcuts, audio lifecycle) or subcomponents into new files rather than adding more inline logic.
+- `adsr-curve-geometry.test.ts` — SVG ADSR curve geometry, bezier path strings, segment width clamping, and damping threshold visibility.
+
+## Maintainability & Architecture Guidelines
+
+- **Where new logic goes**:
+  - **Pure mathematical models & domain operations** → `src/core/` (zero React, zero DOM, fully unit tested in Node).
+  - **Stateful UI workflows, persistence, and lifecycle bindings** → `src/components/hooks/` (pure `.ts` custom hooks).
+  - **Visual presentation & DOM elements** → Small, cohesive components (≤ 350 lines, enforced by ESLint `max-lines` at 400).
 - Non-component exports (constants, persistence helpers) in `.tsx` files trigger `react-refresh/only-export-components` warnings; place new helpers in a sibling `.ts` module instead.
 - Existing `react-hooks/exhaustive-deps` warnings are tracked by the lint warning ratchet. Fix them deliberately (refs are often intentional for 60 FPS paths); do not add new ones.
 

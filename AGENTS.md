@@ -64,7 +64,7 @@ components ──► renderers ──► core
 ## Agent Working Conventions
 
 - Read the nearest `AGENTS.md` and every parent before editing; update the relevant **Ownership** list in the same change when you add, rename, move, or delete a file.
-- Prefer small, focused modules. `src/components/App.tsx` and `src/components/ShapeEditor.tsx` exceed 1,000 lines — extract cohesive hooks or subcomponents rather than growing them further.
+- Prefer small, focused modules. New component files must not exceed 400 lines (enforced by ESLint `max-lines`). Follow the modular architecture established in `src/components/hooks/` and `src/components/shape-editor/` when extending or refactoring.
 - Domain identifiers that mirror web APIs keep their API spelling (`color`, `textAlign = 'center'`); Australian spelling applies to prose, comments, UI copy, and new domain identifiers.
 - Keep functions typed at module boundaries; avoid `any` (use `unknown` plus narrowing).
 

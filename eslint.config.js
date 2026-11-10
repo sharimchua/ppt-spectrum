@@ -148,6 +148,33 @@ export default tseslint.config(
     },
   },
 
+  // ── src/components: UI Presentation layer ────────────────────────────────
+  {
+    files: ['src/components/**/*.{ts,tsx}'],
+    rules: {
+      'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Technical debt overrides for oversized legacy components (next refactor candidates).
+    files: ['src/components/CellViewport.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 800, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ['src/components/RadialMenuOverlay.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 650, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ['src/components/ControlToolbar.tsx', 'src/components/CaptureModal.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 550, skipBlankLines: true, skipComments: true }],
+    },
+  },
+
   // ── Tests ────────────────────────────────────────────────────────────────
   // Tests may cross layer boundaries (e.g. exercising a renderer's pure helper),
   // but new tests should live in the `__tests__` folder of the layer under test.
