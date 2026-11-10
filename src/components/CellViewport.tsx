@@ -15,6 +15,7 @@ import { RulerLensRenderer } from '../renderers/ruler-lens';
 import { RingClockLensRenderer } from '../renderers/ring-clock-lens';
 import { CycleWheelLensRenderer } from '../renderers/cycle-wheel-lens';
 import { WaveformPhasorLensRenderer } from '../renderers/waveform-phasor-lens';
+import { PhasorLensRenderer } from '../renderers/phasor-lens';
 import { PrimeProfileLensRenderer } from '../renderers/prime-profile-lens';
 import { EventLanesLensRenderer } from '../renderers/event-lanes-lens';
 import { AlignmentMeterLensRenderer } from '../renderers/alignment-meter-lens';
@@ -108,6 +109,9 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         break;
       case 'waveform-phasor':
         renderer = new WaveformPhasorLensRenderer();
+        break;
+      case 'phasor':
+        renderer = new PhasorLensRenderer();
         break;
       case 'prime-profile':
         renderer = new PrimeProfileLensRenderer();
@@ -546,6 +550,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     { id: 'ring-clock', label: 'Ring Clock' },
     { id: 'cycle-wheel', label: 'Cycle Wheel' },
     { id: 'waveform-phasor', label: 'Waveform' },
+    { id: 'phasor', label: 'Rotating Phasors' },
     { id: 'prime-profile', label: 'Prime Profile' },
     { id: 'event-lanes', label: 'Event Lanes' },
     { id: 'alignment-meter', label: 'Alignment Meter' },

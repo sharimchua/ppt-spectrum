@@ -5,6 +5,7 @@ export type SpectrumLensType =
   | 'ring-clock'
   | 'cycle-wheel'
   | 'waveform-phasor'
+  | 'phasor'
   | 'prime-profile'
   | 'event-lanes'
   | 'alignment-meter';
@@ -594,7 +595,9 @@ export function getLensDisplayName(module: SpectrumLensType): string {
     case 'cycle-wheel':
       return 'Cycle Wheel';
     case 'waveform-phasor':
-      return 'Waveform Phasor';
+      return 'Composite Waveform';
+    case 'phasor':
+      return 'Rotating Phasors';
     case 'prime-profile':
       return 'Prime Profile';
     case 'event-lanes':

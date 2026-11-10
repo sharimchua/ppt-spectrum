@@ -244,4 +244,24 @@ describe('RingClock Dynamic Compact Bands', () => {
     expect(custom.name).toBe('Custom Layout');
     expect(custom.root).toEqual(PRESET_DUO_VERTICAL.root);
   });
+
+  it('supports rotating phasors as a standalone lens in layout trees and slug serialization', () => {
+    const root = PRESET_SOLO.root;
+    const splitWithPhasor = splitCellInTree(root, 'cell-main', 'row', 'phasor');
+    const cells = getAllCellNodes(splitWithPhasor);
+    expect(cells).toHaveLength(2);
+    expect(cells[1].module).toBe('phasor');
+
+    const layout: LayoutDefinition = {
+      id: 'test-phasor',
+      name: 'Phasor Test',
+      description: 'Phasor Test Layout',
+      root: splitWithPhasor,
+    };
+    const slug = encodeLayoutToSlug(layout);
+    const decoded = decodeLayoutFromSlug(slug);
+    expect(decoded).not.toBeNull();
+    const decodedCells = getAllCellNodes(decoded!.layout.root);
+    expect(decodedCells[1].module).toBe('phasor');
+  });
 });
