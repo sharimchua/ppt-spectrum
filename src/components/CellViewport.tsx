@@ -595,53 +595,6 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         </div>
       )}
 
-      {/* Subtle Compact Lens Switcher Pill when NOT in Edit Mode */}
-      {!isEditMode && (
-        <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 bg-slate-950/75 hover:bg-slate-900/90 backdrop-blur-md px-1.5 py-0.5 rounded border border-slate-800/80 shadow-sm transition-opacity opacity-75 hover:opacity-100">
-          <select
-            value={cell.module}
-            onChange={(e) => {
-              const newMod = e.target.value as SpectrumLensType;
-              if (onUpdateCell) {
-                onUpdateCell({
-                  ...cell,
-                  module: newMod,
-                  title: getLensDisplayName(newMod),
-                });
-              }
-            }}
-            aria-label="Select Cell Lens"
-            className="bg-transparent text-[9px] text-slate-300 font-mono focus:outline-none cursor-pointer"
-          >
-            {lensOptions.map((opt) => (
-              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <div className="h-2.5 w-px bg-slate-800" />
-          <select
-            value={cell.labelMode || 'duperiod'}
-            onChange={(e) => {
-              const newMode = e.target.value as LensLabelMode;
-              if (onUpdateCell) {
-                onUpdateCell({
-                  ...cell,
-                  labelMode: newMode,
-                });
-              }
-            }}
-            aria-label="Select Label Scale"
-            className="bg-transparent text-[8px] text-cyan-400/90 font-mono focus:outline-none cursor-pointer"
-          >
-            {labelModeOptions.map((opt) => (
-              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                {opt.id.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {/* Cell Header - visible when in Edit Mode */}
       {isEditMode && (
