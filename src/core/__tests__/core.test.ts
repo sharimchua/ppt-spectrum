@@ -5,7 +5,7 @@ import { calculateGhostFundamental, calculateCoincidenceCycle, calculatePlompLev
 import { calculateFilterGain, evaluatePartialAdsr } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
-import { loadSavedScene, saveScene, STORAGE_KEY_GRAPHICS_PROFILE, DEFAULT_SCENE } from '../config';
+import { loadSavedScene, saveScene, STORAGE_KEY_GRAPHICS_PROFILE, DEFAULT_SCENE, DEFAULT_COSMETICS } from '../config';
 
 describe('Axis Mathematics', () => {
   it('round-trips frequency and DuPeriod d accurately', () => {
@@ -307,6 +307,13 @@ describe('Graphics Profile Persistence & Restoration', () => {
 
     const restored = loadSavedScene();
     expect(restored.cosmetics.performanceProfile).toBe('none');
+  });
+
+  it('initialises default cosmetics with tuned optical grain, bloom, and anamorphic flare', () => {
+    expect(DEFAULT_COSMETICS.filmGrainIntensity).toBe(0.20);
+    expect(DEFAULT_COSMETICS.glowBloom).toBe(0.20);
+    expect(DEFAULT_COSMETICS.lensFlareIntensity).toBe(0.15);
+    expect(DEFAULT_COSMETICS.lensFlareStyle).toBe('anamorphic');
   });
 
   it('evaluates dynamic partial ADSR envelopes with harmonic damping', () => {
