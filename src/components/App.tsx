@@ -329,18 +329,16 @@ export const App: React.FC = () => {
     coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
   }, [audioEngine, coordinator]);
 
-  const handleTogglePlay = async () => {
-    if (!isPlaying) {
-      const ok = await audioEngine.play();
-      if (ok) {
-        setIsPlaying(true);
-        coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
-      }
+  const handleTogglePlay = useCallback(async () => {
+    if (!audioEngine.getIsPlaying()) {
+      setIsPlaying(true);
+      coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
+      await audioEngine.play();
     } else {
       audioEngine.pause();
       setIsPlaying(false);
     }
-  };
+  }, [audioEngine, coordinator]);
 
   // Keyboard shortcuts:
   // - Spacebar: toggles simulation/audio playback (intercepted in capture phase so focused buttons/dropdowns don't steal it)

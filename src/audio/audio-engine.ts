@@ -77,12 +77,15 @@ export class AudioEngine {
 
   private ctx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
+  private fallbackProcessorNode: ScriptProcessorNode | null = null;
+  private fallbackPort: { postMessage: (msg: unknown) => void; onmessage: ((ev: { data: any }) => void) | null } | null = null;
   private masterGainNode: GainNode | null = null;
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
   private isPlaying: boolean = false;
   private isKeyDownLocal: boolean = false;
   private isAuditioningLocal: boolean = false;
+  private playStartTime: number = 0;
 
   private scene!: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
@@ -113,56 +116,194 @@ export class AudioEngine {
     }
   };
 
+  private handleTelemetryEvent = (event: { data: any }): void => {
+    if (event.data?.type === 'AUDIO_SYNC') {
+      this.latestTelemetry = event.data.payload;
+      this.latestTelemetryTime = performance.now();
+      const anyAuditioning = Boolean(
+        this.latestTelemetry?.phases &&
+        Object.values(this.latestTelemetry.phases).some((p) => p.isAuditioning)
+      );
+      if (!anyAuditioning && !this.isKeyDownLocal) {
+        this.isAuditioningLocal = false;
+      }
+    }
+  };
+
+  private postToSynth(msg: unknown): void {
+    if (this.workletNode) {
+      this.workletNode.port.postMessage(msg);
+    } else if (this.fallbackPort) {
+      this.fallbackPort.postMessage(msg);
+    }
+  }
+
+  private hasSynthNode(): boolean {
+    return Boolean(this.workletNode || this.fallbackProcessorNode);
+  }
+
+  /**
+   * Instantiates a main-thread ScriptProcessorNode running the exact same SpectrumSynthProcessor
+   * when AudioWorklet is unavailable (e.g. mobile testing over HTTP LAN where isSecureContext is false,
+   * or restricted mobile WebViews).
+   */
+  private initScriptProcessorFallback(ctx: AudioContext): boolean {
+    try {
+      if (typeof ctx.createScriptProcessor !== 'function') return false;
+      const scriptNode = ctx.createScriptProcessor(1024, 0, 2);
+
+      let processorMessageHandler: ((ev: { data: any }) => void) | null = null;
+      const portShim = {
+        set onmessage(fn: ((ev: { data: any }) => void) | null) {
+          processorMessageHandler = fn;
+        },
+        get onmessage() {
+          return processorMessageHandler;
+        },
+        postMessage: (data: any) => {
+          this.handleTelemetryEvent({ data });
+        },
+      };
+
+      class BaseWorkletProcessorShim {
+        public port = portShim;
+      }
+
+      let RegisteredClass: any = null;
+      const registerProcessorShim = (_name: string, cls: any) => {
+        RegisteredClass = cls;
+      };
+
+      const factory = new Function(
+        'AudioWorkletProcessor',
+        'registerProcessor',
+        'sampleRate',
+        'currentTime',
+        `${SPECTRUM_WORKLET_CODE}\nreturn SpectrumSynthProcessor;`
+      );
+
+      const SynthClass = factory(BaseWorkletProcessorShim, registerProcessorShim, ctx.sampleRate, ctx.currentTime) || RegisteredClass;
+      const synthInstance = new SynthClass();
+
+      const quantumL = new Float32Array(128);
+      const quantumR = new Float32Array(128);
+      const outputs = [[quantumL, quantumR]];
+
+      scriptNode.onaudioprocess = (audioEvent: AudioProcessingEvent) => {
+        const outL = audioEvent.outputBuffer.getChannelData(0);
+        const outR = audioEvent.outputBuffer.numberOfChannels > 1 ? audioEvent.outputBuffer.getChannelData(1) : outL;
+        const total = outL.length;
+        for (let offset = 0; offset < total; offset += 128) {
+          const chunkLen = Math.min(128, total - offset);
+          quantumL.fill(0);
+          quantumR.fill(0);
+          synthInstance.process([], outputs);
+          for (let i = 0; i < chunkLen; i++) {
+            outL[offset + i] = quantumL[i];
+            if (outR !== outL) outR[offset + i] = quantumR[i];
+          }
+        }
+      };
+
+      this.fallbackProcessorNode = scriptNode;
+      this.fallbackPort = {
+        postMessage: (msg: unknown) => {
+          if (processorMessageHandler) {
+            processorMessageHandler({ data: msg });
+          }
+        },
+        onmessage: null,
+      };
+
+      this.masterGainNode = ctx.createGain();
+      this.masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
+      scriptNode.connect(this.masterGainNode);
+      this.masterGainNode.connect(ctx.destination);
+      return true;
+    } catch (err) {
+      console.warn('[AudioEngine] ScriptProcessor fallback failed:', err);
+      return false;
+    }
+  }
+
   public async unlock(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     try {
       this.isMutedForFocus = false;
       if (!this.ctx) {
         const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) {
+          this.isUnlocked = true;
+          return true;
+        }
         this.ctx = new AudioContextClass();
       }
 
-      if (this.ctx.state === 'suspended') {
-        await this.ctx.resume();
+      // CRITICAL FOR iOS SAFARI: Trigger silent buffer AND start resume() SYNCHRONOUSLY
+      // in the exact user-gesture tick before any `await` yields the call stack!
+      try {
+        const silentBuffer = this.ctx.createBuffer(1, 1, 22050);
+        const source = this.ctx.createBufferSource();
+        source.buffer = silentBuffer;
+        source.connect(this.ctx.destination);
+        source.start(0);
+      } catch {
+        // Ignore silent buffer errors on mocks
       }
 
-      // iOS silent buffer trigger
-      const silentBuffer = this.ctx.createBuffer(1, 1, 22050);
-      const source = this.ctx.createBufferSource();
-      source.buffer = silentBuffer;
-      source.connect(this.ctx.destination);
-      source.start(0);
+      const stateStr = this.ctx.state as string;
+      const resumePromise =
+        stateStr === 'suspended' || stateStr === 'interrupted'
+          ? this.ctx.resume()
+          : Promise.resolve();
 
-      if (!this.workletNode) {
-        const blob = new Blob([SPECTRUM_WORKLET_CODE], { type: 'application/javascript' });
-        const url = URL.createObjectURL(blob);
-        await this.ctx.audioWorklet.addModule(url);
-        // Delay URL revocation to avoid iOS Safari/WebKit module loading race conditions
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      await resumePromise;
 
-        this.workletNode = new AudioWorkletNode(this.ctx, 'spectrum-synth-processor', {
-          outputChannelCount: [2],
-        });
+      if (!this.hasSynthNode()) {
+        let workletLoaded = false;
 
-        this.workletNode.port.onmessage = (event) => {
-          if (event.data?.type === 'AUDIO_SYNC') {
-            this.latestTelemetry = event.data.payload;
-            this.latestTelemetryTime = performance.now();
-            const anyAuditioning = Boolean(
-              this.latestTelemetry?.phases &&
-              Object.values(this.latestTelemetry.phases).some((p) => p.isAuditioning)
-            );
-            if (!anyAuditioning && !this.isKeyDownLocal) {
-              this.isAuditioningLocal = false;
+        if (this.ctx.audioWorklet && typeof this.ctx.audioWorklet.addModule === 'function') {
+          try {
+            const blob = new Blob([SPECTRUM_WORKLET_CODE], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await this.ctx.audioWorklet.addModule(url);
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
+            workletLoaded = true;
+          } catch {
+            // Fallback to base64 data URI for strict WebKit CSP environments
+            try {
+              const b64 = typeof btoa === 'function' ? btoa(SPECTRUM_WORKLET_CODE) : '';
+              if (b64) {
+                await this.ctx.audioWorklet.addModule(`data:application/javascript;base64,${b64}`);
+                workletLoaded = true;
+              }
+            } catch {
+              workletLoaded = false;
             }
           }
-        };
+        }
 
-        this.masterGainNode = this.ctx.createGain();
-        this.masterGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+        if (workletLoaded) {
+          this.workletNode = new AudioWorkletNode(this.ctx, 'spectrum-synth-processor', {
+            outputChannelCount: [2],
+          });
+          this.workletNode.port.onmessage = this.handleTelemetryEvent;
 
-        this.workletNode.connect(this.masterGainNode);
-        this.masterGainNode.connect(this.ctx.destination);
+          this.masterGainNode = this.ctx.createGain();
+          this.masterGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+
+          this.workletNode.connect(this.masterGainNode);
+          this.masterGainNode.connect(this.ctx.destination);
+        } else {
+          // Automatic fallback for mobile HTTP LAN (where ctx.audioWorklet is undefined)
+          this.initScriptProcessorFallback(this.ctx);
+        }
+      }
+
+      // Ensure context didn't re-suspend while awaiting module compilation on iOS
+      const postState = this.ctx.state as string;
+      if (postState === 'suspended' || postState === 'interrupted') {
+        await this.ctx.resume();
       }
 
       this.isUnlocked = true;
@@ -170,15 +311,16 @@ export class AudioEngine {
       this.syncSceneToWorklet();
       return true;
     } catch (e) {
-      console.warn('[AudioEngine] Failed to unlock audio context:', e);
-      return false;
+      console.warn('[AudioEngine] Failed to unlock audio context, enabling visual playback fallback:', e);
+      this.isUnlocked = true;
+      return true;
     }
   }
 
   public async play(): Promise<boolean> {
     this.isMutedForFocus = false;
-    const ok = await this.unlock();
-    if (!ok) return false;
+    this.playStartTime = performance.now();
+    await this.unlock();
     this.isPlaying = true;
     this.applyMasterGain();
     this.syncSceneToWorklet();
@@ -191,11 +333,9 @@ export class AudioEngine {
     this.isAuditioningLocal = false;
     this.applyMasterGain();
     this.syncSceneToWorklet();
-    if (this.workletNode) {
-      this.workletNode.port.postMessage({
-        type: 'STOP_ALL',
-      });
-    }
+    this.postToSynth({
+      type: 'STOP_ALL',
+    });
   }
 
   public getIsPlaying(): boolean {
@@ -210,7 +350,9 @@ export class AudioEngine {
   public getNoteAge(shapeId?: string): number {
     if (!this.isAudioActive()) return 0;
     const id = shapeId || this.scene.placements[0]?.shapeId;
-    if (!id || !this.latestTelemetry?.phases?.[id]) return 0;
+    if (!id || !this.latestTelemetry?.phases?.[id]) {
+      return Math.max(0, (performance.now() - this.playStartTime) / 1000);
+    }
     const baseAge = (this.latestTelemetry.phases[id] as { noteAge?: number }).noteAge || 0;
     const elapsedSec = (performance.now() - this.latestTelemetryTime) / 1000;
     return baseAge + Math.max(0, elapsedSec);
@@ -224,14 +366,15 @@ export class AudioEngine {
     if (sceneOverride) {
       this.scene = sceneOverride;
     }
+    this.isMutedForFocus = false;
     this.isKeyDownLocal = true;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
-    if (!ok || !this.workletNode) return;
+    if (!ok || !this.hasSynthNode()) return;
     this.applyMasterGain();
     this.syncSceneToWorklet();
 
-    this.workletNode.port.postMessage({
+    this.postToSynth({
       type: 'NOTE_ON',
       payload: { shapeId },
     });
@@ -244,8 +387,8 @@ export class AudioEngine {
    */
   public noteOff(shapeId?: string): void {
     this.isKeyDownLocal = false;
-    if (!this.workletNode) return;
-    this.workletNode.port.postMessage({
+    if (!this.hasSynthNode()) return;
+    this.postToSynth({
       type: 'NOTE_OFF',
       payload: { shapeId },
     });
@@ -258,14 +401,15 @@ export class AudioEngine {
     if (sceneOverride) {
       this.scene = sceneOverride;
     }
+    this.isMutedForFocus = false;
     this.isKeyDownLocal = false;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
-    if (!ok || !this.workletNode) return;
+    if (!ok || !this.hasSynthNode()) return;
     this.applyMasterGain();
     this.syncSceneToWorklet();
 
-    this.workletNode.port.postMessage({
+    this.postToSynth({
       type: 'TRIGGER_NOTE',
       payload: { shapeId },
     });
@@ -287,12 +431,12 @@ export class AudioEngine {
   }
 
   private syncSceneToWorklet(): void {
-    if (!this.workletNode) return;
+    if (!this.hasSynthNode()) return;
 
     const payloadShapes = buildAudioPayloadShapes(this.scene);
     const effectiveGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
 
-    this.workletNode.port.postMessage({
+    this.postToSynth({
       type: 'UPDATE_SCENE',
       payload: {
         shapes: payloadShapes,
@@ -332,7 +476,14 @@ export class AudioEngine {
     if (!this.isUnlocked || (!this.isPlaying && !isAuditioning) || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
       return 0.0;
     }
-    if (!shapeData) return 0.0;
+    if (!shapeData) {
+      // Smooth local fallback phase before first telemetry tick or when running without worklet telemetry
+      const pl = this.scene.placements.find((p) => p.shapeId === shapeId) || this.scene.placements[0];
+      const d = pl ? pl.d : 0;
+      const f0 = this.scene.anchors.tplFrequencyHz * Math.pow(2, -d);
+      const elapsedSec = Math.max(0, (performance.now() - this.playStartTime) / 1000.0);
+      return elapsedSec * f0;
+    }
 
     const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
     return shapeData.masterPhase + shapeData.f0 * dt;
@@ -360,7 +511,16 @@ export class AudioEngine {
     if (typeof window !== 'undefined') {
       window.removeEventListener('focus', this.onFocus);
       window.removeEventListener('blur', this.onBlur);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', this.onVisibilityChange);
+      }
       delete (window as unknown as { __PPT_AUDIO_ENGINE__?: AudioEngine }).__PPT_AUDIO_ENGINE__;
+    }
+    if (this.fallbackProcessorNode) {
+      this.fallbackProcessorNode.disconnect();
+      this.fallbackProcessorNode.onaudioprocess = null;
+      this.fallbackProcessorNode = null;
+      this.fallbackPort = null;
     }
     if (this.ctx) {
       this.ctx.close().catch(() => {});

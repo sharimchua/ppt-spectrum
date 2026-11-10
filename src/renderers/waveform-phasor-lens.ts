@@ -48,8 +48,9 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     const shape = scene.shapes.find((s) => s.id === placement.shapeId);
     if (!shape) return;
 
+    const isCompact = width < 520;
     const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
-    const splitX = width * 0.65;
+    const splitX = isCompact ? width * 0.56 : width * 0.65;
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
 
@@ -277,8 +278,8 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     }
 
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText('COMPOSITE WAVEFORM', 20, 30);
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'WAVEFORM' : 'COMPOSITE WAVEFORM', 16, 22);
     ctx.restore();
 
     // 2. Rotating Phasors (Right 35% of viewport)
@@ -286,8 +287,8 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     // with its own nested harmonic overtone series branching from the tip of that anchor's arm.
     ctx.save();
     const phasorCenterX = splitX + (width - splitX) / 2;
-    const phasorCenterY = height / 2;
-    const maxPhasorR = Math.min((width - splitX) / 2, height / 2) * 0.75;
+    const phasorCenterY = height * 0.54;
+    const maxPhasorR = Math.min((width - splitX) / 2, (height - 44) / 2) * 0.78;
 
     // Orbit outer perimeter
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -567,24 +568,24 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     }
 
     ctx.fillStyle = '#E13610';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ROTATING PHASORS', phasorCenterX, 24);
+    ctx.fillText(isCompact ? 'PHASORS' : 'ROTATING PHASORS', phasorCenterX, 20);
 
     // Coincidence / Super-Cycle trajectory status subtitle
     ctx.fillStyle = coincidence.isAperiodic ? '#f59e0b' : '#94a3b8';
-    ctx.font = '8px JetBrains Mono, monospace';
+    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
     const currentTurnInSuper = !coincidence.isAperiodic
       ? (Math.floor(Math.max(0, rotationTurns)) % coincidence.rootTurnsToAlign) + 1
       : Math.floor(Math.max(0, rotationTurns)) + 1;
     const phasorSubLabel = coincidence.isAperiodic
-      ? 'APERIODIC • CONTINUOUS TRAJECTORY'
+      ? (isCompact ? 'APERIODIC' : 'APERIODIC • CONTINUOUS TRAJECTORY')
       : coincidence.rootTurnsToAlign === 1
-      ? 'ALIGN: EVERY ROOT TURN'
+      ? (isCompact ? '1x TURN' : 'ALIGN: EVERY ROOT TURN')
       : isAudioActive
-      ? `SUPER-CYCLE: TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}`
-      : `ALIGN: EVERY ${coincidence.rootTurnsToAlign} ROOT TURNS`;
-    ctx.fillText(phasorSubLabel, phasorCenterX, 36);
+      ? (isCompact ? `TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}` : `SUPER-CYCLE: TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}`)
+      : (isCompact ? `${coincidence.rootTurnsToAlign}x TURNS` : `ALIGN: EVERY ${coincidence.rootTurnsToAlign} ROOT TURNS`);
+    ctx.fillText(phasorSubLabel, phasorCenterX, 31);
     ctx.restore();
   }
 }

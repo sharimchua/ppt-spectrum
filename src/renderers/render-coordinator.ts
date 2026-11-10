@@ -199,23 +199,23 @@ export class RenderCoordinator {
     const dtMs = Math.min(100, elapsedMs);
     this.lastFrameTime = now;
 
-    // Frame-time governor (runtime throttle; never permanently mutates scene config)
-    if (dtMs > 22.0) {
-      this.consecutiveSlowFrames++;
-      if (this.consecutiveSlowFrames > 45 && this.getEffectivePerformanceProfile() === 'max') {
-        this.throttledProfile = 'balanced';
-      } else if (this.consecutiveSlowFrames > 90 && this.getEffectivePerformanceProfile() === 'balanced') {
-        this.throttledProfile = 'eco';
-      }
-    } else {
-      this.consecutiveSlowFrames = Math.max(0, this.consecutiveSlowFrames - 1);
-      if (this.consecutiveSlowFrames === 0 && this.throttledProfile !== null) {
-        this.throttledProfile = null;
-      }
-    }
-
     if (this.isFocused || !this.scene.cosmetics.focusModeEnabled) {
+      const renderStart = performance.now();
       this.renderFrame(dtMs, now / 1000.0);
+      const renderCostMs = performance.now() - renderStart;
+
+      // Frame-time governor: measure actual CPU/GPU render execution time (not intentional idle sleep interval!)
+      // so idle 30 FPS power-saving never false-triggers the governor into toggling effects off and on.
+      if (renderCostMs > 18.0) {
+        this.consecutiveSlowFrames++;
+        if (this.consecutiveSlowFrames > 60 && this.getEffectivePerformanceProfile() === 'max') {
+          this.throttledProfile = 'balanced';
+        } else if (this.consecutiveSlowFrames > 120 && this.getEffectivePerformanceProfile() === 'balanced') {
+          this.throttledProfile = 'eco';
+        }
+      } else {
+        this.consecutiveSlowFrames = Math.max(0, this.consecutiveSlowFrames - 1);
+      }
     }
 
     this.animId = requestAnimationFrame(this.loop);

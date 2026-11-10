@@ -43,7 +43,9 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       return ((width / 2 - x) / (width * 0.45)) * (dSpan / 2);
     };
 
-    const baselineY = height * 0.72;
+    const isCompact = width < 520;
+    const isShort = height < 280;
+    const baselineY = isShort ? height * 0.76 : height * 0.72;
 
     // 1. Shaded TPL Transition Zone (10 Hz to 40 Hz => d ≈ +1.37 to -0.63)
     const x10Hz = dToX(1.367);
@@ -62,15 +64,15 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(xTPL, 20);
-    ctx.lineTo(xTPL, height - 20);
+    ctx.moveTo(xTPL, 16);
+    ctx.lineTo(xTPL, height - 16);
     ctx.stroke();
     ctx.setLineDash([]);
 
     // TPL Label
     ctx.fillStyle = '#E13610';
-    ctx.font = 'bold 10px JetBrains Mono, monospace';
-    ctx.fillText('TPL (25.8 Hz / 38.7 ms)', xTPL + 6, 32);
+    ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'TPL (25.8Hz)' : 'TPL (25.8 Hz / 38.7 ms)', xTPL + 5, isShort ? 22 : 30);
     ctx.restore();
 
     // 2. Main baseline ruler
@@ -78,26 +80,28 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(20, baselineY);
-    ctx.lineTo(width - 20, baselineY);
+    ctx.moveTo(14, baselineY);
+    ctx.lineTo(width - 14, baselineY);
     ctx.stroke();
 
-    // Octave / DuPeriod band ticks
+    // Octave / DuPeriod band ticks (on compact widths, label every 2nd band + 0 so text never collides)
     for (let bandD = -7; bandD <= 7; bandD++) {
       const tx = dToX(bandD);
-      if (tx < 20 || tx > width - 20) continue;
+      if (tx < 16 || tx > width - 16) continue;
 
       ctx.beginPath();
-      ctx.moveTo(tx, baselineY - 8);
-      ctx.lineTo(tx, baselineY + 8);
+      ctx.moveTo(tx, baselineY - 6);
+      ctx.lineTo(tx, baselineY + 6);
       ctx.strokeStyle = bandD === 0 ? '#E13610' : 'rgba(255, 255, 255, 0.3)';
       ctx.stroke();
 
+      if (isCompact && bandD % 2 !== 0 && bandD !== 0) continue;
+
       const addr = resolveDuPeriodAddress(bandD);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.fillStyle = bandD === 0 ? '#E13610' : 'rgba(255, 255, 255, 0.55)';
+      ctx.font = isCompact ? '8px JetBrains Mono, monospace' : '9px JetBrains Mono, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(addr.formatted, tx, baselineY + 22);
+      ctx.fillText(addr.formatted, tx, baselineY + (isShort ? 16 : 21));
     }
     ctx.restore();
 
@@ -165,12 +169,14 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       }
 
       // Filter Mode Badge
-      const trackingLabel = filter.trackingMode === 'relative' ? 'RELATIVE' : 'FIXED';
-      const badgeText = `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct, skirt=${filter.softnessD.toFixed(1)} oct)`;
+      const trackingLabel = filter.trackingMode === 'relative' ? 'REL' : 'FIX';
+      const badgeText = isCompact
+        ? `${filter.mode.toUpperCase()} [${trackingLabel}] d=${effectiveFilterCenterD.toFixed(1)} w=${filter.widthD.toFixed(1)}`
+        : `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct, skirt=${filter.softnessD.toFixed(1)} oct)`;
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const bWidth = ctx.measureText(badgeText).width;
-      const badgeX = Math.max(bWidth / 2 + 10, Math.min(width - bWidth / 2 - 10, filterCenterX));
-      const badgeY = baselineY - apertureMaxH - 8;
+      const badgeX = Math.max(bWidth / 2 + 8, Math.min(width - bWidth / 2 - 8, filterCenterX));
+      const badgeY = Math.max(14, baselineY - apertureMaxH - 8);
 
       ctx.fillStyle = 'rgba(11, 14, 23, 0.9)';
       ctx.fillRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
@@ -351,25 +357,30 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           }
         }
 
-        // Label anchored to structural tip (avoid overdrawing when multiple phase-offset anchors share the same d)
-        const alreadyLabelledAtD = labelledDs.some((dVal) => Math.abs(dVal - p.d) < 0.008);
+        // Label anchored to structural tip (avoid overdrawing when partials are close on mobile)
+        const minLabelGapD = isCompact ? 0.42 : 0.008;
+        const alreadyLabelledAtD = labelledDs.some((dVal) => Math.abs(dVal - p.d) < minLabelGapD);
         if (!alreadyLabelledAtD) {
           labelledDs.push(p.d);
           let displayLabel = p.label || addr.syllable;
           if (labelMode === 'pitch') {
-            displayLabel = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz).formatted;
+            const pReg = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz);
+            displayLabel = isCompact ? `${pReg.note}${pReg.octave}` : pReg.formatted;
           } else if (labelMode === 'bpm') {
-            displayLabel = `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
+            displayLabel = isCompact
+              ? `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)}`
+              : `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
           } else if (labelMode === 'solfege') {
             displayLabel = addr.formatted;
           } else if (labelMode === 'duperiod') {
-            displayLabel = `d: ${p.d.toFixed(2)}`;
+            displayLabel = isCompact ? `${p.d.toFixed(1)}` : `d: ${p.d.toFixed(2)}`;
           }
 
           ctx.fillStyle = '#ffffff';
-          ctx.font = '9px Inter, sans-serif';
+          ctx.font = isCompact ? '8px Inter, sans-serif' : '9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(displayLabel, px, py - 8);
+          const clampedX = Math.max(20, Math.min(width - 20, px));
+          ctx.fillText(displayLabel, clampedX, Math.max(12, py - 7));
         }
         ctx.restore();
 

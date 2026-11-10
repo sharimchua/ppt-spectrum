@@ -32,9 +32,13 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
       : 0.016;
     this.lastTransportTime = transportTime;
 
+    const isCompact = width < 480;
+    const topPad = 26;
+    const bottomPad = 10;
+    const availH = Math.max(60, height - topPad - bottomPad);
     const centerX = width / 2;
-    const centerY = height / 2;
-    const maxR = Math.min(centerX, centerY) * 0.84;
+    const centerY = topPad + availH / 2;
+    const maxR = Math.min(centerX - 16, availH / 2) * 0.88;
 
     const primaryPlacement = scene.placements[0];
     if (!primaryPlacement) return;
@@ -124,16 +128,16 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     }
 
     ctx.fillStyle = '#E13610';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     const headerTitle = coincidence.isAperiodic
-      ? 'APERIODIC ORBITS (Inharmonic • Never Aligns)'
+      ? (isCompact ? 'APERIODIC ORBITS (Inharmonic)' : 'APERIODIC ORBITS (Inharmonic • Never Aligns)')
       : !isCompactSuperCycle
       ? `CONTINUOUS ORBITS (${coincidence.rootTurnsToAlign} Root Turns)`
       : superD === 1
-      ? `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms • 1 Root Turn)`
-      : `SUPER-CYCLE / SAM (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms • ${superD} Root Turns)`;
-    ctx.fillText(headerTitle, centerX, centerY - maxR - 14);
+      ? `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms • 1 Turn)`
+      : `SUPER-CYCLE (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms • ${superD} Turns)`;
+    ctx.fillText(headerTitle, centerX, Math.max(14, centerY - maxR - 12));
     ctx.restore();
 
     // 2. Concentric rings for each partial layer

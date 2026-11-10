@@ -68,27 +68,29 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       ? (((unwrappedRootTurns % windowTurns) + windowTurns) % windowTurns) / windowTurns
       : (Math.max(0, unwrappedRootTurns) - windowStartTurn) / windowTurns;
 
+    const isCompact = width < 480;
+
     // Header label
     ctx.save();
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     const headerText = coincidence.isAperiodic
-      ? `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC)`
+      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (APERIODIC)` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC)`)
       : !isCompactSuperCycle
-      ? `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE)`
+      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (${coincidence.rootTurnsToAlign}x)` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE)`)
       : windowTurns === 1
-      ? 'EVENT LANES & COMPOSITE RIPPLE (1 ROOT TURN)'
-      : `EVENT LANES • SUPER-CYCLE (${windowTurns} ROOT TURNS)`;
-    ctx.fillText(headerText, 20, 24);
+      ? (isCompact ? 'EVENT LANES (1 ROOT TURN)' : 'EVENT LANES & COMPOSITE RIPPLE (1 ROOT TURN)')
+      : `EVENT LANES • SUPER-CYCLE (${windowTurns} TURNS)`;
+    ctx.fillText(headerText, isCompact ? 12 : 20, 22);
 
-    const topMargin = 38;
-    const bottomMargin = 40;
+    const topMargin = 36;
+    const bottomMargin = 36;
     const availableHeight = height - topMargin - bottomMargin;
     const numLanes = activePartials.length;
-    const laneHeight = Math.max(16, availableHeight / Math.max(1, numLanes));
+    const laneHeight = Math.max(14, availableHeight / Math.max(1, numLanes));
 
-    const leftX = 110;
-    const rightX = width - 25;
+    const leftX = isCompact ? 76 : 110;
+    const rightX = width - (isCompact ? 16 : 25);
     const laneWidth = rightX - leftX;
 
     // Draw Root Turn subdivision lines when window spans multiple Root Turns
@@ -144,10 +146,13 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
 
       // Lane descriptor
       ctx.fillStyle = neonCol;
-      ctx.font = 'bold 10px JetBrains Mono, monospace';
+      ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
-      const phaseTag = p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
-      ctx.fillText(`${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`, leftX - 10, y + laneHeight / 2 + 3);
+      const phaseTag = !isCompact && p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
+      const laneText = isCompact
+        ? `${addr.syllable} ${p.ratioValue.toFixed(2)}x`
+        : `${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`;
+      ctx.fillText(laneText, leftX - 6, y + laneHeight / 2 + 3);
 
       if (isCompactSuperCycle) {
         // Exact integer events across the D-turn Super-Cycle

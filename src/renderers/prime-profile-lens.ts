@@ -22,29 +22,43 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
 
     const profile = calculatePrimeProfile(shape);
     const families = ['2', '3', '5', '7', '11', 'higher'] as const;
-    const familyLabels = {
-      '2': '2-Prime (Octaves)',
-      '3': '3-Prime (Fifths)',
-      '5': '5-Prime (Thirds)',
-      '7': '7-Prime (Septimal)',
-      '11': '11-Prime (Neutral)',
-      'higher': '>11 (Inharmonic)',
-    };
+    const isCompact = width < 480;
+    const isShort = height < 280;
+    const familyLabels = isCompact
+      ? {
+          '2': '2-Prime (8ve)',
+          '3': '3-Prime (5th)',
+          '5': '5-Prime (3rd)',
+          '7': '7-Prime (7th)',
+          '11': '11-Prime',
+          'higher': '>11 (Inharm)',
+        }
+      : {
+          '2': '2-Prime (Octaves)',
+          '3': '3-Prime (Fifths)',
+          '5': '5-Prime (Thirds)',
+          '7': '7-Prime (Septimal)',
+          '11': '11-Prime (Neutral)',
+          'higher': '>11 (Inharmonic)',
+        };
 
-    const barAreaW = width * 0.75;
-    const barStartX = (width - barAreaW) / 2;
-    const startY = 80;
-    const barSpacing = (height - startY - 40) / families.length;
-    const maxBarW = barAreaW * 0.65;
+    const barStartX = isCompact ? 16 : (width - width * 0.75) / 2;
+    const labelColW = isCompact ? 96 : 160;
+    const startY = isShort ? 48 : 80;
+    const barSpacing = Math.max(18, (height - startY - (isShort ? 16 : 40)) / families.length);
+    const barH = Math.min(16, Math.max(10, barSpacing - 6));
+    const maxBarW = Math.max(60, width - barStartX * 2 - labelColW - 52);
 
     ctx.save();
     ctx.fillStyle = '#a855f7';
-    ctx.font = 'bold 11px JetBrains Mono, monospace';
-    ctx.fillText(`PRIME SPECTRAL PROFILE — ${shape.name.toUpperCase()}`, barStartX, 45);
+    ctx.font = isCompact ? 'bold 9.5px JetBrains Mono, monospace' : 'bold 11px JetBrains Mono, monospace';
+    ctx.fillText(`PRIME PROFILE — ${shape.name.toUpperCase()}`, barStartX, isShort ? 22 : 45);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '9px Inter, sans-serif';
-    ctx.fillText('Amplitude-weighted energy distribution across prime factor families', barStartX, 60);
+    if (!isShort) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '9px Inter, sans-serif';
+      ctx.fillText('Amplitude-weighted energy distribution across prime factor families', barStartX, 60);
+    }
 
     for (let i = 0; i < families.length; i++) {
       const fam = families[i];
@@ -56,27 +70,27 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
 
       // Family label
       ctx.fillStyle = '#ffffff';
-      ctx.font = '10px Inter, sans-serif';
+      ctx.font = isCompact ? '9px Inter, sans-serif' : '10px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(familyLabels[fam], barStartX, barY + 12);
+      ctx.fillText(familyLabels[fam], barStartX, barY + barH * 0.8);
 
       // Bar background
       ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.fillRect(barStartX + 160, barY, maxBarW, 16);
+      ctx.fillRect(barStartX + labelColW, barY, maxBarW, barH);
 
       // Filled bar
       ctx.fillStyle = col;
-      ctx.fillRect(barStartX + 160, barY, barW, 16);
+      ctx.fillRect(barStartX + labelColW, barY, barW, barH);
 
       // Percentage label
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.font = '10px JetBrains Mono, monospace';
-      ctx.fillText(`${(ratio * 100).toFixed(1)}%`, barStartX + 170 + barW, barY + 12);
+      ctx.font = isCompact ? '9px JetBrains Mono, monospace' : '10px JetBrains Mono, monospace';
+      ctx.fillText(`${(ratio * 100).toFixed(1)}%`, barStartX + labelColW + 8 + barW, barY + barH * 0.8);
 
       if (barW > 10) {
         this.dynamicLights.push({
-          x: barStartX + 160 + barW,
-          y: barY + 8,
+          x: barStartX + labelColW + barW,
+          y: barY + barH / 2,
           velocity: ratio,
           colorHex: col,
         });

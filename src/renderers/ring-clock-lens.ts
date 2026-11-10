@@ -137,9 +137,10 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
   ): void {
     this.dynamicLights = [];
 
+    const isCompact = width < 480 || height < 280;
     const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(centerX, centerY) * 0.88;
+    const maxRadius = Math.max(36, Math.min(centerX, centerY) - (isCompact ? 22 : 26));
     const minRadius = maxRadius * 0.16;
 
     // Determine ring density mode and minimum rings
@@ -231,7 +232,7 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
     // Limen title banner or off-screen beacon
     if (isLimenVisible) {
       const rLimen = getRadiusForD(0.0);
-      const bannerText = 'TEMPORAL-PLACE LIMEN (25.8 Hz / 38.7 ms)';
+      const bannerText = isCompact ? 'TPL LIMEN (25.8 Hz)' : 'TEMPORAL-PLACE LIMEN (25.8 Hz / 38.7 ms)';
       ctx.save();
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const textWidth = ctx.measureText(bannerText).width;

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   LayoutCellNode,
   SpectrumLensType,
@@ -386,8 +387,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       if (dist < 45 && onTogglePlay) {
         if (e.cancelable) e.preventDefault();
         onTogglePlay();
-        const rect = container.getBoundingClientRect();
-        setDoubleTapRipple({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
+        setDoubleTapRipple({ x: touch.clientX, y: touch.clientY });
         setTimeout(() => setDoubleTapRipple(null), 450);
         lastTapRef.current = null;
         if (longPressTimerRef.current) {
@@ -400,13 +400,14 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     }
     lastTapRef.current = { time: now, x: touch.clientX, y: touch.clientY };
 
-    const rect = container.getBoundingClientRect();
-    // Center of wheel spawns directly under thumb
-    const cx = touch.clientX;
-    const cy = touch.clientY;
+    // Center of wheel spawns directly under thumb in viewport coordinates (clamped so it stays on screen)
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 390;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 844;
+    const cx = Math.max(84, Math.min(vw - 84, touch.clientX));
+    const cy = Math.max(84, Math.min(vh - 84, touch.clientY));
 
     jogCenterRef.current = { cx, cy };
-    setWheelPos({ x: cx - rect.left, y: cy - rect.top });
+    setWheelPos({ x: cx, y: cy });
 
     lastAngleRef.current = 0;
     setJogAngle(0);
@@ -585,12 +586,60 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         </div>
       )}
 
-      {/* Cell Header - only visible when in Edit Mode */}
+      {/* Subtle Compact Lens Switcher Pill when NOT in Edit Mode */}
+      {!isEditMode && (
+        <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 bg-slate-950/75 hover:bg-slate-900/90 backdrop-blur-md px-1.5 py-0.5 rounded border border-slate-800/80 shadow-sm transition-opacity opacity-75 hover:opacity-100">
+          <select
+            value={cell.module}
+            onChange={(e) => {
+              const newMod = e.target.value as SpectrumLensType;
+              if (onUpdateCell) {
+                onUpdateCell({
+                  ...cell,
+                  module: newMod,
+                  title: getLensDisplayName(newMod),
+                });
+              }
+            }}
+            aria-label="Select Cell Lens"
+            className="bg-transparent text-[9px] text-slate-300 font-mono focus:outline-none cursor-pointer"
+          >
+            {lensOptions.map((opt) => (
+              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <div className="h-2.5 w-px bg-slate-800" />
+          <select
+            value={cell.labelMode || 'duperiod'}
+            onChange={(e) => {
+              const newMode = e.target.value as LensLabelMode;
+              if (onUpdateCell) {
+                onUpdateCell({
+                  ...cell,
+                  labelMode: newMode,
+                });
+              }
+            }}
+            aria-label="Select Label Scale"
+            className="bg-transparent text-[8px] text-cyan-400/90 font-mono focus:outline-none cursor-pointer"
+          >
+            {labelModeOptions.map((opt) => (
+              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                {opt.id.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Cell Header - visible when in Edit Mode */}
       {isEditMode && (
-        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-2 left-2 right-2 z-20 flex flex-wrap items-center justify-between gap-1 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
           {/* Left: Lens selector & Label Mode Selector */}
           <div className="pointer-events-auto flex items-center gap-1.5 bg-[#0b0e17]/90 backdrop-blur-md px-2 py-1 rounded-md border border-purple-500/50 shadow-md">
-            <span className="text-[10px] font-mono text-purple-300 uppercase font-semibold">
+            <span className="hidden sm:inline text-[10px] font-mono text-purple-300 uppercase font-semibold">
               {cell.title || getLensDisplayName(cell.module)}
             </span>
             <select
@@ -669,8 +718,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
             )}
           </div>
 
-          {/* Right: In Edit Mode, display action tools (Desktop only; on mobile portrait we preserve clean cell views) */}
-          <div className="hidden sm:flex pointer-events-auto items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">
+          {/* Right: In Edit Mode, display action tools on both mobile and desktop */}
+          <div className="flex pointer-events-auto items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">
             {onSplitCell && (
               <button
                 onClick={() => onSplitCell(cell.id, 'row', 'cycle-wheel')}
@@ -714,69 +763,75 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         </div>
       )}
 
-      {/* Dynamic Mobile iPod-Style Rotary Jog Wheel: Visible only while touching the screen */}
-      {isTouchScrubbing && (
-        <div
-          className="pointer-events-none absolute z-40 animate-in fade-in zoom-in-90 duration-150 select-none"
-          style={{ left: `${wheelPos.x}px`, top: `${wheelPos.y}px`, transform: 'translate(-50%, -50%)' }}
-        >
-          <div className="w-40 h-40 rounded-full bg-slate-950/92 border-2 border-red-500/80 shadow-[0_0_30px_rgba(225,54,16,0.5)] backdrop-blur-xl flex items-center justify-center relative">
-            {/* Click-wheel tactile tick marks around the ring */}
-            <div className="absolute inset-1.5 rounded-full border border-dashed border-red-400/40" />
+      {/* Dynamic Mobile iPod-Style Rotary Jog Wheel: Portaled to document.body so it never clips inside a Duo/Quad cell */}
+      {isTouchScrubbing &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[95] animate-in fade-in zoom-in-90 duration-150 select-none"
+            style={{ left: `${wheelPos.x}px`, top: `${wheelPos.y}px`, transform: 'translate(-50%, -50%)' }}
+          >
+            <div className="w-40 h-40 rounded-full bg-slate-950/92 border-2 border-red-500/80 shadow-[0_0_30px_rgba(225,54,16,0.5)] backdrop-blur-xl flex items-center justify-center relative">
+              {/* Click-wheel tactile tick marks around the ring */}
+              <div className="absolute inset-1.5 rounded-full border border-dashed border-red-400/40" />
 
-            {/* Curved rotation direction labels */}
-            <div className="absolute top-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
-              <span>◄ ↺ SLOWER</span>
+              {/* Curved rotation direction labels */}
+              <div className="absolute top-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
+                <span>◄ ↺ SLOWER</span>
+              </div>
+              <div className="absolute bottom-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
+                <span>FASTER ↻ ►</span>
+              </div>
+
+              {/* Instructional gesture guide badge */}
+              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 border border-slate-700/80 rounded-full px-2 py-0.5 text-[8px] font-mono font-semibold text-slate-300 shadow-md">
+                {isFilterEditMode ? `↻ Scrub Filter ${filterControlParam.toUpperCase()}` : '↻ Rotate to Scrub · Hold for Menu'}
+              </div>
+
+              {/* Orbiting touch position indicator bead */}
+              {(() => {
+                const r = 62; // Orbit radius
+                const bx = Math.cos(jogAngle) * r;
+                const by = Math.sin(jogAngle) * r;
+                return (
+                  <div
+                    className="absolute w-3.5 h-3.5 rounded-full bg-cyan-400 border border-white shadow-[0_0_10px_#22d3ee] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
+                    style={{ left: `calc(50% + ${bx}px)`, top: `calc(50% + ${by}px)` }}
+                  />
+                );
+              })()}
+
+              {/* Center Dial Hub (iPod Center Button with live pitch/rhythm readout) */}
+              <div className="w-16 h-16 rounded-full bg-slate-900/95 border border-slate-700/90 shadow-inner flex flex-col items-center justify-center text-center">
+                <span className="text-[11px] font-bold text-white font-mono leading-none">
+                  {currentD > 0 ? `${bpm.toFixed(0)}` : pitchInfo.note + pitchInfo.octave}
+                </span>
+                <span className="text-[7px] text-slate-400 font-mono mt-0.5">
+                  {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
+                </span>
+                <span className="text-[7px] text-cyan-400 font-mono font-semibold mt-0.5">
+                  {addr.formatted}
+                </span>
+              </div>
             </div>
-            <div className="absolute bottom-1.5 flex items-center gap-1 text-[8px] text-red-400 font-bold font-mono tracking-wider">
-              <span>FASTER ↻ ►</span>
+          </div>,
+          document.body
+        )}
+
+      {/* Double Tap Play/Pause Ripple Indicator: Portaled to document.body */}
+      {doubleTapRipple &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[96] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center animate-ping duration-300"
+            style={{ left: `${doubleTapRipple.x}px`, top: `${doubleTapRipple.y}px` }}
+          >
+            <div className="w-16 h-16 rounded-full bg-red-500/40 border-2 border-red-400 flex items-center justify-center">
+              {scene.placements[0]?.gain ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white" />}
             </div>
-
-            {/* Instructional gesture guide badge */}
-            <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 border border-slate-700/80 rounded-full px-2 py-0.5 text-[8px] font-mono font-semibold text-slate-300 shadow-md">
-              ↻ Rotate to Scrub
-            </div>
-
-            {/* Orbiting touch position indicator bead */}
-            {(() => {
-              const r = 62; // Orbit radius
-              const bx = Math.cos(jogAngle) * r;
-              const by = Math.sin(jogAngle) * r;
-              return (
-                <div
-                  className="absolute w-3.5 h-3.5 rounded-full bg-cyan-400 border border-white shadow-[0_0_10px_#22d3ee] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
-                  style={{ left: `calc(50% + ${bx}px)`, top: `calc(50% + ${by}px)` }}
-                />
-              );
-            })()}
-
-            {/* Center Dial Hub (iPod Center Button with live pitch/rhythm readout) */}
-            <div className="w-16 h-16 rounded-full bg-slate-900/95 border border-slate-700/90 shadow-inner flex flex-col items-center justify-center text-center">
-              <span className="text-[11px] font-bold text-white font-mono leading-none">
-                {currentD > 0 ? `${bpm.toFixed(0)}` : pitchInfo.note + pitchInfo.octave}
-              </span>
-              <span className="text-[7px] text-slate-400 font-mono mt-0.5">
-                {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
-              </span>
-              <span className="text-[7px] text-cyan-400 font-mono font-semibold mt-0.5">
-                {addr.formatted}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Double Tap Play/Pause Ripple Indicator */}
-      {doubleTapRipple && (
-        <div
-          className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center animate-ping duration-300"
-          style={{ left: `${doubleTapRipple.x}px`, top: `${doubleTapRipple.y}px` }}
-        >
-          <div className="w-16 h-16 rounded-full bg-red-500/40 border-2 border-red-400 flex items-center justify-center">
-            {scene.placements[0]?.gain ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white" />}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Floating HUD Pill for Filter Adjustment Gestures */}
       {isDragging && filterGestureMode !== 'none' && scene.filter && (

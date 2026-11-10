@@ -58,70 +58,75 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.save();
 
+    const isCompact = width < 480;
+    const isShort = height < 280;
+
     // 1. Header & Metric Badges
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText('ALIGNMENT & HARMONIC CONSONANCE METER', 20, 24);
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'ALIGNMENT & CONSONANCE METER' : 'ALIGNMENT & HARMONIC CONSONANCE METER', isCompact ? 14 : 20, 20);
 
-    const boxY = 40;
-    const boxH = 46;
-    const boxW = (width - 60) / 3;
+    const padX = isCompact ? 14 : 20;
+    const gapX = isCompact ? 6 : 10;
+    const boxY = isShort ? 30 : 38;
+    const boxH = isShort ? 38 : 46;
+    const boxW = (width - padX * 2 - gapX * 2) / 3;
 
     // Metric 1: Roughness
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(20, boxY, boxW, boxH, 6);
+    ctx.roundRect(padX, boxY, boxW, boxH, 6);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText('SENSORY ROUGHNESS', 28, boxY + 16);
+    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'ROUGHNESS' : 'SENSORY ROUGHNESS', padX + 6, boxY + 14);
     ctx.fillStyle = internalRoughness > 0.4 ? '#fb7185' : '#34d399';
-    ctx.font = 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(internalRoughness.toFixed(3), 28, boxY + 36);
+    ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
+    ctx.fillText(internalRoughness.toFixed(3), padX + 6, boxY + (isShort ? 31 : 36));
 
     // Metric 2: Tenney Complexity
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.beginPath();
-    ctx.roundRect(20 + boxW + 10, boxY, boxW, boxH, 6);
+    ctx.roundRect(padX + boxW + gapX, boxY, boxW, boxH, 6);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText('TENNEY COMPLEXITY', 28 + boxW + 10, boxY + 16);
+    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'TENNEY' : 'TENNEY COMPLEXITY', padX + boxW + gapX + 6, boxY + 14);
     ctx.fillStyle = '#c084fc';
-    ctx.font = 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(avgTenney.toFixed(2), 28 + boxW + 10, boxY + 36);
+    ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
+    ctx.fillText(avgTenney.toFixed(2), padX + boxW + gapX + 6, boxY + (isShort ? 31 : 36));
 
     // Metric 3: Coincidence / Super-Cycle Period (Sam)
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.beginPath();
-    ctx.roundRect(20 + (boxW + 10) * 2, boxY, boxW, boxH, 6);
+    ctx.roundRect(padX + (boxW + gapX) * 2, boxY, boxW, boxH, 6);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText('COINCIDENCE (SAM)', 28 + (boxW + 10) * 2, boxY + 16);
+    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'SAM PERIOD' : 'COINCIDENCE (SAM)', padX + (boxW + gapX) * 2 + 6, boxY + 14);
     ctx.fillStyle = '#f97316';
-    ctx.font = 'bold 12px JetBrains Mono, monospace';
+    ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 12px JetBrains Mono, monospace';
     const samMetricText = coincidence.isAperiodic
-      ? '∞ (Aperiodic)'
+      ? (isCompact ? '∞ Aper.' : '∞ (Aperiodic)')
       : coincidence.rootTurnsToAlign === 1
-      ? `${(ghost.cycleDurationSec * 1000).toFixed(1)} ms (1x)`
-      : `${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms (${coincidence.rootTurnsToAlign}x)`;
-    ctx.fillText(samMetricText, 28 + (boxW + 10) * 2, boxY + 36);
+      ? `${(ghost.cycleDurationSec * 1000).toFixed(1)}ms`
+      : `${(coincidence.superCycleDurationSec * 1000).toFixed(1)}ms (${coincidence.rootTurnsToAlign}x)`;
+    ctx.fillText(samMetricText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 31 : 36));
 
     // 2. Plomp-Levelt Roughness Curve across interval ratios 1.0 to 2.0
-    const curveTop = 110;
-    const curveBottom = height - 30;
-    const curveH = curveBottom - curveTop;
-    const plotLeft = 40;
-    const plotRight = width - 30;
+    const curveTop = boxY + boxH + (isShort ? 16 : 24);
+    const curveBottom = height - (isShort ? 22 : 30);
+    const curveH = Math.max(30, curveBottom - curveTop);
+    const plotLeft = isCompact ? 24 : 40;
+    const plotRight = width - (isCompact ? 16 : 30);
     const plotW = plotRight - plotLeft;
 
     // Axes

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   Pause,
@@ -11,7 +12,6 @@ import {
   ArrowLeft,
   X,
   Sliders,
-  Check,
 } from 'lucide-react';
 import { Scene, BandFilter } from '../core/types';
 import { BookmarkSettings } from './MusicalBookmarksModal';
@@ -37,7 +37,7 @@ export interface RadialMenuOverlayProps {
   onSetBookmarkB: () => void;
   onJumpBookmarkA: () => void;
   onJumpBookmarkB: () => void;
-  /** Custom spawn point (under thumb), or centered in viewport if omitted */
+  /** Custom spawn point (under thumb), or centred in viewport if omitted */
   anchorPos?: { x: number; y: number } | null;
   /** Switch to full-canvas Filter Edit mode (closing radial menu) */
   onEnterFilterEditMode?: (param?: FilterControlParam) => void;
@@ -45,6 +45,54 @@ export interface RadialMenuOverlayProps {
 
 type SubMenuDirection = 'none' | 'north' | 'east' | 'west';
 export type FilterControlParam = 'centre' | 'width' | 'skirt';
+
+interface RadialWedgeSegment {
+  id: string;
+  startDeg: number;
+  endDeg: number;
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  accentHex: string;
+  fillRgba: string;
+  activeFillRgba: string;
+  isActive?: boolean;
+  onSelect: () => void;
+}
+
+/**
+ * Generates an SVG path string for an annular sector (radial pie wedge)
+ * centred at (0, 0) between rInner and rOuter from startDeg to endDeg.
+ */
+function describeAnnularSector(
+  rInner: number,
+  rOuter: number,
+  startDeg: number,
+  endDeg: number,
+  gapDeg: number = 3.5
+): string {
+  const sRad = ((startDeg + gapDeg / 2) * Math.PI) / 180;
+  const eRad = ((endDeg - gapDeg / 2) * Math.PI) / 180;
+  const largeArc = endDeg - startDeg - gapDeg > 180 ? 1 : 0;
+
+  const x1Out = rOuter * Math.cos(sRad);
+  const y1Out = rOuter * Math.sin(sRad);
+  const x2Out = rOuter * Math.cos(eRad);
+  const y2Out = rOuter * Math.sin(eRad);
+
+  const x1In = rInner * Math.cos(eRad);
+  const y1In = rInner * Math.sin(eRad);
+  const x2In = rInner * Math.cos(sRad);
+  const y2In = rInner * Math.sin(sRad);
+
+  return [
+    `M ${x1Out.toFixed(2)} ${y1Out.toFixed(2)}`,
+    `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${x2Out.toFixed(2)} ${y2Out.toFixed(2)}`,
+    `L ${x1In.toFixed(2)} ${y1In.toFixed(2)}`,
+    `A ${rInner} ${rInner} 0 ${largeArc} 0 ${x2In.toFixed(2)} ${y2In.toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
 
 export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   isOpen,
@@ -70,30 +118,20 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onEnterFilterEditMode,
 }) => {
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuDirection>('none');
-  const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
-  const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
+  const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
 
   // Rotary jog wheel tracking
-  const [jogAngle, setJogAngle] = useState(0);
+  const [jogAngle, setJogAngle] = useState(-Math.PI / 2);
+  const [isScrubbingRim, setIsScrubbingRim] = useState(false);
   const lastAngleRef = useRef<number | null>(null);
 
   const activePlacement = scene.placements[0];
+  const activeShape = scene.shapes.find((s) => s.id === activePlacement?.shapeId);
   const currentD = activePlacement ? activePlacement.d : 0;
   const currentDRef = useRef(currentD);
   currentDRef.current = currentD;
 
   const filter = scene.filter;
-  const filterD = filter?.centreD ?? 0;
-  const filterDRef = useRef(filterD);
-  filterDRef.current = filterD;
-
-  const filterWidth = filter?.widthD ?? 4.0;
-  const filterWidthRef = useRef(filterWidth);
-  filterWidthRef.current = filterWidth;
-
-  const filterSoftness = filter?.softnessD ?? 1.0;
-  const filterSoftnessRef = useRef(filterSoftness);
-  filterSoftnessRef.current = filterSoftness;
 
   const freqHz = dToFreq(currentD, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(currentD, scene.anchors.tplFrequencyHz);
@@ -104,44 +142,50 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   useEffect(() => {
     if (isOpen) {
       setActiveSubMenu('none');
+      setHoveredWedgeId(null);
+      setIsScrubbingRim(false);
       lastAngleRef.current = null;
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  // Calculate coordinates: clamped to stay fully within screen viewport
-  const viewportW = typeof window !== 'undefined' ? window.innerWidth : 400;
-  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const menuRadius = 130;
-  const padding = 16;
+  // Dial dimensions: 312px total diameter (menuRadius = 156px)
+  const viewportW = typeof window !== 'undefined' ? window.innerWidth : 393;
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 852;
+  const menuRadius = 156;
+  const rInner = 48;
+  const rOuter = 136;
+  const rRimTrack = 147;
+  const padding = 12;
 
+  // Spawn centred under thumb, clamped only to screen viewport bounds
   const cx = anchorPos
     ? Math.max(menuRadius + padding, Math.min(viewportW - menuRadius - padding, anchorPos.x))
     : viewportW / 2;
   const cy = anchorPos
-    ? Math.max(menuRadius + padding, Math.min(viewportH - menuRadius - padding, anchorPos.y))
+    ? Math.max(menuRadius + padding + 44, Math.min(viewportH - menuRadius - padding - 24, anchorPos.y))
     : viewportH / 2;
 
-  // Touch and mouse rotary scrubbing on the outer rim
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  // Outer rim rotary scrubbing handlers
+  const handleRimPointerDown = (e: React.PointerEvent<SVGElement | HTMLDivElement>) => {
     e.stopPropagation();
     const dx = e.clientX - cx;
     const dy = e.clientY - cy;
     const initialAngle = Math.atan2(dy, dx);
     lastAngleRef.current = initialAngle;
     setJogAngle(initialAngle);
+    setIsScrubbingRim(true);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (lastAngleRef.current === null) return;
+    if (lastAngleRef.current === null || !isScrubbingRim) return;
     e.stopPropagation();
     const dx = e.clientX - cx;
     const dy = e.clientY - cy;
     const dist = Math.hypot(dx, dy);
 
-    // Only scrub when rotating around the outer dial ring (r > 70px)
-    if (dist < 60) return;
+    if (dist < 40) return;
 
     const currentAngle = Math.atan2(dy, dx);
     let deltaAngle = currentAngle - lastAngleRef.current;
@@ -150,61 +194,292 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     lastAngleRef.current = currentAngle;
     setJogAngle(currentAngle);
 
-    if (isFilterEditMode && onUpdateFilterParams) {
-      // Rotary scrubber inside Filter Edit Mode
-      if (filterControlParam === 'centre') {
-        const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
-        const targetD = Math.max(-7, Math.min(7, filterDRef.current + deltaD));
-        onUpdateFilterParams({ centreD: targetD });
-      } else if (filterControlParam === 'width') {
-        // Clockwise rotation widens the band
-        const deltaW = (deltaAngle / (2 * Math.PI)) * 2.0;
-        const targetW = Math.max(0.25, Math.min(12.0, filterWidthRef.current + deltaW));
-        onUpdateFilterParams({ widthD: targetW });
-      } else if (filterControlParam === 'skirt') {
-        // Clockwise rotation softens the skirt
-        const deltaS = (deltaAngle / (2 * Math.PI)) * 1.0;
-        const targetS = Math.max(0.05, Math.min(4.0, filterSoftnessRef.current + deltaS));
-        onUpdateFilterParams({ softnessD: targetS });
-      }
-    } else {
-      // Normal Continuum DuPeriod scrubbing: 1 turn = -1.5 DuPeriods (higher pitch / faster tempo)
-      const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
-      const targetD = Math.max(-7, Math.min(7, currentDRef.current + deltaD));
-      onUpdatePlacementD(targetD);
-    }
+    // 1 turn = -1.5 DuPeriods (clockwise = faster tempo / higher pitch)
+    const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
+    const targetD = Math.max(-7, Math.min(7, currentDRef.current + deltaD));
+    onUpdatePlacementD(targetD);
+    currentDRef.current = targetD;
   };
 
   const handlePointerUp = () => {
     lastAngleRef.current = null;
+    setIsScrubbingRim(false);
   };
 
-  return (
+  // Build radial wedge segments for the current stage
+  let segments: RadialWedgeSegment[] = [];
+
+  if (activeSubMenu === 'none') {
+    segments = [
+      {
+        id: 'north-lib-mic',
+        startDeg: -135,
+        endDeg: -45,
+        title: 'LIBRARY & MIC',
+        subtitle: activeShape ? activeShape.name : 'Shapes • Sample',
+        icon: (
+          <div className="flex items-center gap-1">
+            <SlidersHorizontal className="w-4 h-4 text-red-400" />
+            <Radio className="w-3.5 h-3.5 text-amber-400" />
+          </div>
+        ),
+        accentHex: '#ef4444',
+        fillRgba: 'rgba(30, 18, 28, 0.92)',
+        activeFillRgba: 'rgba(225, 54, 16, 0.35)',
+        onSelect: () => setActiveSubMenu('north'),
+      },
+      {
+        id: 'east-playback',
+        startDeg: -45,
+        endDeg: 45,
+        title: 'PLAYBACK ►',
+        subtitle: isPlaying ? 'Playing • A/B' : 'Play • A/B • Sweep',
+        icon: isPlaying ? (
+          <Pause className="w-4 h-4 text-emerald-400" />
+        ) : (
+          <Play className="w-4 h-4 text-emerald-400 fill-current" />
+        ),
+        accentHex: '#10b981',
+        fillRgba: 'rgba(14, 28, 30, 0.92)',
+        activeFillRgba: 'rgba(16, 185, 129, 0.35)',
+        isActive: isPlaying || isOscillating,
+        onSelect: () => setActiveSubMenu('east'),
+      },
+      {
+        id: 'south-settings',
+        startDeg: 45,
+        endDeg: 135,
+        title: 'SETTINGS',
+        subtitle: 'Audio • Visuals',
+        icon: <Settings className="w-4 h-4 text-purple-400" />,
+        accentHex: '#a855f7',
+        fillRgba: 'rgba(24, 18, 38, 0.92)',
+        activeFillRgba: 'rgba(168, 85, 247, 0.35)',
+        onSelect: () => {
+          onOpenSettings();
+          onClose();
+        },
+      },
+      {
+        id: 'west-filter',
+        startDeg: 135,
+        endDeg: 225,
+        title: '◄ FILTER',
+        subtitle: filter?.enabled ? `ON (${filter.mode})` : 'Mode • Edit • Set',
+        icon: <Filter className="w-4 h-4 text-sky-400" />,
+        accentHex: '#38bdf8',
+        fillRgba: 'rgba(14, 24, 38, 0.92)',
+        activeFillRgba: 'rgba(56, 189, 248, 0.35)',
+        isActive: Boolean(filter?.enabled),
+        onSelect: () => setActiveSubMenu('west'),
+      },
+    ];
+  } else if (activeSubMenu === 'north') {
+    segments = [
+      {
+        id: 'sub-shape-library',
+        startDeg: -150,
+        endDeg: -30,
+        title: 'SHAPE LIBRARY',
+        subtitle: 'Presets & Synth',
+        icon: <SlidersHorizontal className="w-4 h-4 text-red-400" />,
+        accentHex: '#ef4444',
+        fillRgba: 'rgba(36, 18, 26, 0.94)',
+        activeFillRgba: 'rgba(239, 68, 68, 0.4)',
+        onSelect: () => {
+          onOpenLibrary();
+          onClose();
+        },
+      },
+      {
+        id: 'sub-mic-sampling',
+        startDeg: -30,
+        endDeg: 90,
+        title: 'MIC SAMPLING',
+        subtitle: 'Pitch & Rhythm',
+        icon: <Radio className="w-4 h-4 text-amber-400" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 24, 16, 0.94)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
+        onSelect: () => {
+          onOpenCapture();
+          onClose();
+        },
+      },
+      {
+        id: 'sub-north-back',
+        startDeg: 90,
+        endDeg: 210,
+        title: '◄ BACK',
+        subtitle: 'Main Compass',
+        icon: <ArrowLeft className="w-4 h-4 text-slate-300" />,
+        accentHex: '#94a3b8',
+        fillRgba: 'rgba(20, 26, 38, 0.94)',
+        activeFillRgba: 'rgba(148, 163, 184, 0.35)',
+        onSelect: () => setActiveSubMenu('none'),
+      },
+    ];
+  } else if (activeSubMenu === 'east') {
+    segments = [
+      {
+        id: 'sub-play-pause',
+        startDeg: -135,
+        endDeg: -45,
+        title: isPlaying ? 'PAUSE' : 'PLAY',
+        subtitle: isPlaying ? 'Stop Audio' : 'Start Synthesis',
+        icon: isPlaying ? (
+          <Pause className="w-4 h-4 text-red-300" />
+        ) : (
+          <Play className="w-4 h-4 text-emerald-400 fill-current" />
+        ),
+        accentHex: isPlaying ? '#ef4444' : '#10b981',
+        fillRgba: isPlaying ? 'rgba(42, 16, 20, 0.94)' : 'rgba(14, 32, 28, 0.94)',
+        activeFillRgba: isPlaying ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)',
+        isActive: isPlaying,
+        onSelect: () => onTogglePlay(),
+      },
+      {
+        id: 'sub-goto-a',
+        startDeg: -45,
+        endDeg: 45,
+        title: 'GO TO A',
+        subtitle: bookmarks.a.label,
+        icon: <Bookmark className="w-4 h-4 text-cyan-400 fill-current" />,
+        accentHex: '#22d3ee',
+        fillRgba: 'rgba(14, 28, 38, 0.94)',
+        activeFillRgba: 'rgba(34, 211, 238, 0.4)',
+        onSelect: () => {
+          onJumpBookmarkA();
+          onClose();
+        },
+      },
+      {
+        id: 'sub-goto-b',
+        startDeg: 45,
+        endDeg: 135,
+        title: 'GO TO B',
+        subtitle: bookmarks.b.label,
+        icon: <Bookmark className="w-4 h-4 text-amber-400 fill-current" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 26, 14, 0.94)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
+        onSelect: () => {
+          onJumpBookmarkB();
+          onClose();
+        },
+      },
+      {
+        id: 'sub-sweep',
+        startDeg: 135,
+        endDeg: 225,
+        title: isOscillating ? 'STOP SWEEP' : 'SWEEP A↔B',
+        subtitle: isOscillating ? 'Active' : 'Oscillate',
+        icon: <Repeat className={`w-4 h-4 text-red-400 ${isOscillating ? 'animate-spin' : ''}`} />,
+        accentHex: '#ef4444',
+        fillRgba: 'rgba(34, 18, 24, 0.94)',
+        activeFillRgba: 'rgba(239, 68, 68, 0.4)',
+        isActive: isOscillating,
+        onSelect: () => onToggleOscillate(),
+      },
+    ];
+  } else if (activeSubMenu === 'west') {
+    segments = [
+      {
+        id: 'sub-filter-mode',
+        startDeg: -135,
+        endDeg: -45,
+        title: 'FILTER MODE',
+        subtitle: filter?.enabled ? filter.mode.toUpperCase() : 'OFF (Tap to cycle)',
+        icon: <Filter className="w-4 h-4 text-sky-400" />,
+        accentHex: '#38bdf8',
+        fillRgba: 'rgba(14, 26, 40, 0.94)',
+        activeFillRgba: 'rgba(56, 189, 248, 0.4)',
+        isActive: Boolean(filter?.enabled),
+        onSelect: () => onCycleFilterMode(),
+      },
+      {
+        id: 'sub-filter-edit',
+        startDeg: -45,
+        endDeg: 45,
+        title: 'FILTER EDIT',
+        subtitle: 'Scrub on Cells',
+        icon: <Sliders className="w-4 h-4 text-sky-300" />,
+        accentHex: '#38bdf8',
+        fillRgba: 'rgba(12, 34, 52, 0.95)',
+        activeFillRgba: 'rgba(56, 189, 248, 0.45)',
+        onSelect: () => {
+          if (onUpdateFilterParams && !filter?.enabled) {
+            onToggleFilter();
+          }
+          if (onEnterFilterEditMode) {
+            onEnterFilterEditMode('centre');
+          }
+          onClose();
+        },
+      },
+      {
+        id: 'sub-set-b',
+        startDeg: 45,
+        endDeg: 135,
+        title: 'SET B HERE',
+        subtitle: `d = ${currentD.toFixed(2)}`,
+        icon: <Bookmark className="w-4 h-4 text-amber-400" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 24, 14, 0.94)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
+        onSelect: () => onSetBookmarkB(),
+      },
+      {
+        id: 'sub-set-a',
+        startDeg: 135,
+        endDeg: 225,
+        title: 'SET A HERE',
+        subtitle: `d = ${currentD.toFixed(2)}`,
+        icon: <Bookmark className="w-4 h-4 text-cyan-400" />,
+        accentHex: '#22d3ee',
+        fillRgba: 'rgba(14, 28, 38, 0.94)',
+        activeFillRgba: 'rgba(34, 211, 238, 0.4)',
+        onSelect: () => onSetBookmarkA(),
+      },
+    ];
+  }
+
+  const rMidLabel = (rInner + rOuter) / 2;
+  const beadX = Math.cos(jogAngle) * rRimTrack;
+  const beadY = Math.sin(jogAngle) * rRimTrack;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-black/65 backdrop-blur-md select-none animate-in fade-in duration-150 touch-none"
+      className="fixed inset-0 z-[100] overflow-hidden bg-black/65 backdrop-blur-md select-none animate-in fade-in duration-150 touch-none"
       onClick={onClose}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* Top Banner with mode details and Close button */}
+      {/* Top Status Bar & Close Button */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-50 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 shadow-lg text-xs font-mono">
-          <span className={`w-2 h-2 rounded-full ${isFilterEditMode ? 'bg-sky-400 animate-pulse' : 'bg-red-500'}`} />
+        <div className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/95 border border-slate-700/80 shadow-lg text-xs font-mono">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="font-bold text-white uppercase">
-            {isFilterEditMode ? `Filter Edit (${filterControlParam})` : 'Continuum Dial'}
+            {activeSubMenu === 'none'
+              ? 'Radial Continuum Menu'
+              : activeSubMenu === 'north'
+              ? 'Library & Mic Sampling'
+              : activeSubMenu === 'east'
+              ? 'Playback & Bookmarks'
+              : 'Filter & Bookmarks'}
           </span>
         </div>
         <button
           onClick={onClose}
-          className="pointer-events-auto p-2 rounded-full bg-slate-900/90 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition cursor-pointer shadow-lg"
+          className="pointer-events-auto p-2 rounded-full bg-slate-900/95 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition cursor-pointer shadow-lg"
           title="Close Radial Menu"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Main Radial Dial Hub */}
+      {/* Main Radial Wheel Container (Top-Layer Fixed Coordinates) */}
       <div
         className="absolute animate-in zoom-in-95 duration-150 pointer-events-auto"
         style={{
@@ -215,349 +490,160 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
           height: `${menuRadius * 2}px`,
         }}
         onClick={(e) => e.stopPropagation()}
-        onPointerDown={handlePointerDown}
       >
-        {/* Outer Circular Dial Boundary with Rotary Ticks */}
-        <div
-          className={`absolute inset-0 rounded-full border-2 transition-all duration-200 shadow-2xl flex items-center justify-center ${
-            isFilterEditMode
-              ? 'bg-slate-950/92 border-sky-400 shadow-[0_0_35px_rgba(56,189,248,0.45)]'
-              : 'bg-slate-950/92 border-red-500/80 shadow-[0_0_35px_rgba(225,54,16,0.45)]'
-          }`}
+        {/* SVG Annular Wedge Sectors & Outer Rotary Scrub Rim */}
+        <svg
+          width={menuRadius * 2}
+          height={menuRadius * 2}
+          viewBox={`${-menuRadius} ${-menuRadius} ${menuRadius * 2} ${menuRadius * 2}`}
+          className="block w-full h-full overflow-visible drop-shadow-[0_0_35px_rgba(0,0,0,0.85)]"
         >
-          {/* Dashed Rotary Track */}
-          <div
-            className={`absolute inset-2 rounded-full border border-dashed ${
-              isFilterEditMode ? 'border-sky-400/40' : 'border-red-400/40'
-            }`}
+          {/* Outer Rotary Scrub Rim Track */}
+          <circle
+            cx={0}
+            cy={0}
+            r={rRimTrack}
+            fill="none"
+            stroke="rgba(15, 23, 42, 0.9)"
+            strokeWidth={18}
+            className="cursor-grab active:cursor-grabbing"
+            onPointerDown={handleRimPointerDown}
+          />
+          <circle
+            cx={0}
+            cy={0}
+            r={rRimTrack}
+            fill="none"
+            stroke="rgba(225, 54, 16, 0.45)"
+            strokeWidth={2}
+            strokeDasharray="4 6"
+            className="pointer-events-none"
+          />
+          <circle
+            cx={0}
+            cy={0}
+            r={menuRadius - 1}
+            fill="none"
+            stroke="rgba(148, 163, 184, 0.25)"
+            strokeWidth={1.5}
+            className="pointer-events-none"
           />
 
-          {/* Rotary Orbit Indicator Bead */}
-          {(() => {
-            const r = menuRadius - 16;
-            const bx = Math.cos(jogAngle) * r;
-            const by = Math.sin(jogAngle) * r;
+          {/* Large Radial Pie / Annular Sector Wedges */}
+          {segments.map((seg) => {
+            const pathD = describeAnnularSector(rInner, rOuter, seg.startDeg, seg.endDeg, 3.5);
+            const isHovered = hoveredWedgeId === seg.id;
+            const isHighlighted = isHovered || seg.isActive;
             return (
-              <div
-                className={`absolute w-4 h-4 rounded-full border border-white -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 ${
-                  isFilterEditMode
-                    ? 'bg-sky-400 shadow-[0_0_12px_#38bdf8]'
-                    : 'bg-cyan-400 shadow-[0_0_12px_#22d3ee]'
-                }`}
-                style={{ left: `calc(50% + ${bx}px)`, top: `calc(50% + ${by}px)` }}
+              <path
+                key={seg.id}
+                d={pathD}
+                fill={isHighlighted ? seg.activeFillRgba : seg.fillRgba}
+                stroke={seg.accentHex}
+                strokeWidth={isHighlighted ? 2.4 : 1.4}
+                strokeOpacity={isHighlighted ? 0.95 : 0.55}
+                className="cursor-pointer transition-colors duration-100"
+                onPointerEnter={() => setHoveredWedgeId(seg.id)}
+                onPointerLeave={() => setHoveredWedgeId(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  seg.onSelect();
+                }}
               />
             );
-          })()}
+          })}
 
-          {/* ======================================================== */}
-          {/* STAGE 1: Standard Cardinal Compass (North, South, East, West) */}
-          {/* ======================================================== */}
-          {activeSubMenu === 'none' && !isFilterEditMode && (
+          {/* Orbiting Rim Scrubbing Indicator Bead */}
+          <circle
+            cx={beadX}
+            cy={beadY}
+            r={7}
+            fill="#22d3ee"
+            stroke="#ffffff"
+            strokeWidth={2}
+            className="pointer-events-none"
+          />
+        </svg>
+
+        {/* HTML Labels & Icons Positioned at the Exact Polar Centroid of Each Radial Wedge */}
+        {segments.map((seg) => {
+          const midRad = (((seg.startDeg + seg.endDeg) / 2) * Math.PI) / 180;
+          const lx = menuRadius + rMidLabel * Math.cos(midRad);
+          const ly = menuRadius + rMidLabel * Math.sin(midRad);
+          return (
+            <div
+              key={`label-${seg.id}`}
+              style={{
+                left: `${lx}px`,
+                top: `${ly}px`,
+                transform: 'translate(-50%, -50%)',
+              }}
+              className="absolute pointer-events-none flex flex-col items-center justify-center text-center w-24 select-none"
+            >
+              <div className="mb-0.5 drop-shadow">{seg.icon}</div>
+              <span className="text-[10px] font-bold font-mono text-white tracking-tight leading-tight uppercase drop-shadow">
+                {seg.title}
+              </span>
+              {seg.subtitle && (
+                <span className="text-[8px] font-mono text-slate-300/90 truncate max-w-[84px] leading-tight mt-0.5">
+                  {seg.subtitle}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Centre Hub: Live Continuum Readout (or Back Button when in Stage 2 Fan-out) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (activeSubMenu !== 'none') {
+              setActiveSubMenu('none');
+            } else {
+              onClose();
+            }
+          }}
+          style={{
+            width: `${rInner * 2 - 4}px`,
+            height: `${rInner * 2 - 4}px`,
+            left: `${menuRadius}px`,
+            top: `${menuRadius}px`,
+            transform: 'translate(-50%, -50%)',
+          }}
+          className="absolute rounded-full bg-slate-950/95 border-2 border-slate-700 hover:border-red-400 shadow-inner flex flex-col items-center justify-center text-center p-1 z-20 cursor-pointer active:scale-95 transition"
+          title={activeSubMenu !== 'none' ? 'Return to Main Compass' : 'Close Radial Menu'}
+        >
+          {activeSubMenu !== 'none' ? (
             <>
-              {/* NORTH: Library & Mic Sampling */}
-              <button
-                onClick={() => setActiveSubMenu('north')}
-                className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-red-500 text-slate-200 hover:text-white transition shadow-lg active:scale-95 cursor-pointer z-10 w-24"
-              >
-                <div className="flex items-center gap-1">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do" />
-                  <Radio className="w-3 h-3 text-red-400" />
-                </div>
-                <span className="text-[9px] font-bold font-mono tracking-wider mt-0.5 uppercase">Library / Mic</span>
-              </button>
-
-              {/* SOUTH: Settings */}
-              <button
-                onClick={() => {
-                  onOpenSettings();
-                  onClose();
-                }}
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-purple-500 text-slate-200 hover:text-white transition shadow-lg active:scale-95 cursor-pointer z-10 w-24"
-              >
-                <Settings className="w-3.5 h-3.5 text-purple-400" />
-                <span className="text-[9px] font-bold font-mono tracking-wider mt-0.5 uppercase">Settings</span>
-              </button>
-
-              {/* EAST: Playback Fan-out */}
-              <button
-                onClick={() => setActiveSubMenu('east')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-emerald-500 text-slate-200 hover:text-white transition shadow-lg active:scale-95 cursor-pointer z-10 w-20"
-              >
-                <Play className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[9px] font-bold font-mono tracking-wider mt-0.5 uppercase">Playback ►</span>
-              </button>
-
-              {/* WEST: Filter & Bookmarks Fan-out */}
-              <button
-                onClick={() => setActiveSubMenu('west')}
-                className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-cyan-500 text-slate-200 hover:text-white transition shadow-lg active:scale-95 cursor-pointer z-10 w-20"
-              >
-                <Filter className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[9px] font-bold font-mono tracking-wider mt-0.5 uppercase">◄ Filter</span>
-              </button>
+              <ArrowLeft className="w-4 h-4 text-cyan-400 mb-0.5" />
+              <span className="text-[10px] font-bold text-white font-mono uppercase leading-none">
+                Back
+              </span>
+              <span className="text-[8px] text-slate-400 font-mono mt-0.5 leading-none">
+                {addr.formatted}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[12px] font-bold text-white font-mono leading-none">
+                {currentD > 0 ? `${bpm.toFixed(0)} BPM` : pitchInfo.note + pitchInfo.octave}
+              </span>
+              <span className="text-[8px] text-slate-400 font-mono mt-0.5 leading-none">
+                {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
+              </span>
+              <span className="text-[9px] text-cyan-400 font-mono font-bold mt-0.5 leading-none">
+                {addr.formatted}
+              </span>
             </>
           )}
+        </button>
 
-          {/* ======================================================== */}
-          {/* STAGE 2: NORTH FAN-OUT (Library & Mic Sampling) */}
-          {/* ======================================================== */}
-          {activeSubMenu === 'north' && !isFilterEditMode && (
-            <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in-95 duration-100">
-              {/* Option 1: Shape Library */}
-              <button
-                onClick={() => {
-                  onOpenLibrary();
-                  onClose();
-                }}
-                className="absolute -top-3 left-6 flex flex-col items-center p-2 rounded-xl bg-slate-900 border border-red-500/70 text-slate-100 shadow-xl active:scale-95 cursor-pointer w-24"
-              >
-                <SlidersHorizontal className="w-4 h-4 text-ppt-do" />
-                <span className="text-[9px] font-mono font-bold mt-1">Shape Library</span>
-              </button>
-
-              {/* Option 2: Microphone Sampling */}
-              <button
-                onClick={() => {
-                  onOpenCapture();
-                  onClose();
-                }}
-                className="absolute -top-3 right-6 flex flex-col items-center p-2 rounded-xl bg-slate-900 border border-red-500/70 text-slate-100 shadow-xl active:scale-95 cursor-pointer w-24"
-              >
-                <Radio className="w-4 h-4 text-red-400" />
-                <span className="text-[9px] font-mono font-bold mt-1">Mic Sampling</span>
-              </button>
-
-              {/* Back button */}
-              <button
-                onClick={() => setActiveSubMenu('none')}
-                className="absolute bottom-4 flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-300 hover:text-white text-[10px] font-mono border border-slate-700"
-              >
-                <ArrowLeft className="w-3 h-3" /> Back
-              </button>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* STAGE 2: EAST FAN-OUT (Playback & Transport) */}
-          {/* ======================================================== */}
-          {activeSubMenu === 'east' && !isFilterEditMode && (
-            <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in-95 duration-100">
-              {/* Play / Pause */}
-              <button
-                onClick={() => onTogglePlay()}
-                className={`absolute top-2 right-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold shadow-lg cursor-pointer ${
-                  isPlaying ? 'bg-red-950/80 border-red-500 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-200'
-                }`}
-              >
-                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                <span>{isPlaying ? 'Pause' : 'Play'}</span>
-              </button>
-
-              {/* Jump to Bookmark A */}
-              <button
-                onClick={() => {
-                  onJumpBookmarkA();
-                  onClose();
-                }}
-                className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/60 text-cyan-300 text-xs font-mono font-bold shadow-lg cursor-pointer"
-                title={`Go to Bookmark A (${bookmarks.a.label})`}
-              >
-                <Bookmark className="w-3 h-3 fill-current" />
-                <span>Go to A</span>
-              </button>
-
-              {/* Jump to Bookmark B */}
-              <button
-                onClick={() => {
-                  onJumpBookmarkB();
-                  onClose();
-                }}
-                className="absolute bottom-2 right-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-500/60 text-amber-300 text-xs font-mono font-bold shadow-lg cursor-pointer"
-                title={`Go to Bookmark B (${bookmarks.b.label})`}
-              >
-                <Bookmark className="w-3 h-3 fill-current" />
-                <span>Go to B</span>
-              </button>
-
-              {/* Sweep Oscillation */}
-              <button
-                onClick={() => onToggleOscillate()}
-                className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold shadow-lg cursor-pointer ${
-                  isOscillating ? 'bg-red-950/80 border-red-500 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-200'
-                }`}
-              >
-                <Repeat className={`w-3.5 h-3.5 ${isOscillating ? 'animate-spin' : ''}`} />
-                <span>{isOscillating ? 'Stop Sweep' : 'Sweep A↔B'}</span>
-              </button>
-
-              {/* Back button */}
-              <button
-                onClick={() => setActiveSubMenu('none')}
-                className="absolute bottom-4 flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-300 hover:text-white text-[10px] font-mono border border-slate-700"
-              >
-                <ArrowLeft className="w-3 h-3" /> Back
-              </button>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* STAGE 2: WEST FAN-OUT (Filter & Bookmarks) */}
-          {/* ======================================================== */}
-          {activeSubMenu === 'west' && !isFilterEditMode && (
-            <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in-95 duration-100">
-              {/* Filter Mode Toggle */}
-              <button
-                onClick={() => onCycleFilterMode()}
-                className="absolute top-2 left-4 flex flex-col items-center p-1.5 rounded-lg bg-slate-900 border border-sky-500/60 text-sky-300 text-[10px] font-mono font-bold shadow-lg cursor-pointer w-22"
-              >
-                <Filter className="w-3.5 h-3.5" />
-                <span className="truncate uppercase mt-0.5">Mode: {filter?.enabled ? filter.mode : 'OFF'}</span>
-              </button>
-
-              {/* Set Bookmark A */}
-              <button
-                onClick={() => {
-                  onSetBookmarkA();
-                }}
-                className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/60 text-cyan-300 text-xs font-mono font-bold shadow-lg cursor-pointer"
-              >
-                <Bookmark className="w-3 h-3" />
-                <span>Set A</span>
-              </button>
-
-              {/* Set Bookmark B */}
-              <button
-                onClick={() => {
-                  onSetBookmarkB();
-                }}
-                className="absolute bottom-2 left-4 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-500/60 text-amber-300 text-xs font-mono font-bold shadow-lg cursor-pointer"
-              >
-                <Bookmark className="w-3 h-3" />
-                <span>Set B</span>
-              </button>
-
-              {/* Enter Filter Edit Mode */}
-              <button
-                onClick={() => {
-                  if (onUpdateFilterParams && !filter?.enabled) {
-                    onToggleFilter();
-                  }
-                  if (onEnterFilterEditMode) {
-                    onEnterFilterEditMode('centre');
-                    onClose();
-                  } else {
-                    setIsFilterEditMode(true);
-                  }
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-950/80 border border-sky-400 text-sky-200 text-xs font-mono font-bold shadow-[0_0_12px_rgba(56,189,248,0.4)] cursor-pointer"
-                title="Enter Fullscreen Cell Filter Edit Mode"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Filter Edit ►</span>
-              </button>
-
-              {/* Back button */}
-              <button
-                onClick={() => setActiveSubMenu('none')}
-                className="absolute bottom-4 flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-300 hover:text-white text-[10px] font-mono border border-slate-700"
-              >
-                <ArrowLeft className="w-3 h-3" /> Back
-              </button>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* FILTER EDIT MODE: Dedicated Dial & Quadrant Controls */}
-          {/* ======================================================== */}
-          {isFilterEditMode && (
-            <div className="absolute inset-0 flex items-center justify-center animate-in fade-in zoom-in-95 duration-100">
-              {/* NORTH: Control Aperture Width */}
-              <button
-                onClick={() => setFilterControlParam('width')}
-                className={`absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center p-1.5 rounded-xl border text-[9px] font-mono font-bold uppercase transition shadow-lg cursor-pointer w-24 ${
-                  filterControlParam === 'width'
-                    ? 'bg-sky-500/30 border-sky-400 text-white shadow-[0_0_12px_#38bdf8]'
-                    : 'bg-slate-900/90 border-slate-700 text-slate-300'
-                }`}
-              >
-                <span>Width</span>
-                <span className="text-[10px] text-sky-300">{filterWidth.toFixed(2)} oct</span>
-              </button>
-
-              {/* WEST: Control Centre Offset */}
-              <button
-                onClick={() => setFilterControlParam('centre')}
-                className={`absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-1.5 rounded-xl border text-[9px] font-mono font-bold uppercase transition shadow-lg cursor-pointer w-20 ${
-                  filterControlParam === 'centre'
-                    ? 'bg-sky-500/30 border-sky-400 text-white shadow-[0_0_12px_#38bdf8]'
-                    : 'bg-slate-900/90 border-slate-700 text-slate-300'
-                }`}
-              >
-                <span>Centre</span>
-                <span className="text-[10px] text-sky-300">d = {filterD.toFixed(2)}</span>
-              </button>
-
-              {/* SOUTH: Control Skirt Softness */}
-              <button
-                onClick={() => setFilterControlParam('skirt')}
-                className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center p-1.5 rounded-xl border text-[9px] font-mono font-bold uppercase transition shadow-lg cursor-pointer w-24 ${
-                  filterControlParam === 'skirt'
-                    ? 'bg-sky-500/30 border-sky-400 text-white shadow-[0_0_12px_#38bdf8]'
-                    : 'bg-slate-900/90 border-slate-700 text-slate-300'
-                }`}
-              >
-                <span>Skirt</span>
-                <span className="text-[10px] text-sky-300">{filterSoftness.toFixed(2)} oct</span>
-              </button>
-
-              {/* EAST: Exit Filter Edit Mode */}
-              <button
-                onClick={() => setIsFilterEditMode(false)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 hover:text-white transition shadow-lg cursor-pointer w-20"
-              >
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[9px] font-mono font-bold uppercase mt-0.5">Done</span>
-              </button>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* CENTER HUB: Readout & Mode Status */}
-          {/* ======================================================== */}
-          <div className="w-22 h-22 rounded-full bg-slate-900/95 border border-slate-700 shadow-inner flex flex-col items-center justify-center text-center p-1 z-20 pointer-events-none">
-            {isFilterEditMode ? (
-              <>
-                <span className="text-[8px] font-bold text-sky-400 font-mono tracking-wider uppercase leading-none">
-                  {filterControlParam}
-                </span>
-                <span className="text-[12px] font-bold text-white font-mono mt-1 leading-none">
-                  {filterControlParam === 'centre' && `d=${filterD.toFixed(2)}`}
-                  {filterControlParam === 'width' && `${filterWidth.toFixed(1)} oct`}
-                  {filterControlParam === 'skirt' && `${filterSoftness.toFixed(1)} oct`}
-                </span>
-                <span className="text-[7px] text-slate-400 font-mono mt-0.5">↻ Scrub dial</span>
-              </>
-            ) : (
-              <>
-                <span className="text-[12px] font-bold text-white font-mono leading-none">
-                  {currentD > 0 ? `${bpm.toFixed(0)}` : pitchInfo.note + pitchInfo.octave}
-                </span>
-                <span className="text-[8px] text-slate-400 font-mono mt-0.5 leading-none">
-                  {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
-                </span>
-                <span className="text-[8px] text-cyan-400 font-mono font-semibold mt-0.5 leading-none">
-                  {addr.formatted}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Instructional guide badge under dial */}
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 border border-slate-700/80 rounded-full px-2.5 py-0.5 text-[8px] font-mono font-semibold text-slate-300 shadow-md pointer-events-none">
-          {isFilterEditMode ? `↻ Rotate outer ring to scrub filter ${filterControlParam}` : '↻ Rotate outer ring to scrub continuum'}
+        {/* Bottom Rim Scrub Instruction Pill */}
+        <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/95 border border-slate-700/80 rounded-full px-3 py-0.5 text-[9px] font-mono font-semibold text-slate-300 shadow-lg pointer-events-none">
+          ↻ Drag outer ring to scrub continuum
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
