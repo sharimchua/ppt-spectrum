@@ -33,8 +33,8 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h2`,
         ratio: { kind: 'rational', num: 2, den: 1 },
-        amp: 0.50,
-        previousAmp: 0.50,
+        amp: 0.35,
+        previousAmp: 0.35,
         phase: 0,
         voice: 'clave',
         label: `${name} (2x Oct)`,
@@ -42,8 +42,8 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h3`,
         ratio: { kind: 'rational', num: 3, den: 1 },
-        amp: 0.35,
-        previousAmp: 0.35,
+        amp: 0.20,
+        previousAmp: 0.20,
         phase: 0,
         voice: 'triangle',
         label: `${name} (3x P5)`,
@@ -51,8 +51,8 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h4`,
         ratio: { kind: 'rational', num: 4, den: 1 },
-        amp: 0.22,
-        previousAmp: 0.22,
+        amp: 0.12,
+        previousAmp: 0.12,
         phase: 0,
         voice: 'hihat',
         label: `${name} (4x 2Oct)`,
@@ -60,8 +60,8 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h5`,
         ratio: { kind: 'rational', num: 5, den: 1 },
-        amp: 0.15,
-        previousAmp: 0.15,
+        amp: 0.08,
+        previousAmp: 0.08,
         phase: 0,
         voice: 'woodblock',
         label: `${name} (5x M3)`,

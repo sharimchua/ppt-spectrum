@@ -99,6 +99,7 @@ export class AudioEngine {
   private fallbackProcessorNode: ScriptProcessorNode | null = null;
   private fallbackPort: { postMessage: (msg: unknown) => void; onmessage: ((ev: { data: unknown }) => void) | null } | null = null;
   private masterGainNode: GainNode | null = null;
+  private masterLimiterNode: DynamicsCompressorNode | null = null;
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
   private isPlaying: boolean = false;
@@ -240,8 +241,17 @@ export class AudioEngine {
 
       this.masterGainNode = ctx.createGain();
       this.masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
+
+      this.masterLimiterNode = ctx.createDynamicsCompressor();
+      this.masterLimiterNode.threshold.setValueAtTime(-0.5, ctx.currentTime);
+      this.masterLimiterNode.knee.setValueAtTime(0, ctx.currentTime);
+      this.masterLimiterNode.ratio.setValueAtTime(20, ctx.currentTime);
+      this.masterLimiterNode.attack.setValueAtTime(0.002, ctx.currentTime);
+      this.masterLimiterNode.release.setValueAtTime(0.05, ctx.currentTime);
+
       scriptNode.connect(this.masterGainNode);
-      this.masterGainNode.connect(ctx.destination);
+      this.masterGainNode.connect(this.masterLimiterNode);
+      this.masterLimiterNode.connect(ctx.destination);
       return true;
     } catch (err) {
       console.warn('[AudioEngine] ScriptProcessor fallback failed:', err);
@@ -315,8 +325,16 @@ export class AudioEngine {
           this.masterGainNode = this.ctx.createGain();
           this.masterGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
 
+          this.masterLimiterNode = this.ctx.createDynamicsCompressor();
+          this.masterLimiterNode.threshold.setValueAtTime(-0.5, this.ctx.currentTime);
+          this.masterLimiterNode.knee.setValueAtTime(0, this.ctx.currentTime);
+          this.masterLimiterNode.ratio.setValueAtTime(20, this.ctx.currentTime);
+          this.masterLimiterNode.attack.setValueAtTime(0.002, this.ctx.currentTime);
+          this.masterLimiterNode.release.setValueAtTime(0.05, this.ctx.currentTime);
+
           this.workletNode.connect(this.masterGainNode);
-          this.masterGainNode.connect(this.ctx.destination);
+          this.masterGainNode.connect(this.masterLimiterNode);
+          this.masterLimiterNode.connect(this.ctx.destination);
         } else {
           // Automatic fallback for mobile HTTP LAN (where ctx.audioWorklet is undefined)
           this.initScriptProcessorFallback(this.ctx);
@@ -551,6 +569,7 @@ export class AudioEngine {
       this.ctx = null;
       this.workletNode = null;
       this.masterGainNode = null;
+      this.masterLimiterNode = null;
       this.isUnlocked = false;
     }
     if (AudioEngine.instance === this) {

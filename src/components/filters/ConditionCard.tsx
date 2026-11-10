@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { FilterCondition } from '../../core/filter-types';
 import { RangeConditionEditor } from './RangeConditionEditor';
 import { CycleConditionEditor } from './CycleConditionEditor';
@@ -29,8 +30,11 @@ export const ConditionCard: React.FC<ConditionCardProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(index === 0);
 
+  const isEnabled = condition.enabled !== false;
   const isRange = condition.kind === 'range';
-  const badgeBorder = isRange
+  const badgeBorder = !isEnabled
+    ? 'border-slate-900 bg-slate-950/40 opacity-60'
+    : isRange
     ? isFocused
       ? 'border-sky-400 bg-sky-950/20 shadow-md shadow-sky-500/10'
       : 'border-slate-800 bg-slate-900/60'
@@ -48,7 +52,9 @@ export const ConditionCard: React.FC<ConditionCardProps> = ({
           {/* Kind Icon */}
           <div
             className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-              isRange
+              !isEnabled
+                ? 'bg-slate-800 text-slate-500 border border-slate-700'
+                : isRange
                 ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                 : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
             }`}
@@ -58,16 +64,21 @@ export const ConditionCard: React.FC<ConditionCardProps> = ({
 
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-200 truncate">
+              <span className={`text-xs font-bold truncate ${isEnabled ? 'text-slate-200' : 'text-slate-500 line-through'}`}>
                 {isRange ? `Range #${index + 1}` : `Cycle #${index + 1}`}
               </span>
-              {isFocused && (
+              {!isEnabled && (
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase font-semibold">
+                  Disabled
+                </span>
+              )}
+              {isEnabled && isFocused && (
                 <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/30 text-sky-300 border border-sky-400/50 uppercase font-semibold">
                   Canvas Active
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-slate-400 truncate font-mono">
+            <span className={`text-[11px] truncate font-mono ${isEnabled ? 'text-slate-400' : 'text-slate-600'}`}>
               {formatConditionSummary(condition)}
             </span>
           </div>
@@ -75,7 +86,24 @@ export const ConditionCard: React.FC<ConditionCardProps> = ({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
-          {isRange && !isFocused && (
+          {/* Enable / Disable Condition Toggle */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange({ ...condition, enabled: !isEnabled });
+            }}
+            title={isEnabled ? 'Disable condition (bypass without deleting)' : 'Enable condition'}
+            className={`p-1.5 rounded transition-colors ${
+              isEnabled
+                ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            {isEnabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          </button>
+
+          {isRange && isEnabled && !isFocused && (
             <button
               type="button"
               onClick={onSetFocus}

@@ -1,4 +1,4 @@
-import { Shape, Placement, Filter, BandFilter } from './types';
+﻿import { Shape, Placement, Filter, BandFilter } from './types';
 import { gcd, lcm, reduceRational, rationalise, ratioToValue } from './rational';
 import { freqToD } from './axis';
 import { evaluatePlacedShape, getEffectivePartials } from './shape';

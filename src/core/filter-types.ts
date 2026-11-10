@@ -32,6 +32,7 @@ export interface RangeSpan {
 export interface RangeCondition {
   kind: 'range';
   id: string;
+  enabled?: boolean;
   reference: FilterReference;
   /** Period reduction modulo P before matching. Null = no reduction. Default 2/1 for octave reduction. */
   reductionPeriod: Ratio | null;
@@ -44,6 +45,7 @@ export interface RangeCondition {
 export interface CycleCondition {
   kind: 'cycle';
   id: string;
+  enabled?: boolean;
   /** Grid divisions per scene fundamental cycle (1..64). */
   divisions: number;
   /** Per-slot match weight in [0, 1]. Length must match divisions. */

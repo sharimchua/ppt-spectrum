@@ -296,6 +296,14 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         ? Math.max(1.2, adsr.attack + adsr.decay * 1.35 + 0.4)
         : 1e9;
 
+      // Perceptual headroom normalisation: preserves full volume for simple 1-2 partial shapes
+      // while smoothly scaling multi-partial chords and rich timbres to prevent digital clipping
+      let totalAmpSum = 0;
+      for (let pIdx = 0; pIdx < shape.partials.length; pIdx++) {
+        totalAmpSum += shape.partials[pIdx].amp;
+      }
+      const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
+
       for (let s = 0; s < numSamples; s++) {
         const sampleDt = 1.0 / sampleRate;
         const masterPhaseIncrement = f0 * sampleDt;
@@ -509,7 +517,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             }
           }
 
-          const combined = (toneSample + eventSample) * shape.gain;
+          const combined = (toneSample + eventSample) * shape.gain * shapeHeadroom;
           const pan = Math.sin(pIdx * 1.2) * 0.35;
           sampleValL += combined * (0.5 - pan * 0.5);
           sampleValR += combined * (0.5 + pan * 0.5);
@@ -527,6 +535,13 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         noteAge: nState.noteAge,
         isAuditioning: nState.isAuditioning,
       };
+    }
+
+    // Transparent soft-knee saturation prevents harsh digital DAC hard-clipping
+    // and eliminates clicking from multi-partial constructive interference
+    for (let s = 0; s < numSamples; s++) {
+      channelLeft[s] = Math.tanh(channelLeft[s]);
+      channelRight[s] = Math.tanh(channelRight[s]);
     }
 
     // Post telemetry to main thread approximately every 20-30ms (~12-16 quantums of 128 samples)

@@ -248,7 +248,7 @@ export function evaluateStaticMatch(filter: Filter, ctx: PartialContext): number
   if (!filter.enabled) return 1.0;
 
   const rangeConds = filter.conditions.filter(
-    (c): c is RangeCondition => c.kind === 'range'
+    (c): c is RangeCondition => c.kind === 'range' && c.enabled !== false
   );
   if (rangeConds.length === 0) {
     return filter.action === 'keep' ? 1.0 : 0.0;
@@ -293,7 +293,10 @@ export function meanCycleMatch(
  * Used for spectral roughness, ruler display, and photosensitive-safe steady-state glow.
  */
 export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
-  if (!filter.enabled || filter.conditions.length === 0) return 1.0;
+  if (!filter.enabled) return 1.0;
+
+  const activeConds = filter.conditions.filter((c) => c.enabled !== false);
+  if (activeConds.length === 0) return 1.0;
 
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
   const placementD = ctx.placementD ?? ctx.sceneD;
@@ -302,7 +305,7 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
   const phase = ctx.phase ?? 0;
   const ratioToScene = ctx.ratioToScene ?? 1.0;
 
-  const matches = filter.conditions.map((cond) => {
+  const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
       const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
       return evaluateRangeMatch(x, cond, ctx.tplHz);
@@ -322,13 +325,16 @@ export function evaluateOnsetGain(
   ctx: PartialContext,
   onsetSceneTurns: number
 ): number {
-  if (!filter.enabled || filter.conditions.length === 0) return 1.0;
+  if (!filter.enabled) return 1.0;
+
+  const activeConds = filter.conditions.filter((c) => c.enabled !== false);
+  if (activeConds.length === 0) return 1.0;
 
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
   const placementD = ctx.placementD ?? ctx.sceneD;
   const anchorD = placementD - Math.log2(anchorRatioVal);
 
-  const matches = filter.conditions.map((cond) => {
+  const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
       const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
       return evaluateRangeMatch(x, cond, ctx.tplHz);
@@ -372,7 +378,19 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
     };
   }
 
-  const cycleConds = filter.conditions.filter(
+  const activeConds = filter.conditions.filter((c) => c.enabled !== false);
+  if (activeConds.length === 0) {
+    return {
+      enabled: false,
+      action: 0,
+      combine: 0,
+      depth: 1.0,
+      hasCycle: false,
+      cycles: [],
+    };
+  }
+
+  const cycleConds = activeConds.filter(
     (c): c is CycleCondition => c.kind === 'cycle'
   );
 
