@@ -14,6 +14,7 @@ import {
 } from '../scene-ops';
 import { Scene, Shape } from '../types';
 import { DEFAULT_SCENE } from '../config';
+import { bandFilterToFilter } from '../filter-migration';
 
 describe('scene-ops', () => {
   const baseScene: Scene = {
@@ -22,13 +23,13 @@ describe('scene-ops', () => {
       { shapeId: 'hemiola-3-2', d: 0, gain: 1, mute: false, solo: false },
       { shapeId: 'pure-tone', d: 1, gain: 0.8, mute: false, solo: false },
     ],
-    filter: {
+    filter: bandFilterToFilter({
       enabled: false,
       mode: 'band-pass',
       centreD: 0,
       widthD: 2,
       softnessD: 0.5,
-    },
+    }),
   };
 
   describe('setPrimaryPlacementD', () => {
@@ -116,7 +117,7 @@ describe('scene-ops', () => {
 
       const step4 = cycleFilterMode(step3);
       expect(step4.filter.enabled).toBe(false);
-      expect(step4.filter.mode).toBe('band-pass');
+      expect(step4.filter.mode).toBe('high-pass');
     });
   });
 

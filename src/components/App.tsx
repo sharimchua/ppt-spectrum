@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
+import { setPrimaryPlacementD, stepPrimaryPlacementD, enableFilter } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
@@ -300,7 +300,7 @@ export const App: React.FC = () => {
         activeShape={activeShape}
         onUpdateShape={handleUpdateActiveShape}
         filter={scene.filter}
-        onUpdateFilter={(newFilter) => updateScene((prev) => ({ ...prev, filter: newFilter }))}
+        onUpdateFilter={(newFilter) => updateScene((prev) => enableFilter(prev, newFilter))}
         allShapes={scene.shapes}
         onSelectShape={handleSelectPreset}
         onDuplicateShape={handleDuplicateShape}

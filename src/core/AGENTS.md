@@ -6,7 +6,12 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 
 ## Ownership
 
-- `src/core/types.ts` — Core data contracts: `Ratio`, `Partial`, `Shape`, `Placement`, `BandFilter`, `Scene`, `CosmeticsConfig`, and layout schemas.
+- `src/core/types.ts` — Core data contracts: `Ratio`, `Partial`, `Shape`, `Placement`, `Filter`, `BandFilter` (legacy migration), `Scene`, `CosmeticsConfig`, and layout schemas.
+- `src/core/filter-types.ts` — Generic filter data contracts: `Filter`, compound `FilterCondition` (range and cycle), `RangeSpan`, `RangeEndpoint`, `SpanView`, and constants.
+- `src/core/endpoint-parse.ts` — Pure string parsers and formatters for range endpoints (ratios, cents, EDO steps, frequencies, tempo, and DuPeriod coordinates).
+- `src/core/filter-eval.ts` — Pure mathematical evaluation of generic filters: endpoint coordinate mapping, modular period-reduced span matching, cycle grid slot matching, Zadeh fuzzy logic combination, static duty gains, and worklet compilation.
+- `src/core/filter-presets.ts` — Procedural filter generators: Björklund Euclidean rhythm generator, Xenakis residue sieves, Just ↔ 12-TET microtonal interval windows, harmonic series combs, and starter filters.
+- `src/core/filter-migration.ts` — Legacy BandFilter migration, golden mathematical equivalence evaluation, and sanitisation for persisted localStorage scenes.
 - `src/core/ppt-constants.ts` — Theory constants ($f_{\text{TPL}} = 25.8\text{ Hz}$, $T_{\text{TPL}} \approx 38.76\text{ ms}$), canonical Solfège palette, Prime palette, and Hann window decay.
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
@@ -25,6 +30,10 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 
 - `core.test.ts` — Axis maths, rational algebra and prime limits, alignment and ghost fundamental, BandFilter, presets and piano inharmonicity, graphics profile persistence.
 - `decompose.test.ts` — Rhythm decomposer and 11-limit quantiser.
+- `endpoint-parse.test.ts` — Range endpoint string parsing across all supported units and display formatting.
+- `filter-eval.test.ts` — Mathematical evaluation of span matches, circular period reduction, cycle slot rounding, fuzzy combination, and worklet compilation.
+- `filter-migration.test.ts` — Golden parity evaluation between legacy BandFilter and modern Filter, plus persistence sanitisation.
+- `filter-presets.test.ts` — Björklund Euclidean rhythm patterns, Xenakis residue sieves, Just ↔ 12-TET windows, and starter filters.
 - `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
 - `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
 - `scene-ops.test.ts` — Scene placement coordinate stepping, filter mode cycling, shape capture, upsert, and duplication.

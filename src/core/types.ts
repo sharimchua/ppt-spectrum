@@ -91,6 +91,10 @@ export interface Placement {
 
 export type FilterTrackingMode = 'fixed' | 'relative';
 
+/**
+ * @deprecated Legacy BandFilter model. Use modern Filter model from filter-types.ts instead.
+ * Retained for backwards-compatibility migration of persisted scenes.
+ */
 export interface BandFilter {
   enabled: boolean;
   /** Centre coordinate on DuPeriod axis d (absolute coordinate when fixed, or relative offset when tracking) */
@@ -103,6 +107,10 @@ export interface BandFilter {
   /** Fixed formant on continuum or relative tracking with fundamental */
   trackingMode?: FilterTrackingMode;
 }
+
+import { Filter } from './filter-types';
+
+export * from './filter-types';
 
 export interface AnchorConfig {
   tplFrequencyHz: number;
@@ -184,7 +192,7 @@ export interface CosmeticsConfig {
 export interface Scene {
   shapes: Shape[];
   placements: Placement[];
-  filter: BandFilter;
+  filter: Filter;
   anchors: AnchorConfig;
   lenses: LensConfig[];
   audio: AudioConfig;

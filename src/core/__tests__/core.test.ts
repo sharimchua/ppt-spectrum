@@ -7,6 +7,7 @@ import {
   calculatePlompLevelt,
   calculateSetharesCurve,
   calculateSupercycleTimeline,
+  calculateRealignmentAnalysis,
   CANONICAL_INTERVAL_MARKERS,
 } from '../alignment';
 import { calculateFilterGain, evaluatePartialAdsr } from '../shape';
@@ -157,6 +158,40 @@ describe('Alignment & Ghost Fundamental', () => {
     // Both voices coincide at Sam (0.0)
     expect(timelines[0].events[0]).toBe(0);
     expect(timelines[1].events[0]).toBe(0);
+  });
+
+  it('unifies chords and inharmonic timbres under collective periodic realignment', () => {
+    // 1. Pure tone (1/1)
+    const pureTone = PRESET_SHAPES.find((s) => s.id === 'pure-tone')!;
+    const analysisPure = calculateRealignmentAnalysis(pureTone);
+    expect(analysisPure.coherenceScore).toBeGreaterThanOrEqual(0.95);
+    expect(analysisPure.isAperiodic).toBe(false);
+    expect(analysisPure.coincidenceStride).toBe(1.0);
+
+    // 2. Harmonic Hemiola 3:2
+    const hemiola = PRESET_SHAPES.find((s) => s.id === 'hemiola-3-2')!;
+    const analysisHemiola = calculateRealignmentAnalysis(hemiola);
+    expect(analysisHemiola.coherenceScore).toBeGreaterThan(0.7);
+    expect(analysisHemiola.isAperiodic).toBe(false);
+    expect(analysisHemiola.coincidenceStride).toBe(2.0);
+
+    // 3. Multi-voice chord (Major Triad)
+    const majorTriad = PRESET_SHAPES.find((s) => s.id === 'major-triad');
+    if (majorTriad) {
+      const analysisTriad = calculateRealignmentAnalysis(majorTriad);
+      expect(analysisTriad.coherenceScore).toBeGreaterThan(0.65);
+      expect(analysisTriad.activeVoicesCount).toBeGreaterThanOrEqual(1);
+    }
+
+    // 4. Inharmonic timbre (Tibetan Singing Bowl)
+    const bowl = PRESET_SHAPES.find((s) => s.id === 'tibetan-singing-bowl');
+    if (bowl) {
+      const analysisBowl = calculateRealignmentAnalysis(bowl);
+      // Inharmonic spectrum lacks periodic phase coincidence
+      expect(analysisBowl.isAperiodic).toBe(true);
+      expect(analysisBowl.coincidenceStride).toBe(Infinity);
+      expect(analysisBowl.coherenceScore).toBeLessThan(0.4);
+    }
   });
 });
 

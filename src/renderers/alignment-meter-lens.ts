@@ -1,15 +1,10 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape } from '../core/shape';
-import {
-  calculatePlompLevelt,
-  calculateTenneyHeight,
-  calculateGhostFundamental,
-  calculateCoincidenceCycle,
-  calculateSetharesCurve,
-  CANONICAL_INTERVAL_MARKERS,
-} from '../core/alignment';
-import { rationalise } from '../core/rational';
 import { dToFreq } from '../core/axis';
+import {
+  calculateRealignmentAnalysis,
+  RealignmentAnalysis,
+} from '../core/alignment';
+import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 
@@ -27,8 +22,8 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     height: number,
     scene: Scene,
     _transportTime: number = 0,
-    _audioPhase: number = 0,
-    _isAudioActive: boolean = false
+    audioPhase: number = 0,
+    isAudioActive: boolean = false
   ): void {
     this.dynamicLights = [];
 
@@ -38,52 +33,54 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     if (!shape) return;
 
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
-    const partials = evaluatePlacedShape(shape, placement, scene.filter);
-    const activePartials = partials.filter((p) => p.filteredAmp > 0.001);
+    const isPitchSpace = f0 >= 20;
+    const windowCycles = 2.5;
 
-    // Compute internal pairwise Plomp-Levelt roughness
-    let internalRoughness = 0;
-    for (let i = 0; i < activePartials.length; i++) {
-      for (let j = i + 1; j < activePartials.length; j++) {
-        internalRoughness += calculatePlompLevelt(
-          activePartials[i].freqHz,
-          activePartials[i].filteredAmp,
-          activePartials[j].freqHz,
-          activePartials[j].filteredAmp
-        );
-      }
-    }
-
-    // Compute average Tenney height
-    let totalTenney = 0;
-    let tenneyCount = 0;
-    for (const p of activePartials) {
-      const r = rationalise(p.ratioValue);
-      totalTenney += calculateTenneyHeight(r.num, r.den);
-      tenneyCount++;
-    }
-    const avgTenney = tenneyCount > 0 ? totalTenney / tenneyCount : 0;
-    const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
-    const coincidence = calculateCoincidenceCycle(shape, f0);
+    // Run Unified Realignment & Coincidence Analysis across all active voice anchors and partials
+    const analysis: RealignmentAnalysis = calculateRealignmentAnalysis(
+      shape,
+      placement,
+      scene.filter,
+      windowCycles,
+      Math.min(320, Math.max(128, Math.floor(width / 2)))
+    );
 
     ctx.save();
 
     const isCompact = width < 480;
-    const isShort = height < 280;
+    const isShort = height < 300;
 
-    // 1. Header & Metric Badges
+    // 1. Header & Metric Cards
     ctx.fillStyle = '#38bdf8';
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'ALIGNMENT & CONSONANCE METER' : 'ALIGNMENT & HARMONIC CONSONANCE METER', isCompact ? 14 : 20, 20);
+    ctx.fillText(
+      isCompact ? 'REALIGNMENT & COINCIDENCE METER' : 'REALIGNMENT & COINCIDENCE METER • UNIFIED CONSONANCE',
+      isCompact ? 14 : 20,
+      isShort ? 16 : 20
+    );
 
-    const padX = isCompact ? 14 : 20;
+    const padX = isCompact ? 12 : 20;
     const gapX = isCompact ? 6 : 10;
-    const boxY = isShort ? 30 : 38;
-    const boxH = isShort ? 38 : 46;
+    const boxY = isShort ? 24 : 32;
+    const boxH = isShort ? 36 : 44;
     const boxW = (width - padX * 2 - gapX * 2) / 3;
 
-    // Metric 1: Roughness
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+    // Metric 1: Realignment Coherence Score
+    const coherencePercent = Math.round(analysis.coherenceScore * 100);
+    const coherenceColor =
+      analysis.coherenceScore >= 0.7
+        ? '#34d399'
+        : analysis.coherenceScore >= 0.4
+        ? '#f59e0b'
+        : '#fb7185';
+    const coherenceStatus =
+      analysis.coherenceScore >= 0.7
+        ? 'HARMONIC CADENCE'
+        : analysis.coherenceScore >= 0.4
+        ? 'COMPOUND STRIDE'
+        : 'INHARMONIC DISPERSED';
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -92,138 +89,237 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'ROUGHNESS' : 'SENSORY ROUGHNESS', padX + 6, boxY + 14);
-    ctx.fillStyle = internalRoughness > 0.4 ? '#fb7185' : '#34d399';
-    ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(internalRoughness.toFixed(3), padX + 6, boxY + (isShort ? 31 : 36));
+    ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'COHERENCE' : 'REALIGNMENT COHERENCE', padX + 6, boxY + 12);
 
-    // Metric 2: Tenney Complexity
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+    ctx.fillStyle = coherenceColor;
+    ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
+    ctx.fillText(`${coherencePercent}%`, padX + 6, boxY + (isShort ? 26 : 30));
+
+    // Mini coherence status bar
+    const barW = Math.max(20, boxW - 12);
+    const barY = boxY + boxH - (isShort ? 6 : 8);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fillRect(padX + 6, barY, barW, 2.5);
+    ctx.fillStyle = coherenceColor;
+    ctx.fillRect(padX + 6, barY, barW * (analysis.coherenceScore), 2.5);
+
+    // Metric 2: Cadence Stride
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.beginPath();
     ctx.roundRect(padX + boxW + gapX, boxY, boxW, boxH, 6);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'TENNEY' : 'TENNEY COMPLEXITY', padX + boxW + gapX + 6, boxY + 14);
-    ctx.fillStyle = '#c084fc';
-    ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(avgTenney.toFixed(2), padX + boxW + gapX + 6, boxY + (isShort ? 31 : 36));
+    ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'STRIDE' : 'CADENCE STRIDE', padX + boxW + gapX + 6, boxY + 12);
 
-    // Metric 3: Coincidence / Super-Cycle Period (Sam)
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+    ctx.fillStyle = '#c084fc';
+    ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 12px JetBrains Mono, monospace';
+    const strideText = analysis.isAperiodic
+      ? '∞ Aperiodic'
+      : `${analysis.coincidenceStride.toFixed(1)}x Turn`;
+    ctx.fillText(strideText, padX + boxW + gapX + 6, boxY + (isShort ? 26 : 30));
+
+    // Metric 3: Active Architecture
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.beginPath();
     ctx.roundRect(padX + (boxW + gapX) * 2, boxY, boxW, boxH, 6);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'SAM PERIOD' : 'COINCIDENCE (SAM)', padX + (boxW + gapX) * 2 + 6, boxY + 14);
-    ctx.fillStyle = '#f97316';
-    ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 12px JetBrains Mono, monospace';
-    const samMetricText = coincidence.isAperiodic
-      ? (isCompact ? '∞ Aper.' : '∞ (Aperiodic)')
-      : coincidence.rootTurnsToAlign === 1
-      ? `${(ghost.cycleDurationSec * 1000).toFixed(1)}ms`
-      : `${(coincidence.superCycleDurationSec * 1000).toFixed(1)}ms (${coincidence.rootTurnsToAlign}x)`;
-    ctx.fillText(samMetricText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 31 : 36));
+    ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
+    ctx.fillText(isCompact ? 'SPECTRUM' : 'ACTIVE ARCHITECTURE', padX + (boxW + gapX) * 2 + 6, boxY + 12);
 
-    const isPitchSpace = f0 >= 20;
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 11px JetBrains Mono, monospace';
+    const archText = `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P`;
+    ctx.fillText(archText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 26 : 30));
 
-    // 2. Sethares Consonance & Coincidence Landscape across ratios 1.0 to 2.0
-    // Faithfully models harmonic, inharmonic, and aperiodic timbres across both pitch and rhythm domains.
-    const curveTop = boxY + boxH + (isShort ? 16 : 24);
-    const curveBottom = height - (isShort ? 22 : 30);
-    const curveH = Math.max(30, curveBottom - curveTop);
-    const plotLeft = isCompact ? 24 : 40;
-    const plotRight = width - (isCompact ? 16 : 30);
-    const plotW = plotRight - plotLeft;
+    // Layout partitioning: Tracks area vs Convergence wave
+    const mainTop = boxY + boxH + (isShort ? 8 : 12);
+    const mainBottom = height - (isShort ? 16 : 22);
+    const mainH = Math.max(60, mainBottom - mainTop);
 
-    // Axes
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    const plotLeft = isCompact ? 72 : 115;
+    const plotRight = width - (isCompact ? 12 : 20);
+    const plotW = Math.max(40, plotRight - plotLeft);
+
+    const trackCount = Math.min(5, analysis.tracks.length);
+    const trackAreaH = trackCount > 0 ? Math.min(mainH * 0.42, trackCount * (isShort ? 14 : 18)) : 0;
+    const waveTop = mainTop + trackAreaH + (trackCount > 0 ? (isShort ? 6 : 10) : 0);
+    const waveBottom = mainBottom - (isShort ? 12 : 16);
+    const waveH = Math.max(30, waveBottom - waveTop);
+
+    // 2. Cascade of Voice Tracks (Individual Pulse Crossings)
+    if (trackCount > 0) {
+      const trackRowH = trackAreaH / trackCount;
+
+      for (let t = 0; t < trackCount; t++) {
+        const track = analysis.tracks[t];
+        const rowCenterY = mainTop + t * trackRowH + trackRowH * 0.5;
+        const color = SOLFEGE_NEON_COLORS[track.semitoneIndex] || '#38bdf8';
+        const baseColor = SOLFEGE_COLORS[track.semitoneIndex] || color;
+
+        // Voice track label pill
+        ctx.fillStyle = baseColor;
+        ctx.font = isCompact ? 'bold 7.5px JetBrains Mono, monospace' : 'bold 8px JetBrains Mono, monospace';
+        const labelText = track.name.length > (isCompact ? 10 : 16)
+          ? `${track.name.slice(0, isCompact ? 9 : 15)}…`
+          : track.name;
+        ctx.fillText(labelText, padX, rowCenterY + 3);
+
+        // Track timeline wire
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(plotLeft, rowCenterY);
+        ctx.lineTo(plotRight, rowCenterY);
+        ctx.stroke();
+
+        // Draw individual pulse hit markers along timeline
+        for (const p of track.partials) {
+          for (const hitTau of p.hits) {
+            if (hitTau < 0 || hitTau > windowCycles) continue;
+            const hx = plotLeft + (hitTau / windowCycles) * plotW;
+
+            // Vertical tick needle
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(hx, rowCenterY - 4);
+            ctx.lineTo(hx, rowCenterY + 4);
+            ctx.stroke();
+
+            // Luminous pulse head
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    // 3. Composite Realignment Convergence Wave
+    // Coordinate grid and integer cycle downbeat lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(plotLeft, curveTop);
-    ctx.lineTo(plotLeft, curveBottom);
-    ctx.lineTo(plotRight, curveBottom);
+    ctx.moveTo(plotLeft, waveBottom);
+    ctx.lineTo(plotRight, waveBottom);
     ctx.stroke();
 
-    ctx.fillStyle = '#64748b';
-    ctx.font = '8px JetBrains Mono, monospace';
-    const xLabel = isPitchSpace
-      ? (isCompact ? 'INTERVAL (1/1 to 2/1)' : 'INTERVAL RATIO (1/1 to 2/1) • CONSONANCE VALLEYS')
-      : (isCompact ? 'TEMPO RATIO (1:1 to 2:1)' : 'TEMPO RATIO (1:1 to 2:1) • POLYRHYTHMIC COINCIDENCE VALLEYS');
-    ctx.fillText(xLabel, plotLeft, curveBottom + 16);
-    ctx.fillText(isPitchSpace ? 'DISSONANCE' : 'INTERFERENCE', 10, curveTop - 8);
-
-    // Consonant / Polyrhythmic interval guidelines
     ctx.save();
-    ctx.setLineDash([2, 4]);
-    for (const m of CANONICAL_INTERVAL_MARKERS) {
-      const gx = plotLeft + (m.ratio - 1.0) * plotW;
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+    ctx.setLineDash([2, 3]);
+    for (let c = 0; c <= Math.floor(windowCycles); c++) {
+      const cx = plotLeft + (c / windowCycles) * plotW;
+      ctx.strokeStyle = c === 0 ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
       ctx.beginPath();
-      ctx.moveTo(gx, curveTop);
-      ctx.lineTo(gx, curveBottom);
+      ctx.moveTo(cx, waveTop - 4);
+      ctx.lineTo(cx, waveBottom);
       ctx.stroke();
 
-      ctx.fillStyle = '#0284c7';
+      // Axis labels
+      ctx.fillStyle = c === 0 ? '#fbbf24' : '#64748b';
       ctx.font = '7.5px JetBrains Mono, monospace';
-      const markLabel = isPitchSpace ? m.label : m.label.replace('/', ':');
-      ctx.fillText(markLabel, gx - 6, curveBottom + 8);
+      const cycleLabel = c === 0 ? 'τ=0 (Downbeat)' : `τ=${c} (${c}x Cycle)`;
+      ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : 18), waveBottom + (isShort ? 10 : 12));
     }
     ctx.restore();
 
-    // Compute and draw Sethares curve
-    const sethares = calculateSetharesCurve(activePartials, f0, Math.max(32, Math.floor(plotW / 3)));
-    ctx.strokeStyle = isPitchSpace ? '#38bdf8' : '#f59e0b';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
+    // Plot constructive interference filled area
+    const samples = analysis.samplePoints;
+    const numS = samples.length;
 
-    for (let i = 0; i < sethares.points.length; i++) {
-      const pt = sethares.points[i];
-      const px = plotLeft + (pt.ratio - 1.0) * plotW;
-      const normY = curveBottom - (pt.roughness / sethares.maxRoughness) * (curveH * 0.85);
-      if (i === 0) ctx.moveTo(px, normY);
-      else ctx.lineTo(px, normY);
+    if (numS > 1) {
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, waveBottom);
+
+      for (let s = 0; s < numS; s++) {
+        const sx = plotLeft + (s / (numS - 1)) * plotW;
+        const sy = waveBottom - samples[s] * waveH;
+        ctx.lineTo(sx, sy);
+      }
+      ctx.lineTo(plotRight, waveBottom);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, waveTop, 0, waveBottom);
+      grad.addColorStop(0, analysis.isAperiodic ? 'rgba(251, 113, 133, 0.25)' : 'rgba(56, 189, 248, 0.28)');
+      grad.addColorStop(1, 'rgba(15, 23, 42, 0.02)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Neon stroke line
+      ctx.strokeStyle = analysis.isAperiodic ? '#fb7185' : '#38bdf8';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let s = 0; s < numS; s++) {
+        const sx = plotLeft + (s / (numS - 1)) * plotW;
+        const sy = waveBottom - samples[s] * waveH;
+        if (s === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
 
-    // Determine active shape's primary overtone interval / polyrhythm ratio
-    const primaryOvertone = activePartials.find((p) => p.ratioValue > 1.02)?.ratioValue ?? 1.0;
-    const clampedRatio = Math.min(2.0, Math.max(1.0, primaryOvertone));
-    const markerX = plotLeft + (clampedRatio - 1.0) * plotW;
+    // Convergence Diamond Markers
+    for (const peak of analysis.peaks) {
+      if (peak.value < 0.62) continue;
+      const px = plotLeft + (peak.tau / windowCycles) * plotW;
+      const py = waveBottom - peak.value * waveH;
 
-    let markerRoughness = internalRoughness;
-    if (sethares.points.length > 0) {
-      const closestPt = sethares.points.reduce((prev, curr) =>
-        Math.abs(curr.ratio - clampedRatio) < Math.abs(prev.ratio - clampedRatio) ? curr : prev
-      );
-      markerRoughness = closestPt.roughness;
+      ctx.fillStyle = peak.isDownbeat ? '#fbbf24' : '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(px, py - 4.5);
+      ctx.lineTo(px + 3.5, py);
+      ctx.lineTo(px, py + 4.5);
+      ctx.lineTo(px - 3.5, py);
+      ctx.closePath();
+      ctx.fill();
+
+      // Peak badge
+      if (peak.value >= 0.75) {
+        ctx.fillStyle = peak.isDownbeat ? '#fde047' : '#7dd3fc';
+        ctx.font = 'bold 7px JetBrains Mono, monospace';
+        ctx.fillText(peak.isDownbeat ? 'REALIGN' : 'COINCIDE', px - 12, py - 6);
+
+        if (isAudioActive) {
+          this.dynamicLights.push({
+            x: px,
+            y: py,
+            velocity: peak.value,
+            colorHex: peak.isDownbeat ? '#FBBF24' : '#38BDF8',
+          });
+        }
+      }
     }
-    const markerY = curveBottom - Math.min(1.0, markerRoughness / sethares.maxRoughness) * (curveH * 0.85);
 
-    ctx.fillStyle = '#E13610';
-    ctx.beginPath();
-    ctx.arc(markerX, markerY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    // Live animated transport playhead
+    if (isAudioActive || audioPhase > 0) {
+      const playheadTau = ((audioPhase * windowCycles) % windowCycles + windowCycles) % windowCycles;
+      const playheadX = plotLeft + (playheadTau / windowCycles) * plotW;
 
-    // Marker badge text
-    ctx.fillStyle = '#f87171';
-    ctx.font = 'bold 8px JetBrains Mono, monospace';
-    const markerText = isPitchSpace
-      ? `${clampedRatio.toFixed(2)}x`
-      : `${clampedRatio.toFixed(2)}:1`;
-    ctx.fillText(markerText, markerX - 8, markerY - 8);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, mainTop);
+      ctx.lineTo(playheadX, waveBottom);
+      ctx.stroke();
 
-    this.dynamicLights.push({
-      x: markerX,
-      y: markerY,
-      velocity: 0.9,
-      colorHex: '#FF4D4D',
-    });
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(playheadX, waveBottom, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Status label at bottom-left
+    ctx.fillStyle = coherenceColor;
+    ctx.font = 'bold 7.5px JetBrains Mono, monospace';
+    const domainLabel = isPitchSpace ? 'PITCH SPACE' : 'RHYTHM SPACE';
+    ctx.fillText(`${domainLabel} • ${coherenceStatus}`, padX, height - 6);
 
     ctx.restore();
   }

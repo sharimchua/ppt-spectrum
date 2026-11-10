@@ -1,4 +1,4 @@
-import { Shape, Placement } from './types';
+import { Shape, Placement, Filter, BandFilter } from './types';
 import { gcd, lcm, reduceRational, rationalise, ratioToValue } from './rational';
 import { freqToD } from './axis';
 import { evaluatePlacedShape, getEffectivePartials } from './shape';
@@ -254,6 +254,240 @@ export function calculateSetharesCurve(
   }
 
   return { points, maxRoughness };
+}
+
+export interface VoiceCoincidenceTrack {
+  id: string;
+  name: string;
+  semitoneIndex: number;
+  baseRatio: number;
+  gain: number;
+  colorHex?: string;
+  partials: {
+    ratioValue: number;
+    amp: number;
+    phase: number;
+    hits: number[];
+  }[];
+}
+
+export interface RealignmentAnalysis {
+  coherenceScore: number;
+  coincidenceStride: number;
+  isAperiodic: boolean;
+  activeVoicesCount: number;
+  activePartialsCount: number;
+  windowCycles: number;
+  samplePoints: Float32Array;
+  peaks: { tau: number; value: number; isDownbeat: boolean }[];
+  tracks: VoiceCoincidenceTrack[];
+}
+
+/**
+ * Calculates the Unified Realignment & Coincidence Analysis across all active voice anchors and partials.
+ * Unifies chords (multi-voice anchors) and inharmonic timbres (non-integer partials) under the exact
+ * same physical reality: how frequently and cleanly all active components achieve simultaneous constructive phase alignment.
+ */
+export function calculateRealignmentAnalysis(
+  shape: Shape,
+  placement?: Placement,
+  _filter?: Filter | BandFilter,
+  windowCycles: number = 2.5,
+  numSamples: number = 256
+): RealignmentAnalysis {
+  const tracks: VoiceCoincidenceTrack[] = [];
+  const placementGain = placement ? (placement.mute ? 0 : placement.gain) : 1.0;
+
+  if (shape.anchors && shape.anchors.length > 1) {
+    // Multi-voice chord or multi-anchor polyrhythm
+    for (const anchor of shape.anchors) {
+      const anchorGain = (anchor.mute ? 0 : anchor.gain) * placementGain;
+      if (anchorGain <= 0.001) continue;
+      const baseRatio = ratioToValue(anchor.ratio);
+      const semitone = Math.round(12 * Math.log2(baseRatio));
+      const semitoneIndex = ((semitone % 12) + 12) % 12;
+
+      const trackPartials: VoiceCoincidenceTrack['partials'] = [];
+      for (const p of anchor.partials) {
+        if (p.amp <= 0.001) continue;
+        const pRatio = ratioToValue(p.ratio);
+        const effectiveRatio = baseRatio * pRatio;
+        const effectivePhase = (((anchor.phaseOffset || 0) + (p.phase || 0)) % 1.0 + 1.0) % 1.0;
+        const effectiveAmp = anchorGain * p.amp;
+
+        const hits: number[] = [];
+        const maxK = Math.ceil(effectiveRatio * windowCycles + effectivePhase) + 1;
+        for (let k = 0; k <= maxK; k++) {
+          const tau = (k - effectivePhase) / effectiveRatio;
+          if (tau >= -0.005 && tau <= windowCycles + 0.005) {
+            hits.push(Math.max(0, tau));
+          }
+        }
+
+        trackPartials.push({
+          ratioValue: effectiveRatio,
+          amp: effectiveAmp,
+          phase: effectivePhase,
+          hits,
+        });
+      }
+
+      if (trackPartials.length > 0) {
+        tracks.push({
+          id: anchor.id,
+          name: anchor.name,
+          semitoneIndex,
+          baseRatio,
+          gain: anchorGain,
+          partials: trackPartials,
+        });
+      }
+    }
+  } else {
+    // Single voice with harmonic, stretched, or inharmonic partials (e.g. Bell, Tibetan Bowl, Sawtooth)
+    const rawPartials = getEffectivePartials(shape).filter((p) => p.amp > 0.001);
+    const sorted = [...rawPartials].sort((a, b) => b.amp - a.amp);
+    const primaryPartials = sorted.slice(0, 5); // display up to 5 individual mode tracks
+
+    for (let i = 0; i < primaryPartials.length; i++) {
+      const p = primaryPartials[i];
+      const pRatio = ratioToValue(p.ratio);
+      const semitone = Math.round(12 * Math.log2(pRatio));
+      const semitoneIndex = ((semitone % 12) + 12) % 12;
+      const effectiveAmp = p.amp * placementGain;
+      const hits: number[] = [];
+      const maxK = Math.ceil(pRatio * windowCycles + p.phase) + 1;
+      for (let k = 0; k <= maxK; k++) {
+        const tau = (k - p.phase) / pRatio;
+        if (tau >= -0.005 && tau <= windowCycles + 0.005) {
+          hits.push(Math.max(0, tau));
+        }
+      }
+
+      tracks.push({
+        id: `mode-${i}`,
+        name: p.label || (Math.abs(pRatio - 1.0) < 0.01 ? 'Root Mode (1.00x)' : `Mode ${i + 1} (${pRatio.toFixed(2)}x)`),
+        semitoneIndex,
+        baseRatio: pRatio,
+        gain: effectiveAmp,
+        partials: [
+          {
+            ratioValue: pRatio,
+            amp: effectiveAmp,
+            phase: p.phase,
+            hits,
+          },
+        ],
+      });
+    }
+  }
+
+  // Flatten all partials for composite constructive wave evaluation
+  interface FlattenedComponent {
+    ratio: number;
+    amp: number;
+    phase: number;
+  }
+  const allComponents: FlattenedComponent[] = [];
+  let totalAmp = 0;
+
+  for (const track of tracks) {
+    for (const p of track.partials) {
+      allComponents.push({
+        ratio: p.ratioValue,
+        amp: p.amp,
+        phase: p.phase,
+      });
+      totalAmp += p.amp;
+    }
+  }
+
+  if (totalAmp <= 0) totalAmp = 1.0;
+
+  // Sample constructive interference and pulse coincidence across tau in [0, windowCycles]
+  const samplePoints = new Float32Array(numSamples);
+  const sigma = 0.038;
+  const twoSigmaSq = 2 * sigma * sigma;
+
+  for (let s = 0; s < numSamples; s++) {
+    const tau = (s / (numSamples - 1)) * windowCycles;
+    let cosSum = 0;
+    let pulseSum = 0;
+
+    for (let c = 0; c < allComponents.length; c++) {
+      const comp = allComponents[c];
+      const cyclePos = comp.ratio * tau + comp.phase;
+      cosSum += comp.amp * Math.cos(2 * Math.PI * cyclePos);
+      const sinVal = Math.sin(Math.PI * cyclePos);
+      pulseSum += comp.amp * Math.exp(-(sinVal * sinVal) / twoSigmaSq);
+    }
+
+    const cosNorm = Math.abs(cosSum) / totalAmp;
+    const pulseNorm = pulseSum / totalAmp;
+    samplePoints[s] = Math.max(0, Math.min(1.0, 0.45 * cosNorm + 0.55 * pulseNorm));
+  }
+
+  // Detect convergence peaks
+  const peaks: { tau: number; value: number; isDownbeat: boolean }[] = [];
+  peaks.push({ tau: 0, value: samplePoints[0], isDownbeat: true });
+
+  let highestSecondaryVal = 0;
+  let highestSecondaryTau = 1.0;
+
+  for (let s = 1; s < numSamples - 1; s++) {
+    const prev = samplePoints[s - 1];
+    const curr = samplePoints[s];
+    const next = samplePoints[s + 1];
+    if (curr > prev && curr >= next && curr > 0.4) {
+      const tau = (s / (numSamples - 1)) * windowCycles;
+      if (tau >= 0.25) {
+        const isDownbeat = Math.abs(tau - Math.round(tau)) < 0.08 && curr > 0.65;
+        peaks.push({ tau, value: curr, isDownbeat });
+        if (curr > highestSecondaryVal) {
+          highestSecondaryVal = curr;
+          highestSecondaryTau = tau;
+        }
+      }
+    }
+  }
+
+  let coherenceScore = 0;
+  let coincidenceStride = 1.0;
+  let isAperiodic = false;
+
+  if (highestSecondaryVal >= 0.58) {
+    // Harmonic or rational coincidence achieved within window
+    isAperiodic = false;
+    // Snap stride to simple harmonic interval
+    if (Math.abs(highestSecondaryTau - 1.0) < 0.12) {
+      coincidenceStride = 1.0;
+    } else if (Math.abs(highestSecondaryTau - 2.0) < 0.15) {
+      coincidenceStride = 2.0;
+    } else if (Math.abs(highestSecondaryTau - 1.5) < 0.12) {
+      coincidenceStride = 1.5;
+    } else {
+      coincidenceStride = Math.round(highestSecondaryTau * 10) / 10;
+    }
+    const strideDecay = 1.0 / Math.sqrt(Math.max(1.0, coincidenceStride));
+    coherenceScore = Math.max(0.2, Math.min(1.0, highestSecondaryVal * strideDecay * 1.15));
+  } else {
+    // Inharmonic, dispersed or cluster spectrum: lacks unified recurrence
+    isAperiodic = true;
+    coincidenceStride = Infinity;
+    coherenceScore = Math.max(0.05, Math.min(0.42, highestSecondaryVal * 0.65));
+  }
+
+  return {
+    coherenceScore,
+    coincidenceStride,
+    isAperiodic,
+    activeVoicesCount: tracks.length,
+    activePartialsCount: allComponents.length,
+    windowCycles,
+    samplePoints,
+    peaks,
+    tracks,
+  };
 }
 
 export interface SupercycleVoiceTimeline {

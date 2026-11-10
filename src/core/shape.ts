@@ -1,6 +1,8 @@
-import { Shape, Placement, BandFilter, ADSREnvelope, VoiceAnchor, PartialComponent, Ratio } from './types';
+import { Shape, Placement, BandFilter, Filter, ADSREnvelope, VoiceAnchor, PartialComponent, Ratio } from './types';
 import { ratioToValue, primeFactors, reduceRational } from './rational';
 import { dToFreq } from './axis';
+import { evaluateDutyGain } from './filter-eval';
+import { legacyBandFilterGain } from './filter-migration';
 
 export interface DuMetricOffsetItem {
   token: string;
@@ -62,6 +64,94 @@ export function multiplyRatios(a: Ratio, b: Ratio): Ratio {
   return { kind: 'real', value: ratioToValue(a) * ratioToValue(b) };
 }
 
+export type ProvenancedPartial = PartialComponent & { anchorRatio: Ratio };
+
+/**
+ * Flattens voice anchors without merging, preserving anchor ratio provenance.
+ * Required for anchor-referenced filter conditions.
+ */
+export function flattenAnchorsWithProvenance(anchors: VoiceAnchor[]): ProvenancedPartial[] {
+  const list: ProvenancedPartial[] = [];
+  for (const anchor of anchors) {
+    const anchorGain = anchor.mute ? 0 : anchor.gain;
+    for (const p of anchor.partials) {
+      const combinedRatio = multiplyRatios(anchor.ratio, p.ratio);
+      const combinedPhase = (((anchor.phaseOffset || 0) + (p.phase || 0)) % 1 + 1) % 1;
+      const combinedAmp = Math.max(0, Math.min(1, anchorGain * p.amp));
+      const offsetInfo = anchor.phaseOffset > 0.001
+        ? ` @${anchor.offsetToken || resolveDuMetricOffsetToken(anchor.phaseOffset).token}`
+        : '';
+
+      list.push({
+        ...p,
+        id: `${anchor.id}_${p.id}`,
+        ratio: combinedRatio,
+        amp: combinedAmp,
+        previousAmp: p.previousAmp !== undefined ? anchor.gain * p.previousAmp : combinedAmp,
+        phase: combinedPhase,
+        voice: p.voice || anchor.voice || 'woodblock',
+        label: p.label || `${anchor.name}${offsetInfo}`,
+        anchorRatio: anchor.ratio,
+      });
+    }
+  }
+  return list;
+}
+
+/**
+ * Merges coincident harmonic partials across anchors and combines their amplitudes.
+ * Optionally applies per-partial filter attenuation gains before merging.
+ */
+export function mergeCoincidentPartials(
+  partials: ProvenancedPartial[],
+  gains?: number[]
+): (PartialComponent & { filteredAmpMultiplier?: number })[] {
+  const raw: (PartialComponent & { filteredAmpMultiplier?: number })[] = [];
+
+  for (let i = 0; i < partials.length; i++) {
+    const p = partials[i];
+    const g = gains ? gains[i] ?? 1.0 : 1.0;
+    const effectiveAmp = p.amp;
+    const effectiveFiltered = p.amp * g;
+
+    const existing = raw.find(
+      (item) =>
+        Math.abs(ratioToValue(item.ratio) - ratioToValue(p.ratio)) < 0.0005 &&
+        Math.abs(item.phase - p.phase) < 0.001
+    );
+
+    if (existing) {
+      const combinedRaw = Math.max(0, Math.min(1, Math.hypot(existing.amp, effectiveAmp)));
+      const existingFiltered = existing.amp * (existing.filteredAmpMultiplier ?? 1.0);
+      const combinedFiltered = Math.max(0, Math.min(1, Math.hypot(existingFiltered, effectiveFiltered)));
+      existing.amp = combinedRaw;
+      existing.previousAmp = existing.amp;
+      existing.filteredAmpMultiplier = combinedRaw > 0 ? combinedFiltered / combinedRaw : 1.0;
+    } else {
+      raw.push({
+        ...p,
+        amp: effectiveAmp,
+        filteredAmpMultiplier: g,
+      });
+    }
+  }
+
+  return raw;
+}
+
+/**
+ * Returns an unmerged list of all partials for a shape with anchor provenance.
+ */
+export function getFilterablePartials(shape: Shape): ProvenancedPartial[] {
+  if (shape.anchors && shape.anchors.length > 0) {
+    return flattenAnchorsWithProvenance(shape.anchors);
+  }
+  return shape.partials.map((p) => ({
+    ...p,
+    anchorRatio: { kind: 'rational' as const, num: 1, den: 1 },
+  }));
+}
+
 /**
  * Flattens a hierarchy of VoiceAnchors into a flat array of PartialComponents
  * so all 60 FPS lenses and AudioWorklet synthesis evaluate them directly.
@@ -69,40 +159,9 @@ export function multiplyRatios(a: Ratio, b: Ratio): Ratio {
  * and orders multi-partial overtone trees in ascending ratio order so P1 is always the Root (1/1).
  */
 export function flattenAnchorsToPartials(anchors: VoiceAnchor[]): PartialComponent[] {
-  const raw: PartialComponent[] = [];
+  const provenanced = flattenAnchorsWithProvenance(anchors);
+  const raw = mergeCoincidentPartials(provenanced);
   const hasOvertoneTrees = anchors.some((a) => a.partials.length > 1);
-
-  for (const anchor of anchors) {
-    const anchorGain = anchor.mute ? 0 : anchor.gain;
-    for (const p of anchor.partials) {
-      const combinedRatio = multiplyRatios(anchor.ratio, p.ratio);
-      const combinedPhase = (((anchor.phaseOffset || 0) + (p.phase || 0)) % 1 + 1) % 1;
-      const combinedAmp = Math.max(0, Math.min(1, anchorGain * p.amp));
-      const offsetInfo = anchor.phaseOffset > 0.001 ? ` @${anchor.offsetToken || resolveDuMetricOffsetToken(anchor.phaseOffset).token}` : '';
-
-      const existing = raw.find(
-        (item) =>
-          Math.abs(ratioToValue(item.ratio) - ratioToValue(combinedRatio)) < 0.0005 &&
-          Math.abs(item.phase - combinedPhase) < 0.001
-      );
-
-      if (existing) {
-        existing.amp = Math.max(0, Math.min(1, Math.hypot(existing.amp, combinedAmp)));
-        existing.previousAmp = existing.amp;
-      } else {
-        raw.push({
-          ...p,
-          id: `${anchor.id}_${p.id}`,
-          ratio: combinedRatio,
-          amp: combinedAmp,
-          previousAmp: p.previousAmp !== undefined ? anchor.gain * p.previousAmp : combinedAmp,
-          phase: combinedPhase,
-          voice: p.voice || anchor.voice || 'woodblock',
-          label: p.label || `${anchor.name}${offsetInfo}`,
-        });
-      }
-    }
-  }
 
   if (hasOvertoneTrees) {
     raw.sort((a, b) => {
@@ -208,65 +267,89 @@ export function classifyPrimeFamily(ratioVal: number): '2' | '3' | '5' | '7' | '
 }
 
 /**
- * Calculates the raised-cosine attenuation factor g(d) for a BandFilter.
- * Supports fixed continuum formant mode and relative fundamental tracking mode.
+ * Calculates the raised-cosine attenuation factor g(d) for a Filter or BandFilter.
+ * Supports fixed continuum formant mode, relative fundamental tracking, and compound conditions.
  * Returns value in [0, 1].
  */
-export function calculateFilterGain(d: number, filter: BandFilter, fundamentalD?: number): number {
+export function calculateFilterGain(
+  d: number,
+  filter: BandFilter | Filter,
+  fundamentalD?: number
+): number {
   if (!filter.enabled) return 1.0;
-  const effectiveCentreD = filter.trackingMode === 'relative' && fundamentalD !== undefined
-    ? fundamentalD + filter.centreD
-    : filter.centreD;
-  const halfW = filter.widthD / 2;
-  const dist = Math.abs(d - effectiveCentreD);
-  const soft = Math.max(0.001, filter.softnessD);
-
-  switch (filter.mode) {
-    case 'band-pass': {
-      if (dist <= halfW) return 1.0;
-      if (dist >= halfW + soft) return 0.0;
-      const x = (dist - halfW) / soft;
-      return 0.5 * (1 + Math.cos(Math.PI * x));
-    }
-    case 'low-pass': {
-      // In DuPeriod coordinates, low frequency is higher d (rhythm).
-      // Acoustic low-pass keeps lower frequencies (larger d >= cutoff)
-      const cutoff = effectiveCentreD;
-      if (d >= cutoff) return 1.0;
-      if (d <= cutoff - soft) return 0.0;
-      const x = (cutoff - d) / soft;
-      return 0.5 * (1 + Math.cos(Math.PI * x));
-    }
-    case 'high-pass': {
-      // Acoustic high-pass keeps higher frequencies (smaller / more negative d <= cutoff)
-      const cutoff = effectiveCentreD;
-      if (d <= cutoff) return 1.0;
-      if (d >= cutoff + soft) return 0.0;
-      const x = (d - cutoff) / soft;
-      return 0.5 * (1 + Math.cos(Math.PI * x));
-    }
-    default:
-      return 1.0;
+  if ('conditions' in filter && filter.conditions.length > 0) {
+    return evaluateDutyGain(filter, {
+      partialD: d,
+      ratio: { kind: 'real', value: 1.0 },
+      phase: 0,
+      placementD: fundamentalD ?? 0,
+      sceneD: fundamentalD ?? 0,
+    });
   }
+
+  const legacy: BandFilter = {
+    enabled: filter.enabled,
+    centreD: filter.centreD ?? 0.0,
+    widthD: filter.widthD ?? 4.0,
+    softnessD: filter.softnessD ?? 1.0,
+    mode: filter.mode ?? 'band-pass',
+    trackingMode: filter.trackingMode ?? 'fixed',
+  };
+  return legacyBandFilterGain(d, legacy, fundamentalD);
 }
 
 /**
  * Evaluates the absolute coordinates, frequencies, and filtered amplitudes of all partials in a placed shape.
+ * Evaluates static and duty filter gains prior to merging coincident anchor partials.
  */
 export function evaluatePlacedShape(
   shape: Shape,
   placement: Placement,
-  filter?: BandFilter,
+  filter?: Filter | BandFilter,
+  sceneD?: number,
   tplHz?: number
 ): EvaluatedPartial[] {
-  const effectivePartials = getEffectivePartials(shape);
-  return effectivePartials.map((p, idx) => {
+  let effectiveSceneD = placement.d;
+  let effectiveTplHz: number | undefined = tplHz;
+  if (typeof sceneD === 'number') {
+    if (sceneD >= 10 && tplHz === undefined) {
+      // Legacy argument invocation where 4th argument was tplHz
+      effectiveTplHz = sceneD;
+      effectiveSceneD = placement.d;
+    } else {
+      effectiveSceneD = sceneD;
+    }
+  }
+
+  const unmerged = getFilterablePartials(shape);
+  const gains = unmerged.map((p) => {
+    if (!filter || !filter.enabled) return 1.0;
     const ratioVal = ratioToValue(p.ratio);
-    // d_i = p.d - log2(r_i)
     const partialD = placement.d - Math.log2(ratioVal);
-    const freqHz = dToFreq(partialD, tplHz);
-    const filterGain = filter ? calculateFilterGain(partialD, filter, placement.d) : 1.0;
+
+    if ('conditions' in filter) {
+      return evaluateDutyGain(filter, {
+        partialD,
+        ratio: p.ratio,
+        phase: p.phase,
+        anchorRatio: p.anchorRatio,
+        placementD: placement.d,
+        sceneD: effectiveSceneD,
+        tplHz: effectiveTplHz,
+      });
+    }
+
+    return calculateFilterGain(partialD, filter, placement.d);
+  });
+
+  const merged = mergeCoincidentPartials(unmerged, gains);
+
+  return merged.map((p, idx) => {
+    const ratioVal = ratioToValue(p.ratio);
+    const partialD = placement.d - Math.log2(ratioVal);
+    const freqHz = dToFreq(partialD, effectiveTplHz);
     const effectiveAmp = p.amp * placement.gain * (placement.mute ? 0 : 1);
+    const filterGain = p.filteredAmpMultiplier ?? 1.0;
 
     return {
       id: p.id,

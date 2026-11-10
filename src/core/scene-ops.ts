@@ -3,7 +3,10 @@
  * Manages placement updates, filter states, and shape library modifications.
  */
 
-import { Scene, Shape, BandFilter } from './types';
+import { Scene, Shape, BandFilter, Filter, FilterCondition, RangeCondition, SpanView } from './types';
+import { MAX_CONDITIONS } from './filter-types';
+import { resolveEndpoint } from './filter-eval';
+import { rationalise } from './rational';
 
 /**
  * Updates the primary placement's DuPeriod coordinate d.
@@ -60,51 +63,387 @@ export function setPrimaryShapeId(scene: Scene, shapeId: string): Scene {
 }
 
 /**
- * Toggles the enabled state of the scene's aperture band filter.
+ * Sets the filter enabled state. If enabled is undefined, toggles the current state.
  */
-export function toggleFilterEnabled(scene: Scene): Scene {
+export function setFilterEnabled(scene: Scene, enabled?: boolean): Scene {
+  const nextEnabled = enabled !== undefined ? enabled : !scene.filter.enabled;
   return {
     ...scene,
     filter: {
       ...scene.filter,
-      enabled: !scene.filter?.enabled,
+      enabled: nextEnabled,
     },
   };
 }
 
 /**
- * Enables the filter and optionally patches its centre, width, or softness coordinates.
+ * Toggles the enabled state of the scene's aperture band filter.
+ * Retained for backwards-compatibility.
  */
-export function enableFilter(
+export function toggleFilterEnabled(scene: Scene): Scene {
+  return setFilterEnabled(scene);
+}
+
+/**
+ * Updates filter top-level parameters (name, action, combine, depth, focus).
+ */
+export function updateFilter(
   scene: Scene,
-  params?: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>
+  patch: Partial<Omit<Filter, 'conditions'>>
 ): Scene {
   return {
     ...scene,
     filter: {
       ...scene.filter,
-      enabled: true,
-      ...params,
+      ...patch,
     },
   };
 }
 
 /**
- * Cycles the filter mode through the sequence:
- * off -> band-pass -> low-pass -> high-pass -> off.
+ * Appends a condition to the scene filter (enforcing MAX_CONDITIONS).
+ */
+export function addCondition(scene: Scene, cond: FilterCondition): Scene {
+  if (scene.filter.conditions.length >= MAX_CONDITIONS) {
+    return scene;
+  }
+  const nextConditions = [...scene.filter.conditions, cond];
+  const nextFocus = scene.filter.focus || (cond.kind === 'range' ? { conditionId: cond.id, spanIndex: 0 } : null);
+
+  return {
+    ...scene,
+    filter: {
+      ...scene.filter,
+      conditions: nextConditions,
+      focus: nextFocus,
+    },
+  };
+}
+
+/**
+ * Updates an existing condition in the scene filter.
+ */
+export function updateCondition(
+  scene: Scene,
+  conditionId: string,
+  updated: FilterCondition
+): Scene {
+  return {
+    ...scene,
+    filter: {
+      ...scene.filter,
+      conditions: scene.filter.conditions.map((c: FilterCondition) =>
+        c.id === conditionId ? updated : c
+      ),
+    },
+  };
+}
+
+/**
+ * Removes a condition by ID and updates canvas focus if necessary.
+ */
+export function removeCondition(scene: Scene, conditionId: string): Scene {
+  const nextConditions = scene.filter.conditions.filter((c: FilterCondition) => c.id !== conditionId);
+  let nextFocus = scene.filter.focus;
+  if (nextFocus && nextFocus.conditionId === conditionId) {
+    const firstRange = nextConditions.find((c: FilterCondition): c is RangeCondition => c.kind === 'range');
+    nextFocus = firstRange ? { conditionId: firstRange.id, spanIndex: 0 } : null;
+  }
+
+  return {
+    ...scene,
+    filter: {
+      ...scene.filter,
+      conditions: nextConditions,
+      focus: nextFocus,
+    },
+  };
+}
+
+/**
+ * Reorders a condition within the filter condition stack.
+ */
+export function moveCondition(
+  scene: Scene,
+  conditionId: string,
+  direction: 'up' | 'down'
+): Scene {
+  const conds = [...scene.filter.conditions];
+  const idx = conds.findIndex((c: FilterCondition) => c.id === conditionId);
+  if (idx === -1) return scene;
+
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (targetIdx < 0 || targetIdx >= conds.length) return scene;
+
+  const [moved] = conds.splice(idx, 1);
+  conds.splice(targetIdx, 0, moved);
+
+  return {
+    ...scene,
+    filter: {
+      ...scene.filter,
+      conditions: conds,
+    },
+  };
+}
+
+/**
+ * Applies a starter preset replacing the current filter while retaining enabled state.
+ */
+export function applyStarterPreset(scene: Scene, starter: Filter): Scene {
+  return {
+    ...scene,
+    filter: {
+      ...starter,
+      enabled: scene.filter.enabled || starter.enabled,
+    },
+  };
+}
+
+/**
+ * Extracts a legacy-compatible SpanView for HUD and canvas gesture scrubbing.
+ */
+export function getFocusedSpanView(filter: Filter): SpanView | null {
+  const focus = filter.focus;
+  let rangeCond: RangeCondition | undefined;
+  let spanIdx = 0;
+
+  if (focus) {
+    const found = filter.conditions.find((c: FilterCondition) => c.id === focus.conditionId);
+    if (found && found.kind === 'range') {
+      rangeCond = found;
+      spanIdx = Math.max(0, Math.min(rangeCond.spans.length - 1, focus.spanIndex));
+    }
+  }
+
+  if (!rangeCond) {
+    rangeCond = filter.conditions.find((c: FilterCondition): c is RangeCondition => c.kind === 'range');
+    spanIdx = 0;
+  }
+
+  if (!rangeCond || rangeCond.spans.length === 0) {
+    return {
+      centreD: filter.centreD ?? 0.0,
+      widthD: filter.widthD ?? 4.0,
+      softnessD: filter.softnessD ?? 1.0,
+      mode: filter.mode ?? 'band-pass',
+      trackingMode: filter.trackingMode ?? 'fixed',
+    };
+  }
+
+  const span = rangeCond.spans[spanIdx];
+  const isRelative = rangeCond.reference === 'scene' || rangeCond.reference === 'anchor';
+  const softnessD = rangeCond.softness.unit === 'cents'
+    ? rangeCond.softness.value / 1200.0
+    : rangeCond.softness.value;
+
+  const loX = span.lo ? resolveEndpoint(span.lo) : null;
+  const hiX = span.hi ? resolveEndpoint(span.hi) : null;
+
+  let mode: 'band-pass' | 'low-pass' | 'high-pass' = 'band-pass';
+  let centreX = 0;
+  let widthOctaves = 4.0;
+
+  if (loX !== null && hiX !== null) {
+    mode = 'band-pass';
+    centreX = (loX + hiX) / 2.0;
+    widthOctaves = Math.abs(hiX - loX);
+  } else if (loX === null && hiX !== null) {
+    mode = 'low-pass';
+    centreX = hiX;
+    widthOctaves = 4.0;
+  } else if (loX !== null && hiX === null) {
+    mode = 'high-pass';
+    centreX = loX;
+    widthOctaves = 4.0;
+  }
+
+  // In DuPeriod coords, higher frequency (larger x) corresponds to smaller / negative d.
+  // Thus centreD = -centreX.
+  const centreD = -centreX;
+
+  return {
+    centreD,
+    widthD: widthOctaves,
+    softnessD,
+    mode,
+    trackingMode: isRelative ? 'relative' : 'fixed',
+  };
+}
+
+/**
+ * Patches the focused range span using canvas gesture parameters (centreD, widthD, softnessD).
+ */
+export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Filter {
+  const currentView = getFocusedSpanView(filter) || {
+    centreD: 0,
+    widthD: 4,
+    softnessD: 1,
+    mode: 'band-pass',
+    trackingMode: 'fixed',
+  };
+
+  const targetCentreD = params.centreD !== undefined ? params.centreD : currentView.centreD;
+  const targetWidthD = params.widthD !== undefined ? params.widthD : currentView.widthD;
+  const targetSoftnessD = params.softnessD !== undefined ? params.softnessD : currentView.softnessD;
+  const targetMode = params.mode !== undefined ? params.mode : (currentView.mode || 'band-pass');
+  const targetTracking = params.trackingMode !== undefined ? params.trackingMode : (currentView.trackingMode || 'fixed');
+
+  const halfW = targetWidthD / 2.0;
+  const isRelative = targetTracking === 'relative';
+  const reference = isRelative ? 'scene' : 'absolute';
+
+  const nextConds = [...filter.conditions];
+  let targetCondIdx = -1;
+  let targetSpanIdx = 0;
+
+  if (filter.focus) {
+    targetCondIdx = nextConds.findIndex((c: FilterCondition) => c.id === filter.focus?.conditionId);
+    targetSpanIdx = filter.focus.spanIndex;
+  }
+  if (targetCondIdx === -1) {
+    targetCondIdx = nextConds.findIndex((c: FilterCondition) => c.kind === 'range');
+    targetSpanIdx = 0;
+  }
+
+  // Construct new span
+  let newSpan;
+  if (isRelative) {
+    const centreX = -targetCentreD;
+    if (targetMode === 'low-pass') {
+      newSpan = { lo: null, hi: { unit: 'cents' as const, value: centreX * 1200.0 } };
+    } else if (targetMode === 'high-pass') {
+      newSpan = { lo: { unit: 'cents' as const, value: centreX * 1200.0 }, hi: null };
+    } else {
+      newSpan = {
+        lo: { unit: 'cents' as const, value: (centreX - halfW) * 1200.0 },
+        hi: { unit: 'cents' as const, value: (centreX + halfW) * 1200.0 },
+      };
+    }
+  } else {
+    if (targetMode === 'low-pass') {
+      newSpan = { lo: null, hi: { unit: 'd' as const, value: targetCentreD } };
+    } else if (targetMode === 'high-pass') {
+      newSpan = { lo: { unit: 'd' as const, value: targetCentreD }, hi: null };
+    } else {
+      newSpan = {
+        lo: { unit: 'd' as const, value: targetCentreD + halfW },
+        hi: { unit: 'd' as const, value: targetCentreD - halfW },
+      };
+    }
+  }
+
+  const condId = targetCondIdx !== -1 ? nextConds[targetCondIdx].id : 'cond-focused-formant';
+  const updatedCond: RangeCondition = {
+    kind: 'range',
+    id: condId,
+    reference,
+    reductionPeriod: null,
+    spans: [newSpan],
+    softness: isRelative
+      ? { value: targetSoftnessD * 1200.0, unit: 'cents' }
+      : { value: targetSoftnessD, unit: 'd' },
+  };
+
+  if (targetCondIdx !== -1) {
+    nextConds[targetCondIdx] = updatedCond;
+  } else {
+    nextConds.push(updatedCond);
+  }
+
+  return {
+    ...filter,
+    conditions: nextConds,
+    focus: { conditionId: condId, spanIndex: targetSpanIdx },
+    centreD: targetCentreD,
+    widthD: targetWidthD,
+    softnessD: targetSoftnessD,
+    mode: targetMode,
+    trackingMode: targetTracking,
+  };
+}
+
+/**
+ * Snaps cents-based endpoints in the focused range condition to nearby rational ratios.
+ */
+export function snapFocusedSpanToRatios(filter: Filter, maxDenominator: number = 32): Filter {
+  const focus = filter.focus;
+  if (!focus) return filter;
+
+  return {
+    ...filter,
+    conditions: filter.conditions.map((cond: FilterCondition) => {
+      if (cond.id !== focus.conditionId || cond.kind !== 'range') return cond;
+      const nextSpans = cond.spans.map((span, sIdx) => {
+        if (sIdx !== focus.spanIndex) return span;
+        const snapEndpoint = (ep: typeof span.lo) => {
+          if (!ep) return null;
+          if (ep.unit === 'cents') {
+            const ratioVal = Math.pow(2, ep.value / 1200.0);
+            const red = rationalise(ratioVal, 0.003, maxDenominator);
+            return { unit: 'ratio' as const, ratio: { kind: 'rational' as const, num: red.num, den: red.den } };
+          }
+          return ep;
+        };
+        return {
+          lo: snapEndpoint(span.lo),
+          hi: snapEndpoint(span.hi),
+        };
+      });
+      return { ...cond, spans: nextSpans };
+    }),
+  };
+}
+
+/**
+ * Cycles the spectral preset through the sequence:
+ * band-pass -> low-pass -> high-pass -> off (bypassed) -> band-pass.
+ */
+export function cycleSpectralPreset(scene: Scene): Scene {
+  const f = scene.filter;
+  if (!f.enabled) {
+    const next = patchFocusedSpan({ ...f, enabled: true }, { mode: 'band-pass' });
+    return { ...scene, filter: next };
+  }
+
+  const currentView = getFocusedSpanView(f);
+  const curMode = currentView?.mode || 'band-pass';
+
+  if (curMode === 'band-pass') {
+    return { ...scene, filter: patchFocusedSpan(f, { mode: 'low-pass' }) };
+  }
+  if (curMode === 'low-pass') {
+    return { ...scene, filter: patchFocusedSpan(f, { mode: 'high-pass' }) };
+  }
+
+  // Bypass / disable
+  return { ...scene, filter: { ...f, enabled: false } };
+}
+
+/**
+ * Enables the filter and optionally patches its centre, width, or softness coordinates.
+ * Retained for backwards-compatibility with legacy gesture handlers.
+ */
+export function enableFilter(
+  scene: Scene,
+  params?: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>
+): Scene {
+  let nextFilter: Filter = { ...scene.filter, enabled: true };
+  if (params) {
+    nextFilter = patchFocusedSpan(nextFilter, params);
+  }
+  return {
+    ...scene,
+    filter: nextFilter,
+  };
+}
+
+/**
+ * Cycles the filter mode through the sequence.
+ * Retained for backwards-compatibility.
  */
 export function cycleFilterMode(scene: Scene): Scene {
-  const f = scene.filter;
-  if (!f || !f.enabled) {
-    return { ...scene, filter: { ...f, enabled: true, mode: 'band-pass' } };
-  }
-  if (f.mode === 'band-pass') {
-    return { ...scene, filter: { ...f, enabled: true, mode: 'low-pass' } };
-  }
-  if (f.mode === 'low-pass') {
-    return { ...scene, filter: { ...f, enabled: true, mode: 'high-pass' } };
-  }
-  return { ...scene, filter: { ...f, enabled: false, mode: 'band-pass' } };
+  return cycleSpectralPreset(scene);
 }
 
 /**

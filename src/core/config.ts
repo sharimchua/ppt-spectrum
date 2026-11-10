@@ -1,6 +1,7 @@
 import { Scene, CosmeticsConfig, Shape } from './types';
 import { PRESET_SHAPES } from './presets';
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
+import { DEFAULT_FILTER, sanitiseFilter } from './filter-migration';
 
 export const DEFAULT_COSMETICS: CosmeticsConfig = {
   performanceProfile: 'balanced',
@@ -49,14 +50,7 @@ export const DEFAULT_SCENE: Scene = {
       solo: false,
     }
   ],
-  filter: {
-    enabled: false,
-    centreD: 0.0,
-    widthD: 4.0,
-    softnessD: 1.0,
-    mode: 'band-pass',
-    trackingMode: 'fixed',
-  },
+  filter: DEFAULT_FILTER,
   anchors: {
     tplFrequencyHz: TPL_FREQUENCY_HZ,
     tuningA4Hz: 440.0,
@@ -126,6 +120,7 @@ export function loadSavedScene(): Scene {
       ...DEFAULT_SCENE,
       ...parsed,
       shapes: mergedShapes,
+      filter: sanitiseFilter(parsed.filter),
       audio: {
         ...DEFAULT_SCENE.audio,
         ...(parsed.audio || {}),

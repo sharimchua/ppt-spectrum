@@ -3,6 +3,7 @@ import { SPECTRUM_WORKLET_CODE } from '../worklets/spectrum-synth.worklet';
 import { buildAudioPayloadShapes, AudioEngine } from '../audio-engine';
 import { DEFAULT_SCENE } from '../../core/config';
 import { Scene } from '../../core/types';
+import { bandFilterToFilter } from '../../core/filter-migration';
 
 describe('Audio Synthesiser Worklet Source', () => {
   it('contains valid AudioWorklet processor registration', () => {
@@ -55,13 +56,13 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
   it('passes unfiltered partial amplitudes when band filter is disabled', () => {
     const scene: Scene = {
       ...DEFAULT_SCENE,
-      filter: {
+      filter: bandFilterToFilter({
         enabled: false,
         centreD: 0.0,
         widthD: 2.0,
         softnessD: 0.5,
         mode: 'band-pass',
-      },
+      }),
     };
 
     const payload = buildAudioPayloadShapes(scene);
@@ -77,13 +78,13 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     // Set band-pass filter centered far away at d = -5.0 with width 1.0.
     const scene: Scene = {
       ...DEFAULT_SCENE,
-      filter: {
+      filter: bandFilterToFilter({
         enabled: true,
         centreD: -5.0,
         widthD: 1.0,
         softnessD: 0.2,
         mode: 'band-pass',
-      },
+      }),
     };
 
     const payload = buildAudioPayloadShapes(scene);
@@ -97,13 +98,13 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     // Partials around d ≈ 1.0. Set filter centered at d = 1.0 with width 4.0.
     const scene: Scene = {
       ...DEFAULT_SCENE,
-      filter: {
+      filter: bandFilterToFilter({
         enabled: true,
         centreD: 1.0,
         widthD: 4.0,
         softnessD: 0.5,
         mode: 'band-pass',
-      },
+      }),
     };
 
     const payload = buildAudioPayloadShapes(scene);
