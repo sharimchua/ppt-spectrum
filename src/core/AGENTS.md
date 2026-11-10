@@ -16,6 +16,10 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/config.ts` — Default application configuration, sanitisation, and localStorage persistence.
 - `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialisation for deep linking.
 - `src/core/decompose.ts` — Dynamic 11-limit DuPeriod interval quantisation for tapped rhythm inputs.
+- `src/core/scene-ops.ts` — Pure Scene updaters for placement DuPeriod coordinates, filter aperture states, and shape library upsert/deletion.
+- `src/core/shape-editing.ts` — Pure VoiceAnchor, harmonic partial, ADSR envelope, overtone series presets, inharmonicity, and damping operations.
+- `src/core/shape-history.ts` — Pure session shape navigation stack with bounded backward/forward traversal and deletion handling.
+- `src/core/sweep.ts` — Pure bookmark continuum sweep easing (A → dwell → B → dwell) with cosine interpolation and timing guards.
 
 ### Tests (`src/core/__tests__/`)
 
@@ -23,6 +27,10 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `decompose.test.ts` — Rhythm decomposer and 11-limit quantiser.
 - `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
 - `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
+- `scene-ops.test.ts` — Scene placement coordinate stepping, filter mode cycling, shape capture, upsert, and duplication.
+- `shape-editing.test.ts` — VoiceAnchor and partial addition/removal guards, mute/unmute restoration, overtone presets, inharmonicity, and damping.
+- `shape-history.test.ts` — Shape history stack initialisation, push with redo truncation, bounded stepping, and shape removal.
+- `sweep.test.ts` — Bookmark sweep timing calculation, phase boundary progress evaluation, and cycle looping.
 
 ## Known Exceptions
 

@@ -12,6 +12,7 @@ import {
   updateCellInTree,
   encodeLayoutToSlug,
   decodeLayoutFromSlug,
+  markLayoutCustom,
   LayoutDefinition,
 } from '../layout-models';
 import { calculateRingClockBands } from '../../renderers/ring-clock-lens';
@@ -235,5 +236,12 @@ describe('RingClock Dynamic Compact Bands', () => {
     const pitchBands = calculateRingClockBands(pitchScene, 'auto-compact', 4);
     expect(pitchBands.bandMin).toBeLessThanOrEqual(-5);
     expect(pitchBands.bandMax).toBeGreaterThanOrEqual(0);
+  });
+
+  it('marks a layout custom with updated root container', () => {
+    const custom = markLayoutCustom(PRESET_SOLO, PRESET_DUO_VERTICAL.root);
+    expect(custom.id).toBe('custom');
+    expect(custom.name).toBe('Custom Layout');
+    expect(custom.root).toEqual(PRESET_DUO_VERTICAL.root);
   });
 });

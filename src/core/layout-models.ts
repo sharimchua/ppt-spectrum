@@ -670,3 +670,19 @@ export function decodeLayoutFromSlug(
     return null;
   }
 }
+
+/**
+ * Clones a layout definition and marks it as a custom user layout with an updated root container.
+ */
+export function markLayoutCustom(
+  prev: LayoutDefinition,
+  root: LayoutContainerNode
+): LayoutDefinition {
+  return {
+    ...prev,
+    id: 'custom',
+    name: 'Custom Layout',
+    root,
+  };
+}
+
