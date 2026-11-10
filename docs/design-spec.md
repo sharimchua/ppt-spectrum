@@ -260,16 +260,58 @@ Interference partials (section 2.3) and the ghost fundamental can be rendered as
 
 ---
 
-## 7. Spectral band filter
+## 7. Filters & Reductive Rhythm Sieves
 
-A draggable **window on the axis** (same gesture as sliding the shape):
+### 7.1 Principles & Reductive Rhythm Pedagogy
 
-- Parameters: centre, width in octaves (or DuPeriods), edge softness. Modes: band-pass, low-pass, high-pass (open upper or lower edge).
-- Applied **in the partial domain**, as a soft-edged gain by partial position, `g(d_i)` (for example a raised-cosine edge). This is exact, cheap on phones, and visually honest: filtered partials grey out. It applies equally to the rhythm region (selecting which layers are heard) and the pitch region (selecting which partials carry colour).
-- It also applies to derived partials.
-- Teaching intent: narrowing toward the fundamental collapses the sound toward a sine (the PPT Timbre page's account of low-pass filtering); a window over the rhythm region isolates layers; a window across the limen shows the crossing directly.
-- Per-partial **solo and mute** are the same idea at finer grain.
-- A true DSP filter on the mixed output (biquad nodes) is not needed for the north star, but the architect may add one for a "real instrument" feel on captured audio playback.
+Rhythm and pitch filtering share the same foundational construct. In pitch space, a filter shapes acoustic formants and suppresses overtone regions. In rhythm space, a filter acts as a **reductive sieve**: starting with a dense polyrhythmic grid of potential note onsets, the filter subtracts a subset of beats, revealing unexpected syncopations, counterpoint, and rhythmic patterns.
+
+As rhythmic patterns slide up into pitch space across the limen ($f > 25.8\text{ Hz}$), the same filter seamlessly transforms into an acoustic amplitude-modulation (AM) texture and timbre filter, operating click-free via continuous one-pole smoothing without audio discontinuities.
+
+### 7.2 Generic Filter Architecture
+
+The legacy single-window band filter is unified into a generic compound `Filter` model supporting multiple concurrent conditions:
+
+```typescript
+interface Filter {
+  name: string;
+  enabled: boolean;
+  action: 'keep' | 'remove';          // Passband transmission vs band-stop rejection
+  combine: 'all' | 'any';             // Zadeh fuzzy intersection (AND) vs union (OR)
+  depth: number;                      // Attenuation intensity in [0, 1]
+  conditions: FilterCondition[];       // Compound Range and Cycle conditions
+}
+```
+
+### 7.3 Filter Conditions
+
+1. **Range Conditions (`RangeCondition`)**:
+   - Bounds partial transmission by spectral coordinates across one or more spans `[lo, hi]`.
+   - Coordinates can be referenced to:
+     - `absolute`: continuum frequency (e.g. `100 Hz` to `1000 Hz`) or DuPeriod $d$.
+     - `scene`: relative interval ratio or cents from the current scene fundamental ($x = -d$).
+     - `anchor`: relative interval ratio or cents from the voice anchor fundamental.
+   - Microtonal interval windows: supports ranges spanning from Just Intonation to Equal Temperament (e.g. stretching between a Just Major 3rd $5/4$ and 12-TET Major 3rd $400\text{¢}$).
+   - Skirt roll-off: raised-cosine transition width for smooth acoustic attenuation.
+
+2. **Cycle Conditions (`CycleCondition`)**:
+   - Subdivides the scene cycle into $N$ slots (supporting Duple, Triple, Quintuple, or Prime period theory divisions).
+   - Slot weights $[w_0, \dots, w_{N-1}] \in [0, 1]$ specify which beats are transmitted or rejected.
+   - Built-in Euclidean pattern generator (Bjorklund algorithm) producing maximally even distribution of pulses across $N$ steps.
+   - Rotation offset $R$, grid tolerance $\epsilon$, and off-grid match floor.
+   - **Supercycles**: Multi-measure cycle weighting arrays ($L \le 16$) that modulate sieve transmission across successive bars or measures (e.g. 3 bars on, 1 bar off).
+
+### 7.4 Rendering & Visual Lenses
+
+- **Spectrum Ruler Lens**: Shaded aperture overlay with rose tint for rejection mode (`action: 'remove'`) and sky-blue tint for pass mode (`action: 'keep'`), displaying exact cents and ratio bounds.
+- **Cycle Wheel & Event Lanes**: Partials attenuated by the filter remain visible as ghost rings and tracks at reduced opacity. Attenuated onsets are drawn hollow at low alpha ($0.25$), preserving visual grid context for reductive sieve pedagogy without triggering visual clutter.
+- **Photosensitivity / Flash Safety**: Partials $> 3\text{ Hz}$ smoothly blend into steady-state duty gain glow to comply with WCAG 2.2 Three-Flashes safety thresholds; discrete kinetic pulses are permitted only for $\le 3\text{ Hz}$.
+
+### 7.5 Mobile-First UI & Radial Menu
+
+- Dedicated full-height mobile bottom sheet and desktop side drawer (`FiltersSheet`) accessible from the top toolbar, radial menu, and keyboard shortcut (`Shift+F`).
+- Dedicated mobile annular radial menu segment for Filters (`OPEN FILTERS`, `BYPASS`, `SCRUB ON CELLS`, `CYCLE PRESET`).
+- Mobile-first Shape Synthesiser inspector with category filtering (`ShapePicker`), action toolbar (`ShapeActionsMenu`), and collapsible accordion Voice Anchor cards.
 
 ---
 

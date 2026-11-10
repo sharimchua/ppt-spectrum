@@ -214,9 +214,27 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
               <ul className="space-y-1.5 text-[11px] text-slate-400 list-disc list-inside">
                 <li><strong>Spectrum Ruler</strong>: Horizontal log axis showing partial amplitudes, Ghost Sam when <code>1/1</code> is absent, and the Acoustic Aperture filter.</li>
                 <li><strong>Ring Clock</strong>: Concentric DuPeriod bands with 12 Solfège spokes, showing spiral motion across octaves.</li>
-                <li><strong>Cycle Wheel</strong>: Circular periodic ring primitive with rotating sweep playhead and DuMetric phase offsets.</li>
+                <li><strong>Cycle Wheel</strong>: Circular periodic ring primitive with rotating sweep playhead, DuMetric phase offsets, and reductive onset ghosting.</li>
                 <li><strong>Wave / Phasor</strong>: Time-domain composite waveform paired with rotating partial phasor vectors.</li>
-                <li><strong>Prime Profile &amp; Event Lanes</strong>: Prime harmonic family weights (2, 3, 5, 7, 11) and multi-voice timeline ripples.</li>
+                <li><strong>Prime Profile &amp; Event Lanes</strong>: Prime harmonic family weights (2, 3, 5, 7, 11) and multi-voice timeline ripples with attenuated ghost ticks.</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Compound Filters & Reductive Rhythm Sieves */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-cyan-400" />
+              <span>Compound Filters &amp; Reductive Rhythm Sieves</span>
+            </h4>
+            <div className="p-3.5 rounded-lg border border-slate-800 bg-slate-900/40 space-y-2 text-[11px] text-slate-300">
+              <p>
+                Rhythm can be discovered in a <strong>reductive manner</strong>: starting from a dense polyrhythmic grid of potential onsets, a filter carves away subsets of beats to reveal unexpected syncopations and counterpoint.
+              </p>
+              <ul className="space-y-1.5 text-slate-400 list-disc list-inside">
+                <li><strong>Cycle Conditions</strong>: Subdivide the scene cycle into <em>N</em> slots (duple, triple, quintuple, or prime structures), select active beats, apply Euclidean Bjorklund generators, or modulate across measures with <em>Supercycles</em>.</li>
+                <li><strong>Range Conditions</strong>: Bound audible partials by absolute frequency (Hz), cents, DuPeriod <em>d</em>, or harmonic interval ratio windows (e.g. stretching between a Just Major 3rd 5/4 and 12-TET 400¢).</li>
+                <li><strong>Unified Continuum</strong>: Filters operate across the entire spectrum — gating discrete rhythmic taps below 3 Hz, and creating smooth click-free acoustic formants and AM textures in pitch space.</li>
               </ul>
             </div>
           </div>
@@ -314,8 +332,17 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                   S / F
                 </kbd>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-200 font-medium">Sweep / Filter</span>
-                  <span className="text-[9px] text-slate-400">Toggle A↔B Sweep or Band Filter</span>
+                  <span className="text-[11px] text-slate-200 font-medium">Sweep / Filter Bypass</span>
+                  <span className="text-[9px] text-slate-400">Toggle A↔B Sweep or bypass filter</span>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2.5">
+                <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 font-mono text-[10px] font-bold shadow-sm">
+                  Shift+F
+                </kbd>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-200 font-medium">Filters Sheet</span>
+                  <span className="text-[9px] text-slate-400">Open compound Range &amp; Cycle filter editor</span>
                 </div>
               </div>
             </div>

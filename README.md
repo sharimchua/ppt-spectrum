@@ -18,8 +18,15 @@ Interactive teaching instrument for **Prime Period Theory (PPT)** demonstrating 
   - **Prime Profile Lens**: Prime harmonic spectrum bars categorised by 2, 3, 5, 7, 11, and >11 prime families.
   - **Event Lanes Lens**: Horizontal ticker lanes for partial pulses with a composite collision ripple track.
   - **Alignment Meter Lens**: Real-time Plomp-Levelt sensory roughness curve, Tenney harmonic complexity, and ghost fundamental period ($sam$).
+- **Compound Filters & Reductive Rhythm Sieves**:
+  - Unified filter architecture supporting compound **Range Conditions** (absolute frequency in Hz, cents, DuPeriod $d$, or ratio relative to scene/anchor fundamental like Just M3 5/4 to 12-TET 400¢) and **Cycle Conditions** (N-division grids, slot weighting, Euclidean generators, rotation offsets, and multi-measure Supercycles).
+  - Reductive rhythm sieve methodology: subtractively carve out syncopated beat patterns from dense polyrhythmic grids.
+  - Full-spectrum operation: discrete onset gating in rhythm space, click-free amplitude modulation and acoustic formant shaping in pitch space.
+  - Dedicated mobile bottom sheet and desktop drawer (`FiltersSheet`), radial menu segment, and HUD controls (`Shift+F`).
 - **Interactive Shape Partial Inspector & Synthesiser**:
   - Dedicated bottom tray sheet (`TraySheet`) to inspect, add, mute, or remove individual partials.
+  - Mobile-first category filtering (`ShapePicker`), action toolbar (`ShapeActionsMenu`), and collapsible accordion Voice Anchor cards.
+  - Acoustic ADSR envelope tab with responsive bezier curve visualisation, instrument presets, and harmonic damping slider.
   - Harmonic macro sliders: Acoustic Piano inharmonicity stretch ($f_n = n f_0 \sqrt{1 + B n^2}$) and spectral damping rolloff.
 - **Rhythm & Pitch Capture Suite**:
   - On-screen tap pad with sample-clocked interval averaging and 11-limit DuPeriod rationaliser.
