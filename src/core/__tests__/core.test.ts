@@ -160,11 +160,13 @@ describe('Presets & Piano Inharmonicity', () => {
     // Piano exists in timbral
     expect(timbrePresets.some((s) => s.id === 'piano')).toBe(true);
 
-    // Harmony presets have Root on fundamental frequency (ratio 1/1) and do NOT create a displaced Ghost Sam
+    // Harmony presets have Root on fundamental frequency (ratio 1/1), equal anchor gains (1.0), and do NOT create a displaced Ghost Sam
     for (const h of harmonyPresets) {
       const rootPartial = h.partials[0];
       const rVal = ratioToValue(rootPartial.ratio);
       expect(rVal).toBeCloseTo(1.0, 5);
+      expect(h.anchors).toBeDefined();
+      expect(h.anchors!.every((a) => a.gain === 1.0)).toBe(true);
       const ghost = calculateGhostFundamental(h, 220.0);
       expect(ghost.ghostFreqHz).toBeCloseTo(220.0, 5);
       expect(ghost.ghostD).toBeCloseTo(freqToD(220.0), 5);

@@ -1,5 +1,6 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape } from '../core/shape';
+import { evaluatePlacedShape, getShapeAnchors, calculateFilterGain, multiplyRatios } from '../core/shape';
+import { ratioToValue } from '../core/rational';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -259,6 +260,8 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.restore();
 
     // 2. Rotating Phasors (Right 35% of viewport)
+    // Structured hierarchically: one main arm per Voice Anchor radiating from the central origin,
+    // with its own nested harmonic overtone series branching from the tip of that anchor's arm.
     ctx.save();
     const phasorCenterX = splitX + (width - splitX) / 2;
     const phasorCenterY = height / 2;
@@ -294,68 +297,162 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.fillText('0° / APEX', phasorCenterX, phasorCenterY - maxPhasorR - 12);
     ctx.restore();
 
-    let cx = phasorCenterX;
-    let cy = phasorCenterY;
+    // Central hub
+    ctx.save();
+    ctx.fillStyle = 'rgba(12, 16, 26, 0.9)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(phasorCenterX, phasorCenterY, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
 
-    for (const p of partials) {
-      if (p.filteredAmp <= 0.001) continue;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(phasorCenterX, phasorCenterY, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
-      const r = (p.filteredAmp / Math.max(1, partials[0]?.filteredAmp || 1)) * (maxPhasorR * 0.55);
-      const addr = resolveDuPeriodAddress(p.d);
-      const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#E13610';
-      const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
+    const anchors = getShapeAnchors(shape);
 
-      // Active rotating phasor angle derived from master phase
-      const currentAngleTurns = (rotationTurns * p.ratioValue + p.phase) % 1.0;
+    // Evaluate each voice anchor and its partial components with acoustic filter & gain
+    interface PhasorPartialEval {
+      id: string;
+      label?: string;
+      ratioVal: number;
+      phase: number;
+      filteredAmp: number;
+      d: number;
+    }
+
+    interface PhasorAnchorEval {
+      id: string;
+      name: string;
+      voice?: string;
+      offsetToken?: string;
+      ratioVal: number;
+      phaseOffset: number;
+      d: number;
+      partials: PhasorPartialEval[];
+    }
+
+    const evaluatedAnchors: PhasorAnchorEval[] = [];
+    let maxCumulativeReach = 0.001;
+
+    for (const anchor of anchors) {
+      const anchorRatioVal = ratioToValue(anchor.ratio);
+      const anchorPhase = anchor.phaseOffset || 0;
+      const anchorGain = anchor.mute ? 0 : anchor.gain;
+      const anchorD = placement.d - Math.log2(Math.max(0.001, anchorRatioVal));
+
+      const partialEvals: PhasorPartialEval[] = [];
+      let anchorSumAmp = 0;
+
+      for (const p of anchor.partials) {
+        const combRatio = multiplyRatios(anchor.ratio, p.ratio);
+        const combRatioVal = ratioToValue(combRatio);
+        const combPhase = (((anchorPhase + (p.phase || 0)) % 1 + 1) % 1);
+        const pD = placement.d - Math.log2(Math.max(0.001, combRatioVal));
+        const fGain = scene.filter ? calculateFilterGain(pD, scene.filter, placement.d) : 1.0;
+        const filteredAmp = p.amp * anchorGain * placement.gain * fGain;
+
+        if (filteredAmp > 0.001) {
+          partialEvals.push({
+            id: `${anchor.id}_${p.id}`,
+            label: p.label,
+            ratioVal: combRatioVal,
+            phase: combPhase,
+            filteredAmp,
+            d: pD,
+          });
+          anchorSumAmp += filteredAmp;
+        }
+      }
+
+      if (partialEvals.length > 0) {
+        evaluatedAnchors.push({
+          id: anchor.id,
+          name: anchor.name,
+          voice: anchor.voice,
+          offsetToken: anchor.offsetToken,
+          ratioVal: anchorRatioVal,
+          phaseOffset: anchorPhase,
+          d: anchorD,
+          partials: partialEvals,
+        });
+        if (anchorSumAmp > maxCumulativeReach) {
+          maxCumulativeReach = anchorSumAmp;
+        }
+      }
+    }
+
+    const ampScale = (maxPhasorR * 0.88) / maxCumulativeReach;
+
+    // Render each Voice Anchor as a distinct main arm originating from the central origin
+    for (const ea of evaluatedAnchors) {
+      if (ea.partials.length === 0) continue;
+
+      let cx = phasorCenterX;
+      let cy = phasorCenterY;
+
+      // 2a. Main Voice Anchor Arm (Fundamental / First Partial)
+      const p0 = ea.partials[0];
+      const rMain = p0.filteredAmp * ampScale;
+      const currentAngleTurns = (rotationTurns * p0.ratioVal + p0.phase) % 1.0;
       const angle = (currentAngleTurns * Math.PI * 2) - Math.PI / 2;
-      const nx = cx + r * Math.cos(angle);
-      const ny = cy + r * Math.sin(angle);
+      const nx = cx + rMain * Math.cos(angle);
+      const ny = cy + rMain * Math.sin(angle);
 
       // Apex coincidence proximity flash (when reaching 12 o'clock top of orbit)
       const distToApex = Math.min(currentAngleTurns, 1.0 - currentAngleTurns);
       const isFlashing = isAudioActive && distToApex < 0.045;
       const flashFactor = isFlashing ? Math.max(0, 1.0 - distToApex / 0.045) : 0;
 
-      // Circle orbit track
+      const addr = resolveDuPeriodAddress(p0.d);
+      const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#E13610';
+      const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
+
+      // Orbit circle track for this Voice Anchor's fundamental
+      ctx.save();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.arc(cx, cy, rMain, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Subtle 12 o'clock apex tick on this orbit
-      ctx.strokeStyle = 'rgba(255, 77, 77, 0.35)';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - r - 2);
-      ctx.lineTo(cx, cy - r + 3);
-      ctx.stroke();
-
-      // Phasor arm vector
+      // Main Voice Anchor vector arm
       ctx.strokeStyle = isFlashing ? '#ffffff' : col;
-      ctx.lineWidth = isFlashing ? 2.2 : 1.5;
+      ctx.lineWidth = isFlashing ? 3.5 : 2.5;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(nx, ny);
       ctx.stroke();
 
-      // Node dot with flash animation
-      const baseNodeRadius = 3.5 + p.filteredAmp * 2.0;
+      // Bright inner core filament on the main arm
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.0;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      // Fundamental tip node with pulse/flash
+      const baseNodeRadius = 4.2 + (p0.filteredAmp / maxCumulativeReach) * 2.2;
       const nodeRadius = baseNodeRadius * (1.0 + flashFactor * 0.9);
 
-      // Flashing aura/sparkle
       if (isFlashing) {
-        ctx.save();
         ctx.strokeStyle = neonCol;
         ctx.lineWidth = 2.0;
         ctx.beginPath();
-        ctx.arc(nx, ny, nodeRadius * 1.5, 0, Math.PI * 2);
+        ctx.arc(nx, ny, nodeRadius * 1.6, 0, Math.PI * 2);
         ctx.stroke();
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.beginPath();
-        ctx.arc(nx, ny, nodeRadius * 1.8, 0, Math.PI * 2);
+        ctx.arc(nx, ny, nodeRadius * 1.9, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
       }
 
       ctx.fillStyle = isFlashing ? '#ffffff' : neonCol;
@@ -364,18 +461,87 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       ctx.fill();
 
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
+
+      // Solfège / Voice badge label near the node
+      const offsetTag = ea.offsetToken && ea.offsetToken !== 'Do' ? ` @${ea.offsetToken}` : '';
+      const displayLabel = ea.partials.length > 1
+        ? `${addr.syllable}${offsetTag}`
+        : (p0.label || `${addr.syllable}${offsetTag}`);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 8.5px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      const labelDist = nodeRadius + 9;
+      const lx = nx + labelDist * Math.cos(angle);
+      const ly = ny + labelDist * Math.sin(angle);
+      ctx.fillText(displayLabel, lx, ly);
+      ctx.restore();
 
       this.dynamicLights.push({
         x: nx,
         y: ny,
-        velocity: p.filteredAmp * (1.0 + flashFactor * 1.5),
+        velocity: p0.filteredAmp * (1.0 + flashFactor * 1.5),
         colorHex: isFlashing ? '#ffffff' : neonCol,
       });
 
+      // 2b. Secondary Overtone Epicycles Branching Off This Voice Anchor's Tip
       cx = nx;
       cy = ny;
+
+      for (let i = 1; i < ea.partials.length; i++) {
+        const pSub = ea.partials[i];
+        const rSub = pSub.filteredAmp * ampScale;
+        const subTurns = (rotationTurns * pSub.ratioVal + pSub.phase) % 1.0;
+        const subAngle = (subTurns * Math.PI * 2) - Math.PI / 2;
+        const nxSub = cx + rSub * Math.cos(subAngle);
+        const nySub = cy + rSub * Math.sin(subAngle);
+
+        const subAddr = resolveDuPeriodAddress(pSub.d);
+        const subCol = SOLFEGE_COLORS[subAddr.semitoneIndex] || '#38bdf8';
+        const subNeonCol = SOLFEGE_NEON_COLORS[subAddr.semitoneIndex] || subCol;
+
+        const subDistToApex = Math.min(subTurns, 1.0 - subTurns);
+        const isSubFlashing = isAudioActive && subDistToApex < 0.04;
+
+        ctx.save();
+        // Overtone orbit circle around the parent node
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rSub, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Overtone phasor vector
+        ctx.strokeStyle = subCol;
+        ctx.lineWidth = isSubFlashing ? 1.8 : 1.2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(nxSub, nySub);
+        ctx.stroke();
+
+        // Overtone tip node
+        const subRadius = 2.8 + (pSub.filteredAmp / maxCumulativeReach) * 1.5;
+        ctx.fillStyle = isSubFlashing ? '#ffffff' : subNeonCol;
+        ctx.beginPath();
+        ctx.arc(nxSub, nySub, subRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+
+        this.dynamicLights.push({
+          x: nxSub,
+          y: nySub,
+          velocity: pSub.filteredAmp,
+          colorHex: isSubFlashing ? '#ffffff' : subNeonCol,
+        });
+
+        cx = nxSub;
+        cy = nySub;
+      }
     }
 
     ctx.fillStyle = '#E13610';

@@ -277,20 +277,20 @@ export const PRESET_SHAPES: Shape[] = [
   // 2. HARMONIES & CHORDS (Multi-Anchor Fundamentals & Overtones to P5)
   // Arranged in ascending harmonic complexity:
   // 3-note triads (Major -> Minor -> Sus4) -> 4-note 7th chords (Dom7 -> Min7 -> Maj7)
-  // Each chord tone is a Voice Anchor carrying its own 1x, 2x, 3x overtone series!
+  // Each chord tone is a Voice Anchor voiced equally (gain 1.0) carrying its own 1x, 2x, 3x overtone series!
   // ─────────────────────────────────────────────────────────────
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('maj_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('maj_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 0.88, 'clave'),
-      createChordVoiceAnchor('maj_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.78, 'woodblock'),
+      createChordVoiceAnchor('maj_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 1.0, 'clave'),
+      createChordVoiceAnchor('maj_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
     ];
     return {
       id: 'major-triad-4-5-6',
       name: 'Major Triad (4 : 5 : 6 Root Position)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Pure Just Major Triad (1 : 5/4 : 3/2) with 3 Voice Anchors (Do, Mi, So), each carrying its own fundamental, octave (2x), and fifth (3x) overtone partials.',
+      description: 'Pure Just Major Triad (1 : 5/4 : 3/2) with 3 Voice Anchors (Do, Mi, So) voiced equally, each carrying its own fundamental, octave (2x), and fifth (3x) overtone partials.',
       adsr: { attack: 0.04, decay: 1.2, sustain: 0.75, release: 0.35, damping: 0.2 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
@@ -299,15 +299,15 @@ export const PRESET_SHAPES: Shape[] = [
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('min_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('min_me', 'Minor 3rd (Me 6/5)', { kind: 'rational', num: 6, den: 5 }, 0.88, 'clave'),
-      createChordVoiceAnchor('min_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.78, 'woodblock'),
+      createChordVoiceAnchor('min_me', 'Minor 3rd (Me 6/5)', { kind: 'rational', num: 6, den: 5 }, 1.0, 'clave'),
+      createChordVoiceAnchor('min_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
     ];
     return {
       id: 'minor-triad-10-12-15',
       name: 'Minor Triad (10 : 12 : 15)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Pure Just Minor Triad (1 : 6/5 : 3/2) with 3 Voice Anchors (Do, Me, So), each carrying its own fundamental and overtone partials up to P5.',
+      description: 'Pure Just Minor Triad (1 : 6/5 : 3/2) with 3 Voice Anchors (Do, Me, So) voiced equally, each carrying its own fundamental and overtone partials up to P5.',
       adsr: { attack: 0.04, decay: 1.2, sustain: 0.75, release: 0.35, damping: 0.2 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
@@ -316,15 +316,15 @@ export const PRESET_SHAPES: Shape[] = [
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('sus_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('sus_fa', 'Perfect 4th (Fa 4/3)', { kind: 'rational', num: 4, den: 3 }, 0.85, 'snare'),
-      createChordVoiceAnchor('sus_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.78, 'woodblock'),
+      createChordVoiceAnchor('sus_fa', 'Perfect 4th (Fa 4/3)', { kind: 'rational', num: 4, den: 3 }, 1.0, 'snare'),
+      createChordVoiceAnchor('sus_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
     ];
     return {
       id: 'sus4-6-8-9',
       name: 'Suspended 4th (6 : 8 : 9 Sus4)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Suspended 4th triad (1 : 4/3 : 3/2) with 3 Voice Anchors (Do, Fa, So) and nested overtone partials up to P5.',
+      description: 'Suspended 4th triad (1 : 4/3 : 3/2) with 3 Voice Anchors (Do, Fa, So) voiced equally and nested overtone partials up to P5.',
       adsr: { attack: 0.04, decay: 1.1, sustain: 0.75, release: 0.35, damping: 0.2 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
@@ -333,16 +333,16 @@ export const PRESET_SHAPES: Shape[] = [
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('dom_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('dom_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 0.85, 'clave'),
-      createChordVoiceAnchor('dom_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.75, 'woodblock'),
-      createChordVoiceAnchor('dom_te', 'Harmonic 7th (Te 7/4)', { kind: 'rational', num: 7, den: 4 }, 0.68, 'triangle'),
+      createChordVoiceAnchor('dom_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 1.0, 'clave'),
+      createChordVoiceAnchor('dom_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
+      createChordVoiceAnchor('dom_te', 'Harmonic 7th (Te 7/4)', { kind: 'rational', num: 7, den: 4 }, 1.0, 'triangle'),
     ];
     return {
       id: 'dominant-7th-4-5-6-7',
       name: 'Dominant 7th (4 : 5 : 6 : 7 Harmonic 7th)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Harmonic Dominant 7th chord (1 : 5/4 : 3/2 : 7/4) with 4 Voice Anchors (Do, Mi, So, Te) and nested overtone partials up to P5.',
+      description: 'Harmonic Dominant 7th chord (1 : 5/4 : 3/2 : 7/4) with 4 Voice Anchors (Do, Mi, So, Te) voiced equally and nested overtone partials up to P5.',
       adsr: { attack: 0.04, decay: 1.1, sustain: 0.75, release: 0.35, damping: 0.25 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
@@ -351,16 +351,16 @@ export const PRESET_SHAPES: Shape[] = [
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('m7_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('m7_me', 'Minor 3rd (Me 6/5)', { kind: 'rational', num: 6, den: 5 }, 0.85, 'clave'),
-      createChordVoiceAnchor('m7_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.75, 'woodblock'),
-      createChordVoiceAnchor('m7_te', 'Minor 7th (Te 9/5)', { kind: 'rational', num: 9, den: 5 }, 0.68, 'triangle'),
+      createChordVoiceAnchor('m7_me', 'Minor 3rd (Me 6/5)', { kind: 'rational', num: 6, den: 5 }, 1.0, 'clave'),
+      createChordVoiceAnchor('m7_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
+      createChordVoiceAnchor('m7_te', 'Minor 7th (Te 9/5)', { kind: 'rational', num: 9, den: 5 }, 1.0, 'triangle'),
     ];
     return {
       id: 'minor-7th-10-12-15-18',
       name: 'Minor 7th (10 : 12 : 15 : 18)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Mellow Just Minor 7th chord (1 : 6/5 : 3/2 : 9/5) with 4 Voice Anchors (Do, Me, So, Te) and nested overtone partials up to P5.',
+      description: 'Mellow Just Minor 7th chord (1 : 6/5 : 3/2 : 9/5) with 4 Voice Anchors (Do, Me, So, Te) voiced equally and nested overtone partials up to P5.',
       adsr: { attack: 0.04, decay: 1.1, sustain: 0.75, release: 0.35, damping: 0.25 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
@@ -369,16 +369,16 @@ export const PRESET_SHAPES: Shape[] = [
   (() => {
     const anchors: VoiceAnchor[] = [
       createChordVoiceAnchor('maj7_do', 'Root (Do 1/1)', { kind: 'rational', num: 1, den: 1 }, 1.0, 'kick'),
-      createChordVoiceAnchor('maj7_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 0.85, 'clave'),
-      createChordVoiceAnchor('maj7_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 0.75, 'woodblock'),
-      createChordVoiceAnchor('maj7_ti', 'Major 7th (Ti 15/8)', { kind: 'rational', num: 15, den: 8 }, 0.68, 'triangle'),
+      createChordVoiceAnchor('maj7_mi', 'Major 3rd (Mi 5/4)', { kind: 'rational', num: 5, den: 4 }, 1.0, 'clave'),
+      createChordVoiceAnchor('maj7_so', 'Perfect 5th (So 3/2)', { kind: 'rational', num: 3, den: 2 }, 1.0, 'woodblock'),
+      createChordVoiceAnchor('maj7_ti', 'Major 7th (Ti 15/8)', { kind: 'rational', num: 15, den: 8 }, 1.0, 'triangle'),
     ];
     return {
       id: 'major-7th-8-10-12-15',
       name: 'Major 7th (8 : 10 : 12 : 15)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Lush Just Major 7th chord (1 : 5/4 : 3/2 : 15/8) with 4 Voice Anchors (Do, Mi, So, Ti) and nested overtone partials up to P5.',
+      description: 'Lush Just Major 7th chord (1 : 5/4 : 3/2 : 15/8) with 4 Voice Anchors (Do, Mi, So, Ti) voiced equally and nested overtone partials up to P5.',
       adsr: { attack: 0.04, decay: 1.1, sustain: 0.75, release: 0.35, damping: 0.25 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),
