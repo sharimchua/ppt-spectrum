@@ -179,7 +179,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       const isAudible = this.isPlaying || nState.isAuditioning;
       if (!isAudible) {
         phaseTelemetry[shapeId] = {
-          masterPhase: (this.masterPhases.get(shapeId) || 0.0) % 1.0,
+          masterPhase: this.masterPhases.get(shapeId) || 0.0,
           f0: this.tplHz * Math.pow(2, -currentD),
           smoothedD: currentD,
           noteAge: 0,
@@ -403,7 +403,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
       this.masterPhases.set(shapeId, masterPhase);
       phaseTelemetry[shapeId] = {
-        masterPhase: masterPhase % 1.0,
+        masterPhase,
         f0,
         smoothedD: currentD,
         noteAge: nState.noteAge,

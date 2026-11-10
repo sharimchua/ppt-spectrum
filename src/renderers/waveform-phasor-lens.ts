@@ -1,5 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape, getShapeAnchors, calculateFilterGain, multiplyRatios } from '../core/shape';
+import { calculateCoincidenceCycle } from '../core/alignment';
 import { ratioToValue } from '../core/rational';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
@@ -13,6 +14,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
   private afterglowY: number = 0;
   private lastTransportTime: number = 0;
   private lastDistToEnd: number = 999;
+  private visualPitchTurns: number = 0;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -46,22 +48,25 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     const shape = scene.shapes.find((s) => s.id === placement.shapeId);
     if (!shape) return;
 
-    const partials = evaluatePlacedShape(shape, placement, scene.filter);
+    const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
     const splitX = width * 0.65;
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
+    const coincidence = calculateCoincidenceCycle(shape, f0);
 
-    // Audio-visual phase synchronization:
-    // In rhythmic regime (f0 <= 25.8 Hz) when audio is running,
-    // rotation turns lock directly to the worklet's master phase.
-    // For high audio frequencies (> 25.8 Hz), rotate at 1.5 rev/sec to avoid optical Nyquist aliasing.
-    // When audio is stopped, rotation parks cleanly.
+    // Unwrapped continuous audio-visual phase synchronisation:
+    // Keep rotationTurns unwrapped in [0, ∞) so non-integer ratios (5/4, 3/2, 7/4, 2.756)
+    // continue smoothly along their circular trajectories without resetting when the root (1/1) crosses 1.0.
     let rotationTurns = 0;
     if (isAudioActive) {
       if (f0 <= 25.8) {
-        rotationTurns = audioPhase % 1.0;
+        rotationTurns = audioPhase;
+        this.visualPitchTurns = audioPhase;
       } else {
-        rotationTurns = (transportTime * 1.5) % 1.0;
+        this.visualPitchTurns += dt * 1.2;
+        rotationTurns = this.visualPitchTurns;
       }
+    } else {
+      this.visualPitchTurns = 0;
     }
 
     // 1. Composite Waveform (Left 65% of viewport)
@@ -134,18 +139,21 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     }
     ctx.stroke();
 
-    // 1b. Mark "Sam" / Cycle Repetition Boundaries on the Waveform (Aligned to 12 o'clock Apex)
+    // 1b. Mark Root Cycle & Super-Cycle "Sam" Repetition Boundaries on the Waveform
     const startCycle = Math.floor(-rotationTurns);
     const endCycle = Math.ceil(numCyclesDrawn - rotationTurns);
     let currentFrameHitWall = false;
     let hitWallY = waveCenterY;
+    const superD = coincidence.isAperiodic ? Infinity : coincidence.rootTurnsToAlign;
 
     for (let c = startCycle; c <= endCycle; c++) {
       const tBoundary = c + rotationTurns;
       if (tBoundary >= 0 && tBoundary <= numCyclesDrawn) {
         const bx = 20 + (tBoundary / numCyclesDrawn) * waveWidth;
+        const rootTurnIndex = Math.round(-c);
+        const isSuperSam = !coincidence.isAperiodic && ((rootTurnIndex % superD) + superD) % superD === 0;
 
-        // Calculate wave Y at boundary point (12 o'clock Apex crest)
+        // Calculate wave Y at boundary point
         let samYSum = 0;
         let samNorm = 0;
         for (const p of partials) {
@@ -164,23 +172,31 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
           (this.lastDistToEnd > 0 && distToEnd <= 0)
         );
 
-        if (isTouchingTerminus) {
+        if (isTouchingTerminus && isSuperSam) {
           currentFrameHitWall = true;
           hitWallY = samY;
         }
-        this.lastDistToEnd = distToEnd;
+        if (isSuperSam) {
+          this.lastDistToEnd = distToEnd;
+        }
 
         const isAtContact = distToEnd >= 0 && distToEnd <= 4;
 
-        // Vertical boundary line
+        // Vertical boundary line (prominent red for Super-Sam coincidence, subtle slate/cyan for intermediate Root turns)
         ctx.save();
-        if (isAtContact) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-          ctx.lineWidth = 2.0;
+        if (isSuperSam) {
+          if (isAtContact) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.lineWidth = 2.0;
+          } else {
+            ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 3]);
+          }
         } else {
-          ctx.strokeStyle = 'rgba(225, 54, 16, 0.7)';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+          ctx.lineWidth = 1.0;
+          ctx.setLineDash([2, 4]);
         }
         ctx.beginPath();
         ctx.moveTo(bx, waveCenterY - waveAmpScale - 14);
@@ -188,28 +204,34 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Sam marker label - Aligned with Apex coincidence
-        ctx.fillStyle = isAtContact ? '#ffffff' : '#E13610';
+        // Boundary label
+        ctx.fillStyle = isSuperSam ? (isAtContact ? '#ffffff' : '#E13610') : 'rgba(148, 163, 184, 0.75)';
         ctx.font = 'bold 8px JetBrains Mono, monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`SAM / APEX`, bx, waveCenterY - waveAmpScale - 18);
+        const turnWithinSuper = !coincidence.isAperiodic
+          ? (((rootTurnIndex % superD) + superD) % superD) + 1
+          : Math.abs(rootTurnIndex) + 1;
+        const boundaryLabel = isSuperSam
+          ? (superD > 1 ? `SAM (1/${superD})` : 'SAM / APEX')
+          : (coincidence.isAperiodic ? `ROOT #${turnWithinSuper}` : `ROOT ${turnWithinSuper}/${superD}`);
+        ctx.fillText(boundaryLabel, bx, waveCenterY - waveAmpScale - 18);
 
-        // Traveling waveform node (clean, solid dot without premature radial burst)
-        const nodeRadius = isAtContact ? 5.5 : 4.5;
-        ctx.fillStyle = isAtContact ? '#ffffff' : '#FF4D4D';
+        // Travelling waveform node
+        const nodeRadius = isSuperSam ? (isAtContact ? 5.5 : 4.5) : 3.2;
+        ctx.fillStyle = isSuperSam ? (isAtContact ? '#ffffff' : '#FF4D4D') : '#38bdf8';
         ctx.beginPath();
         ctx.arc(bx, samY, nodeRadius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = isAtContact ? '#FF4D4D' : '#ffffff';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = isSuperSam ? (isAtContact ? '#FF4D4D' : '#ffffff') : 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1.2;
         ctx.stroke();
         ctx.restore();
 
         this.dynamicLights.push({
           x: bx,
           y: samY,
-          velocity: isAtContact ? 1.0 : 0.8,
-          colorHex: isAtContact ? '#FFFFFF' : '#FF4D4D',
+          velocity: isSuperSam ? (isAtContact ? 1.0 : 0.8) : 0.35,
+          colorHex: isSuperSam ? (isAtContact ? '#FFFFFF' : '#FF4D4D') : '#38bdf8',
         });
       }
     }
@@ -398,7 +420,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       // 2a. Main Voice Anchor Arm (Fundamental / First Partial)
       const p0 = ea.partials[0];
       const rMain = p0.filteredAmp * ampScale;
-      const currentAngleTurns = (rotationTurns * p0.ratioVal + p0.phase) % 1.0;
+      const currentAngleTurns = ((rotationTurns * p0.ratioVal + p0.phase) % 1.0 + 1.0) % 1.0;
       const angle = (currentAngleTurns * Math.PI * 2) - Math.PI / 2;
       const nx = cx + rMain * Math.cos(angle);
       const ny = cy + rMain * Math.sin(angle);
@@ -493,7 +515,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       for (let i = 1; i < ea.partials.length; i++) {
         const pSub = ea.partials[i];
         const rSub = pSub.filteredAmp * ampScale;
-        const subTurns = (rotationTurns * pSub.ratioVal + pSub.phase) % 1.0;
+        const subTurns = ((rotationTurns * pSub.ratioVal + pSub.phase) % 1.0 + 1.0) % 1.0;
         const subAngle = (subTurns * Math.PI * 2) - Math.PI / 2;
         const nxSub = cx + rSub * Math.cos(subAngle);
         const nySub = cy + rSub * Math.sin(subAngle);
@@ -547,7 +569,22 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = '#E13610';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ROTATING PHASORS', phasorCenterX, 30);
+    ctx.fillText('ROTATING PHASORS', phasorCenterX, 24);
+
+    // Coincidence / Super-Cycle trajectory status subtitle
+    ctx.fillStyle = coincidence.isAperiodic ? '#f59e0b' : '#94a3b8';
+    ctx.font = '8px JetBrains Mono, monospace';
+    const currentTurnInSuper = !coincidence.isAperiodic
+      ? (Math.floor(Math.max(0, rotationTurns)) % coincidence.rootTurnsToAlign) + 1
+      : Math.floor(Math.max(0, rotationTurns)) + 1;
+    const phasorSubLabel = coincidence.isAperiodic
+      ? 'APERIODIC • CONTINUOUS TRAJECTORY'
+      : coincidence.rootTurnsToAlign === 1
+      ? 'ALIGN: EVERY ROOT TURN'
+      : isAudioActive
+      ? `SUPER-CYCLE: TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}`
+      : `ALIGN: EVERY ${coincidence.rootTurnsToAlign} ROOT TURNS`;
+    ctx.fillText(phasorSubLabel, phasorCenterX, 36);
     ctx.restore();
   }
 }

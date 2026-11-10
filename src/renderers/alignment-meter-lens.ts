@@ -1,6 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
-import { calculatePlompLevelt, calculateTenneyHeight, calculateGhostFundamental } from '../core/alignment';
+import { calculatePlompLevelt, calculateTenneyHeight, calculateGhostFundamental, calculateCoincidenceCycle } from '../core/alignment';
 import { rationalise } from '../core/rational';
 import { dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -53,7 +53,8 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       tenneyCount++;
     }
     const avgTenney = tenneyCount > 0 ? totalTenney / tenneyCount : 0;
-    const ghost = calculateGhostFundamental(shape, f0);
+    const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
+    const coincidence = calculateCoincidenceCycle(shape, f0);
 
     ctx.save();
 
@@ -96,7 +97,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.font = 'bold 13px JetBrains Mono, monospace';
     ctx.fillText(avgTenney.toFixed(2), 28 + boxW + 10, boxY + 36);
 
-    // Metric 3: Ghost Fundamental Period
+    // Metric 3: Coincidence / Super-Cycle Period (Sam)
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.beginPath();
     ctx.roundRect(20 + (boxW + 10) * 2, boxY, boxW, boxH, 6);
@@ -105,10 +106,15 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText('GHOST PERIOD (SAM)', 28 + (boxW + 10) * 2, boxY + 16);
+    ctx.fillText('COINCIDENCE (SAM)', 28 + (boxW + 10) * 2, boxY + 16);
     ctx.fillStyle = '#f97316';
-    ctx.font = 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(`${(ghost.cycleDurationSec * 1000).toFixed(1)} ms`, 28 + (boxW + 10) * 2, boxY + 36);
+    ctx.font = 'bold 12px JetBrains Mono, monospace';
+    const samMetricText = coincidence.isAperiodic
+      ? '∞ (Aperiodic)'
+      : coincidence.rootTurnsToAlign === 1
+      ? `${(ghost.cycleDurationSec * 1000).toFixed(1)} ms (1x)`
+      : `${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms (${coincidence.rootTurnsToAlign}x)`;
+    ctx.fillText(samMetricText, 28 + (boxW + 10) * 2, boxY + 36);
 
     // 2. Plomp-Levelt Roughness Curve across interval ratios 1.0 to 2.0
     const curveTop = 110;

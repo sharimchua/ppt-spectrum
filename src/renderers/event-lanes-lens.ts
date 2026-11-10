@@ -1,5 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape, resolveDuMetricOffsetToken } from '../core/shape';
+import { calculateCoincidenceCycle } from '../core/alignment';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -8,6 +9,8 @@ import { PostProcessingLight } from './webgl-post-processing';
 export class EventLanesLensRenderer implements RegisteredLensRenderer {
   public id = 'event-lanes';
   private dynamicLights: PostProcessingLight[] = [];
+  private lastTransportTime: number = 0;
+  private visualPitchTurns: number = 0;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -24,27 +27,59 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
   ): void {
     this.dynamicLights = [];
 
+    const dt = this.lastTransportTime > 0
+      ? Math.min(0.1, Math.max(0, transportTime - this.lastTransportTime))
+      : 0.016;
+    this.lastTransportTime = transportTime;
+
     const placement = scene.placements[0];
     if (!placement) return;
     const shape = scene.shapes.find((s) => s.id === placement.shapeId);
     if (!shape) return;
 
-    const partials = evaluatePlacedShape(shape, placement, scene.filter);
+    const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
     const activePartials = partials.filter((p) => p.filteredAmp > 0.001);
     if (activePartials.length === 0) return;
 
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
+    const coincidence = calculateCoincidenceCycle(shape, f0);
 
-    // Phase progress: in rhythmic regime, lock to worklet audioPhase; otherwise extrapolate
-    const phaseProgress = isAudioActive
-      ? (f0 <= 25.8 ? (audioPhase % 1.0) : ((transportTime * 1.0) % 1.0))
-      : 0;
+    // Unwrapped continuous root turns:
+    let unwrappedRootTurns = 0;
+    if (isAudioActive) {
+      if (f0 <= 25.8) {
+        unwrappedRootTurns = audioPhase;
+        this.visualPitchTurns = audioPhase;
+      } else {
+        this.visualPitchTurns += dt * 1.0;
+        unwrappedRootTurns = this.visualPitchTurns;
+      }
+    } else {
+      this.visualPitchTurns = 0;
+    }
+
+    const isCompactSuperCycle = coincidence.isCompactSuperCycle;
+    const windowTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 4;
+    const windowStartTurn = isCompactSuperCycle
+      ? 0
+      : Math.floor(Math.max(0, unwrappedRootTurns) / windowTurns) * windowTurns;
+
+    const phaseProgress = isCompactSuperCycle
+      ? (((unwrappedRootTurns % windowTurns) + windowTurns) % windowTurns) / windowTurns
+      : (Math.max(0, unwrappedRootTurns) - windowStartTurn) / windowTurns;
 
     // Header label
     ctx.save();
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText('EVENT LANES & COMPOSITE RIPPLE', 20, 24);
+    const headerText = coincidence.isAperiodic
+      ? `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC)`
+      : !isCompactSuperCycle
+      ? `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE)`
+      : windowTurns === 1
+      ? 'EVENT LANES & COMPOSITE RIPPLE (1 ROOT TURN)'
+      : `EVENT LANES • SUPER-CYCLE (${windowTurns} ROOT TURNS)`;
+    ctx.fillText(headerText, 20, 24);
 
     const topMargin = 38;
     const bottomMargin = 40;
@@ -52,13 +87,35 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     const numLanes = activePartials.length;
     const laneHeight = Math.max(16, availableHeight / Math.max(1, numLanes));
 
-    const leftX = 100;
+    const leftX = 110;
     const rightX = width - 25;
     const laneWidth = rightX - leftX;
 
+    // Draw Root Turn subdivision lines when window spans multiple Root Turns
+    if (windowTurns > 1) {
+      for (let b = 0; b <= windowTurns; b++) {
+        const bx = leftX + (b / windowTurns) * laneWidth;
+        ctx.strokeStyle = b === 0 || b === windowTurns
+          ? 'rgba(225, 54, 16, 0.35)'
+          : 'rgba(148, 163, 184, 0.14)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx, topMargin - 4);
+        ctx.lineTo(bx, height - 22);
+        ctx.stroke();
+
+        if (b < windowTurns) {
+          ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+          ctx.font = '7.5px JetBrains Mono, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`T${Math.round(windowStartTurn + b + 1)}`, bx + 3, topMargin - 6);
+        }
+      }
+    }
+
     // Playhead marker vertical line
     const playheadX = leftX + phaseProgress * laneWidth;
-    ctx.strokeStyle = 'rgba(238, 54, 16, 0.7)';
+    ctx.strokeStyle = 'rgba(238, 54, 16, 0.75)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -92,29 +149,66 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       const phaseTag = p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
       ctx.fillText(`${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`, leftX - 10, y + laneHeight / 2 + 3);
 
-      // Event tick marks across the lane
-      const eventsPerCycle = Math.max(1, Math.round(p.ratioValue));
-      for (let e = 0; e < eventsPerCycle; e++) {
-        const eventFrac = (e / eventsPerCycle + p.phase) % 1.0;
-        const tickX = leftX + eventFrac * laneWidth;
-        const tickDist = Math.abs(eventFrac - phaseProgress);
-        const isHit = tickDist < 0.02 || tickDist > 0.98;
+      if (isCompactSuperCycle) {
+        // Exact integer events across the D-turn Super-Cycle
+        const eventsPerSuperCycle = Math.max(1, Math.round(p.ratioValue * windowTurns));
+        const hitTol = Math.min(0.02, 0.35 / Math.max(1, eventsPerSuperCycle));
 
-        if (isHit) compositeHits++;
+        for (let e = 0; e < eventsPerSuperCycle; e++) {
+          const eventFrac = ((e / eventsPerSuperCycle) + (p.phase / windowTurns)) % 1.0;
+          const tickX = leftX + eventFrac * laneWidth;
+          const tickDist = Math.abs(eventFrac - phaseProgress);
+          const isHit = isAudioActive && (tickDist < hitTol || tickDist > 1.0 - hitTol);
 
-        const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
-        ctx.fillStyle = isHit ? '#ffffff' : col;
-        ctx.beginPath();
-        ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
-        ctx.fill();
+          if (isHit) compositeHits++;
 
-        if (isHit) {
-          this.dynamicLights.push({
-            x: tickX,
-            y: y + laneHeight / 2,
-            velocity: 1.0,
-            colorHex: neonCol,
-          });
+          const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
+          ctx.fillStyle = isHit ? '#ffffff' : col;
+          ctx.beginPath();
+          ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
+          ctx.fill();
+
+          if (isHit) {
+            this.dynamicLights.push({
+              x: tickX,
+              y: y + laneHeight / 2,
+              velocity: 1.0,
+              colorHex: neonCol,
+            });
+          }
+        }
+      } else {
+        // Rolling window for Aperiodic / Inharmonic or High-D (> 12) shapes:
+        // Plot exact physical event timestamps t_k = (k + p.phase) / p.ratioValue within [windowStartTurn, windowStartTurn + windowTurns]
+        const rVal = Math.max(0.01, p.ratioValue);
+        const kMin = Math.floor(windowStartTurn * rVal - p.phase);
+        const kMax = Math.ceil((windowStartTurn + windowTurns) * rVal - p.phase);
+
+        for (let k = kMin; k <= kMax; k++) {
+          const eventTurn = (k + p.phase) / rVal;
+          if (eventTurn < windowStartTurn - 0.0001 || eventTurn > windowStartTurn + windowTurns + 0.0001) continue;
+
+          const eventFrac = (eventTurn - windowStartTurn) / windowTurns;
+          const tickX = leftX + eventFrac * laneWidth;
+          const tickDist = Math.abs(eventFrac - phaseProgress);
+          const isHit = isAudioActive && tickDist < 0.018;
+
+          if (isHit) compositeHits++;
+
+          const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
+          ctx.fillStyle = isHit ? '#ffffff' : col;
+          ctx.beginPath();
+          ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
+          ctx.fill();
+
+          if (isHit) {
+            this.dynamicLights.push({
+              x: tickX,
+              y: y + laneHeight / 2,
+              velocity: 1.0,
+              colorHex: neonCol,
+            });
+          }
         }
       }
     }
@@ -133,7 +227,6 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     ctx.textAlign = 'right';
     ctx.fillText('COMPOSITE', leftX - 10, compositeY + 3);
 
-    // Draw active shockwave or spark indicator on composite lane when strikes occur
     if (compositeHits > 0) {
       const dotRadius = Math.min(10, 4 + compositeHits * 2);
       ctx.fillStyle = compositeHits > 1 ? '#ffffff' : '#E13610';

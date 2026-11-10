@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit, ratioToValue } from '../rational';
-import { calculateGhostFundamental, calculatePlompLevelt } from '../alignment';
+import { calculateGhostFundamental, calculateCoincidenceCycle, calculatePlompLevelt } from '../alignment';
 import { calculateFilterGain, evaluatePartialAdsr } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
@@ -227,6 +227,28 @@ describe('Presets & Piano Inharmonicity', () => {
     // Ghost fundamental must match f0 (100 Hz), NOT drop to f0 / 100 (1 Hz)
     expect(ghost.ghostFreqHz).toBeCloseTo(f0, 1);
     expect(ghost.ghostD).toBeCloseTo(freqToD(f0), 2);
+  });
+
+  it('computes Super-Cycle coincidence turns (D = lcm) for rational chords and marks inharmonic shapes aperiodic', () => {
+    const saw = PRESET_SHAPES.find((s) => s.id === 'saw-like')!;
+    const majTriad = PRESET_SHAPES.find((s) => s.id === 'major-triad-4-5-6')!;
+    const sus4 = PRESET_SHAPES.find((s) => s.id === 'sus4-6-8-9')!;
+    const maj7 = PRESET_SHAPES.find((s) => s.id === 'major-7th-8-10-12-15')!;
+    const minTriad = PRESET_SHAPES.find((s) => s.id === 'minor-triad-10-12-15')!;
+    const bell = PRESET_SHAPES.find((s) => s.id === 'bell')!;
+
+    expect(calculateCoincidenceCycle(saw, 100).rootTurnsToAlign).toBe(1);
+    expect(calculateCoincidenceCycle(majTriad, 100).rootTurnsToAlign).toBe(4);
+    expect(calculateCoincidenceCycle(majTriad, 100).isCompactSuperCycle).toBe(true);
+    expect(calculateCoincidenceCycle(sus4, 100).rootTurnsToAlign).toBe(6);
+    expect(calculateCoincidenceCycle(maj7, 100).rootTurnsToAlign).toBe(8);
+    expect(calculateCoincidenceCycle(minTriad, 100).rootTurnsToAlign).toBe(10);
+    expect(calculateCoincidenceCycle(minTriad, 100).isCompactSuperCycle).toBe(true);
+
+    const bellCycle = calculateCoincidenceCycle(bell, 100);
+    expect(bellCycle.isAperiodic).toBe(true);
+    expect(bellCycle.rootTurnsToAlign).toBe(Infinity);
+    expect(bellCycle.isCompactSuperCycle).toBe(false);
   });
 });
 

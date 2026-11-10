@@ -317,7 +317,7 @@ export class AudioEngine {
     if (!shapeData) return 0.0;
 
     const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
-    return (shapeData.masterPhase + shapeData.f0 * dt) % 1.0;
+    return shapeData.masterPhase + shapeData.f0 * dt;
   }
 
   public isAudioActive(): boolean {

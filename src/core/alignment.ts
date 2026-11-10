@@ -73,6 +73,75 @@ export function calculateGhostFundamental(
   return { ghostFreqHz, cycleDurationSec: 1 / ghostFreqHz, ghostD: freqToD(ghostFreqHz, tplHz) };
 }
 
+export interface CoincidenceCycleInfo {
+  /** Number of Root (f0) turns required for all partials to simultaneously realign (D = lcm of denominators). Infinity if irrational/aperiodic. */
+  rootTurnsToAlign: number;
+  /** True when the shape has a finite, compact rational super-cycle (D <= maxCompactTurns) */
+  isCompactSuperCycle: boolean;
+  /** True when partials contain irrational/inharmonic real ratios that never exactly realign */
+  isAperiodic: boolean;
+  /** Total duration in seconds of the full coincidence super-cycle (rootTurnsToAlign / f0) */
+  superCycleDurationSec: number;
+  /** Human-readable badge description */
+  badgeLabel: string;
+}
+
+/**
+ * Calculates the exact Coincidence Super-Cycle (number of Root f0 turns required for all active
+ * partials/anchors to simultaneously realign at the 12 o'clock Sam/Apex).
+ * - For integer harmonics (1, 2, 3, 4): rootTurnsToAlign = 1.
+ * - For rational intervals (e.g. Major Triad 1 : 5/4 : 3/2): rootTurnsToAlign = lcm(1, 4, 2) = 4.
+ * - For Minor Triad (1 : 6/5 : 3/2): rootTurnsToAlign = lcm(1, 5, 2) = 10.
+ * - For irrational/inharmonic shapes (piano, vibraphone, bell): rootTurnsToAlign = Infinity (isAperiodic = true).
+ */
+export function calculateCoincidenceCycle(
+  shape: Shape,
+  f0: number,
+  maxCompactTurns: number = 12
+): CoincidenceCycleInfo {
+  const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
+  if (activePartials.length === 0 || f0 <= 0) {
+    return {
+      rootTurnsToAlign: 1,
+      isCompactSuperCycle: true,
+      isAperiodic: false,
+      superCycleDurationSec: f0 > 0 ? 1 / f0 : 1,
+      badgeLabel: '1 Root Turn',
+    };
+  }
+
+  const isPurelyRational = activePartials.every((p) => p.ratio.kind === 'rational');
+  if (!isPurelyRational) {
+    return {
+      rootTurnsToAlign: Infinity,
+      isCompactSuperCycle: false,
+      isAperiodic: true,
+      superCycleDurationSec: Infinity,
+      badgeLabel: 'Aperiodic (Inharmonic)',
+    };
+  }
+
+  let D = 1;
+  for (const p of activePartials) {
+    if (p.ratio.kind === 'rational') {
+      const reduced = reduceRational(p.ratio.num, p.ratio.den);
+      D = lcm(D, reduced.den);
+    }
+  }
+
+  const isCompactSuperCycle = D <= maxCompactTurns;
+  const superCycleDurationSec = D / f0;
+  const badgeLabel = D === 1 ? '1 Root Turn' : `${D} Root Turns (${D}x Super-Cycle)`;
+
+  return {
+    rootTurnsToAlign: D,
+    isCompactSuperCycle,
+    isAperiodic: false,
+    superCycleDurationSec,
+    badgeLabel,
+  };
+}
+
 /**
  * Calculates Tenney harmonic complexity / height: log2(num * den)
  */
