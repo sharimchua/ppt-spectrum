@@ -1,6 +1,7 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape, resolveDuMetricOffsetToken } from '../core/shape';
 import { calculateCoincidenceCycle } from '../core/alignment';
+import { lcm } from '../core/rational';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -60,13 +61,23 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       this.visualPitchTurns = 0;
     }
 
+    let filterSuperLength = 1;
+    if (scene.filter && scene.filter.enabled) {
+      for (const cond of scene.filter.conditions) {
+        if (cond.kind === 'cycle' && cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
+          filterSuperLength = Math.max(filterSuperLength, cond.supercycle.length);
+        }
+      }
+    }
+
     const isCompactSuperCycle = coincidence.isCompactSuperCycle;
-    const windowTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 4;
+    const baseShapeTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 4;
+    const windowTurns = isCompactSuperCycle
+      ? Math.min(16, lcm(baseShapeTurns, filterSuperLength))
+      : Math.min(16, Math.max(4, filterSuperLength));
     const windowStartTurn = Math.floor(Math.max(0, unwrappedRootTurns) / windowTurns) * windowTurns;
 
-    const phaseProgress = isCompactSuperCycle
-      ? (((unwrappedRootTurns % windowTurns) + windowTurns) % windowTurns) / windowTurns
-      : (Math.max(0, unwrappedRootTurns) - windowStartTurn) / windowTurns;
+    const phaseProgress = (((unwrappedRootTurns - windowStartTurn) % windowTurns) + windowTurns) % windowTurns / windowTurns;
 
     const isCompact = width < 480;
 
@@ -74,13 +85,14 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     ctx.save();
     ctx.fillStyle = '#38bdf8';
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
+    const filterTag = filterSuperLength > 1 ? ` • ${filterSuperLength}-BAR FILTER` : '';
     const headerText = coincidence.isAperiodic
-      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (APERIODIC)` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC)`)
+      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (APERIODIC${filterTag})` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC${filterTag})`)
       : !isCompactSuperCycle
-      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (${coincidence.rootTurnsToAlign}x)` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE)`)
+      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (${coincidence.rootTurnsToAlign}x${filterTag})` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE${filterTag})`)
       : windowTurns === 1
       ? (isCompact ? 'EVENT LANES (1 ROOT TURN)' : 'EVENT LANES & COMPOSITE RIPPLE (1 ROOT TURN)')
-      : `EVENT LANES • SUPER-CYCLE (${windowTurns} TURNS)`;
+      : `EVENT LANES • SUPER-CYCLE (${windowTurns} TURNS${filterTag})`;
     ctx.fillText(headerText, isCompact ? 12 : 20, 22);
 
     const topMargin = 36;
@@ -167,100 +179,49 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       };
       const isHighFreq = shouldUseDutyGain(p.freqHz);
 
-      if (isCompactSuperCycle) {
-        // Exact integer events across the D-turn Super-Cycle
-        const eventsPerSuperCycle = Math.max(1, Math.round(p.ratioValue * windowTurns));
-        const hitTol = Math.min(0.02, 0.35 / Math.max(1, eventsPerSuperCycle));
+      // Exact physical event timestamps t_k = (k / rVal) + p.phase within [windowStartTurn, windowStartTurn + windowTurns]
+      const rVal = Math.max(0.001, p.ratioValue);
+      const kMin = Math.ceil((windowStartTurn - p.phase) * rVal);
+      const kMax = Math.floor((windowStartTurn + windowTurns - p.phase - 1e-5) * rVal);
+      const totalEvents = Math.max(1, kMax - kMin + 1);
+      const hitTol = Math.min(0.02, 0.35 / Math.max(1, totalEvents));
 
-        for (let e = 0; e < eventsPerSuperCycle; e++) {
-          const eventFrac = ((e / eventsPerSuperCycle) + (p.phase / windowTurns)) % 1.0;
-          const tickX = leftX + eventFrac * laneWidth;
-          const tickDist = Math.abs(eventFrac - phaseProgress);
-          const isHit = isAudioActive && (tickDist < hitTol || tickDist > 1.0 - hitTol);
+      for (let k = kMin; k <= kMax; k++) {
+        const eventTurn = k / rVal + p.phase;
+        const eventFrac = (eventTurn - windowStartTurn) / windowTurns;
+        const tickX = leftX + eventFrac * laneWidth;
+        const tickDist = Math.abs(eventFrac - phaseProgress);
+        const isHit = isAudioActive && (tickDist < hitTol || tickDist > 1.0 - hitTol);
 
-          const onsetSceneTurns = windowStartTurn + eventFrac * windowTurns;
-          const onsetGain = isHighFreq
-            ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
-            : evaluateOnsetGain(scene.filter, ctxPartial, onsetSceneTurns);
+        const onsetGain = evaluateOnsetGain(scene.filter, ctxPartial, eventTurn);
+        const isGatedOut = onsetGain < 0.05;
 
-          const isGatedOut = onsetGain < 0.05;
+        if (isGatedOut) {
+          // Attenuated tick drawn hollow at low alpha
+          const tickH = laneHeight * 0.45;
+          ctx.save();
+          ctx.globalAlpha = 0.25;
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(tickX - 1, y + (laneHeight - tickH) / 2, 2, tickH);
+          ctx.restore();
+        } else {
+          if (isHit) compositeHits++;
 
-          if (isGatedOut) {
-            // Attenuated tick drawn hollow at low alpha
-            const tickH = laneHeight * 0.45;
-            ctx.save();
-            ctx.globalAlpha = 0.25;
-            ctx.strokeStyle = col;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(tickX - 1, y + (laneHeight - tickH) / 2, 2, tickH);
-            ctx.restore();
-          } else {
-            if (isHit) compositeHits++;
+          const shouldFlash = isHit && !isHighFreq;
+          const tickH = (laneHeight * 0.45) * (shouldFlash ? 1.4 : 1.0);
+          ctx.fillStyle = shouldFlash ? '#ffffff' : col;
+          ctx.beginPath();
+          ctx.roundRect(tickX - (shouldFlash ? 2 : 1), y + (laneHeight - tickH) / 2, shouldFlash ? 4 : 2, tickH, 2);
+          ctx.fill();
 
-            const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
-            ctx.fillStyle = isHit ? '#ffffff' : col;
-            ctx.beginPath();
-            ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
-            ctx.fill();
-
-            if (isHit) {
-              this.dynamicLights.push({
-                x: tickX,
-                y: y + laneHeight / 2,
-                velocity: 1.0,
-                colorHex: neonCol,
-              });
-            }
-          }
-        }
-      } else {
-        // Rolling window for Aperiodic / Inharmonic or High-D (> 12) shapes:
-        // Plot exact physical event timestamps t_k = (k + p.phase) / p.ratioValue within [windowStartTurn, windowStartTurn + windowTurns]
-        const rVal = Math.max(0.01, p.ratioValue);
-        const kMin = Math.floor(windowStartTurn * rVal - p.phase);
-        const kMax = Math.ceil((windowStartTurn + windowTurns) * rVal - p.phase);
-
-        for (let k = kMin; k <= kMax; k++) {
-          const eventTurn = (k + p.phase) / rVal;
-          if (eventTurn < windowStartTurn - 0.0001 || eventTurn > windowStartTurn + windowTurns + 0.0001) continue;
-
-          const eventFrac = (eventTurn - windowStartTurn) / windowTurns;
-          const tickX = leftX + eventFrac * laneWidth;
-          const tickDist = Math.abs(eventFrac - phaseProgress);
-          const isHit = isAudioActive && tickDist < 0.018;
-
-          const onsetGain = isHighFreq
-            ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
-            : evaluateOnsetGain(scene.filter, ctxPartial, eventTurn);
-
-          const isGatedOut = onsetGain < 0.05;
-
-          if (isGatedOut) {
-            // Attenuated tick drawn hollow at low alpha
-            const tickH = laneHeight * 0.45;
-            ctx.save();
-            ctx.globalAlpha = 0.25;
-            ctx.strokeStyle = col;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(tickX - 1, y + (laneHeight - tickH) / 2, 2, tickH);
-            ctx.restore();
-          } else {
-            if (isHit) compositeHits++;
-
-            const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
-            ctx.fillStyle = isHit ? '#ffffff' : col;
-            ctx.beginPath();
-            ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
-            ctx.fill();
-
-            if (isHit) {
-              this.dynamicLights.push({
-                x: tickX,
-                y: y + laneHeight / 2,
-                velocity: 1.0,
-                colorHex: neonCol,
-              });
-            }
+          if (shouldFlash) {
+            this.dynamicLights.push({
+              x: tickX,
+              y: y + laneHeight / 2,
+              velocity: 1.0,
+              colorHex: neonCol,
+            });
           }
         }
       }

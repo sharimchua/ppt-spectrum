@@ -1,6 +1,7 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
 import { calculateGhostFundamental, calculateCoincidenceCycle } from '../core/alignment';
+import { lcm } from '../core/rational';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -68,8 +69,19 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
       this.visualPitchTurns = 0;
     }
 
-    const isCompactSuperCycle = coincidence.isCompactSuperCycle;
-    const superD = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
+    let filterSuperLength = 1;
+    if (scene.filter && scene.filter.enabled) {
+      for (const cond of scene.filter.conditions) {
+        if (cond.kind === 'cycle' && cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
+          filterSuperLength = Math.max(filterSuperLength, cond.supercycle.length);
+        }
+      }
+    }
+
+    const baseD = coincidence.isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
+    const combinedD = coincidence.isCompactSuperCycle ? lcm(baseD, filterSuperLength) : 1;
+    const isCompactSuperCycle = coincidence.isCompactSuperCycle && combinedD <= 12;
+    const superD = isCompactSuperCycle ? combinedD : baseD;
 
     // In compact Super-Cycle mode (D <= 12), 1 full sweep of the playhead spans D Root Turns
     // so fractional ratios (e.g. 4:5:6 over 4 turns, 10:12:15 over 10 turns) display their exact integer polygon complexity.
@@ -134,12 +146,12 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     const headerTitle = coincidence.isAperiodic
-      ? (isCompact ? 'APERIODIC ORBITS (Inharmonic)' : 'APERIODIC ORBITS (Inharmonic • Never Aligns)')
+      ? (isCompact ? 'APERIODIC ORBITS (Inharmonic)' : 'APERIODIC ORBITS (Inharmonic â€¢ Never Aligns)')
       : !isCompactSuperCycle
       ? `CONTINUOUS ORBITS (${coincidence.rootTurnsToAlign} Root Turns)`
       : superD === 1
-      ? `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms • 1 Turn)`
-      : `SUPER-CYCLE (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms • ${superD} Turns)`;
+      ? `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms â€¢ 1 Turn)`
+      : `SUPER-CYCLE (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms â€¢ ${superD} Turns)`;
     ctx.fillText(headerTitle, centerX, Math.max(14, centerY - maxR - 12));
     ctx.restore();
 
@@ -199,13 +211,17 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
       const isHighFreq = shouldUseDutyGain(p.freqHz);
 
       if (isCompactSuperCycle) {
-        // Exact integer number of pulses across the D-turn Super-Cycle (e.g. 4:5:6 for Major Triad, 10:12:15 for Minor Triad)
-        const superPulses = Math.max(1, Math.round(p.ratioValue * superD));
-        const densityScale = superPulses > 24 ? 0.55 : superPulses > 12 ? 0.75 : 1.0;
+        // Exact pulses within the supercycle window [superCycleStartTurn, superCycleStartTurn + superD)
         const superCycleStartTurn = Math.floor(unwrappedRootTurns / superD) * superD;
+        const rVal = Math.max(0.001, p.ratioValue);
+        const kMin = Math.ceil((superCycleStartTurn - p.phase) * rVal);
+        const kMax = Math.floor((superCycleStartTurn + superD - p.phase - 1e-5) * rVal);
+        const superPulses = Math.max(1, kMax - kMin + 1);
+        const densityScale = superPulses > 24 ? 0.55 : superPulses > 12 ? 0.75 : 1.0;
 
-        for (let dot = 0; dot < superPulses; dot++) {
-          const dotAngleFrac = ((dot / superPulses) + (p.phase / superD)) % 1.0;
+        for (let k = kMin; k <= kMax; k++) {
+          const t_k = k / rVal + p.phase;
+          const dotAngleFrac = (t_k - superCycleStartTurn) / superD;
           const angle = dotAngleFrac * Math.PI * 2 - Math.PI / 2;
           const px = centerX + r * Math.cos(angle);
           const py = centerY + r * Math.sin(angle);
@@ -214,11 +230,8 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
           const strikeThreshold = Math.min(0.035, 0.35 / Math.max(1, superPulses));
           const isStrike = isAudioActive && angularDist < strikeThreshold;
 
-          const onsetSceneTurns = superCycleStartTurn + dotAngleFrac * superD;
-          const onsetGain = isHighFreq
-            ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
-            : evaluateOnsetGain(scene.filter, ctxPartial, onsetSceneTurns);
-
+          const onsetSceneTurns = t_k;
+          const onsetGain = evaluateOnsetGain(scene.filter, ctxPartial, onsetSceneTurns);
           const isGatedOut = onsetGain < 0.05;
 
           ctx.save();
@@ -232,7 +245,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
             ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
             ctx.stroke();
 
-            if (dot === 0) {
+            if (k === kMin) {
               ctx.beginPath();
               ctx.moveTo(centerX, centerY);
               ctx.lineTo(px, py);
@@ -242,28 +255,29 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
             }
           } else {
             const effectiveAmp = p.amp * onsetGain;
-            const dotRadius = (2.8 + effectiveAmp * 3.2) * densityScale * (isStrike ? 1.65 : 1.0);
+            const shouldFlash = isStrike && !isHighFreq;
+            const dotRadius = (2.8 + effectiveAmp * 3.2) * densityScale * (shouldFlash ? 1.65 : 1.0);
 
-            ctx.fillStyle = isStrike ? '#ffffff' : neonCol;
+            ctx.fillStyle = shouldFlash ? '#ffffff' : neonCol;
             ctx.beginPath();
             ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
             ctx.fill();
 
-            if (dot === 0) {
+            if (k === kMin) {
               ctx.beginPath();
               ctx.moveTo(centerX, centerY);
               ctx.lineTo(px, py);
-              ctx.strokeStyle = isStrike ? 'rgba(255, 255, 255, 0.7)' : 'rgba(225, 54, 16, 0.22)';
-              ctx.lineWidth = isStrike ? 1.5 : 1;
+              ctx.strokeStyle = shouldFlash ? 'rgba(255, 255, 255, 0.7)' : 'rgba(225, 54, 16, 0.22)';
+              ctx.lineWidth = shouldFlash ? 1.5 : 1;
               ctx.stroke();
             }
 
-            if (isStrike || superPulses <= 16) {
+            if (shouldFlash || (!isHighFreq && superPulses <= 16)) {
               this.dynamicLights.push({
                 x: px,
                 y: py,
-                velocity: isStrike ? 1.0 : effectiveAmp * 0.55,
-                colorHex: isStrike ? '#ffffff' : neonCol,
+                velocity: shouldFlash ? 1.0 : effectiveAmp * 0.55,
+                colorHex: shouldFlash ? '#ffffff' : neonCol,
               });
             }
           }
@@ -280,10 +294,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
         const distToApex = Math.min(runnerTurns, 1.0 - runnerTurns);
         const isStrike = isAudioActive && distToApex < 0.045;
 
-        const onsetGain = isHighFreq
-          ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
-          : evaluateOnsetGain(scene.filter, ctxPartial, unwrappedRootTurns);
-
+        const onsetGain = evaluateOnsetGain(scene.filter, ctxPartial, unwrappedRootTurns);
         const isGatedOut = onsetGain < 0.05;
 
         ctx.save();
@@ -301,26 +312,29 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
           ctx.stroke();
         } else {
           const effectiveAmp = p.amp * onsetGain;
-          const dotRadius = (3.5 + effectiveAmp * 3.0) * (isStrike ? 1.6 : 1.0);
+          const shouldFlash = isStrike && !isHighFreq;
+          const dotRadius = (3.5 + effectiveAmp * 3.0) * (shouldFlash ? 1.6 : 1.0);
 
           ctx.beginPath();
           ctx.moveTo(centerX, centerY);
           ctx.lineTo(px, py);
-          ctx.strokeStyle = isStrike ? '#ffffff' : col;
-          ctx.lineWidth = isStrike ? 2.0 : 1.2;
+          ctx.strokeStyle = shouldFlash ? '#ffffff' : col;
+          ctx.lineWidth = shouldFlash ? 2.0 : 1.2;
           ctx.stroke();
 
-          ctx.fillStyle = isStrike ? '#ffffff' : neonCol;
+          ctx.fillStyle = shouldFlash ? '#ffffff' : neonCol;
           ctx.beginPath();
           ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
           ctx.fill();
 
-          this.dynamicLights.push({
-            x: px,
-            y: py,
-            velocity: isStrike ? 1.0 : effectiveAmp * 0.8,
-            colorHex: isStrike ? '#ffffff' : neonCol,
-          });
+          if (shouldFlash) {
+            this.dynamicLights.push({
+              x: px,
+              y: py,
+              velocity: 1.0,
+              colorHex: '#ffffff',
+            });
+          }
         }
         ctx.restore();
       }

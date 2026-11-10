@@ -27,7 +27,7 @@ describe('filter-eval', () => {
     });
 
     it('resolves tempo in BPM', () => {
-      // 60 BPM = 1 Hz. log2(1 / 25.8) ≈ -4.689
+      // 60 BPM = 1 Hz. log2(1 / 25.8) â‰ˆ -4.689
       const expected = Math.log2(1.0 / 25.8);
       expect(resolveEndpoint({ unit: 'bpm', value: 60 }, 25.8)).toBeCloseTo(expected, 4);
     });
@@ -117,19 +117,19 @@ describe('filter-eval', () => {
     it('handles period-reduced modular wrapping spans', () => {
       // Octave reduction P = 1.0 (2/1 ratio)
       const period = { kind: 'rational' as const, num: 2, den: 1 };
-      // Span from 1100¢ (11/12 oct) to 100¢ (1/12 oct), wrapping across the 0/1 octave boundary
+      // Span from 1100Â¢ (11/12 oct) to 100Â¢ (1/12 oct), wrapping across the 0/1 octave boundary
       const wrapSpan = {
         lo: { unit: 'cents' as const, value: 1100 },
         hi: { unit: 'cents' as const, value: 100 },
       };
 
-      // Inside wrapped interval (either near 1200¢ / 0¢)
+      // Inside wrapped interval (either near 1200Â¢ / 0Â¢)
       expect(evaluateSpanMatch(1150 / 1200, wrapSpan, 0.1, period)).toBe(1.0);
       expect(evaluateSpanMatch(50 / 1200, wrapSpan, 0.1, period)).toBe(1.0);
       // In multiple octaves, modular reduction applies
       expect(evaluateSpanMatch(2.0 + 50 / 1200, wrapSpan, 0.1, period)).toBe(1.0);
 
-      // Outside interval (e.g. 600¢ = tritone)
+      // Outside interval (e.g. 600Â¢ = tritone)
       expect(evaluateSpanMatch(600 / 1200, wrapSpan, 0.1, period)).toBe(0.0);
     });
   });
@@ -325,6 +325,61 @@ describe('filter-eval', () => {
       expect(out[1]).toBe(0.0);
       expect(out[2]).toBe(0.0);
       expect(out[3]).toBe(0.0);
+    });
+
+    it('bypasses disabled conditions (enabled: false) during evaluation and compilation', () => {
+      const filter: Filter = {
+        name: 'Disabled Condition Test',
+        enabled: true,
+        action: 'keep',
+        combine: 'all',
+        depth: 1.0,
+        conditions: [
+          {
+            kind: 'cycle',
+            id: 'c1',
+            enabled: false, // Disabled condition should be ignored
+            divisions: 4,
+            slotWeights: [1, 0, 0, 0],
+            rotation: 0,
+            tolerance: 0.25,
+            offGridMatch: 0.0,
+            supercycle: null,
+          },
+        ],
+        focus: null,
+        centreD: 0,
+        widthD: 4,
+        softnessD: 1,
+        mode: 'band-pass',
+        trackingMode: 'fixed',
+      };
+
+      const out = new Float32Array(4);
+      computeOnsetGates(
+        filter,
+        {
+          partialD: 0,
+          ratio: { kind: 'rational', num: 4, den: 1 },
+          phase: 0,
+          placementD: 0,
+          sceneD: 0,
+        },
+        0.0,
+        1.0,
+        out
+      );
+
+      // Since the only condition is disabled, all slots should pass with 1.0 gain
+      expect(out[0]).toBe(1.0);
+      expect(out[1]).toBe(1.0);
+      expect(out[2]).toBe(1.0);
+      expect(out[3]).toBe(1.0);
+
+      // Worklet compilation should report enabled: false when all conditions are disabled
+      const compiled = compileFilterForWorklet(filter);
+      expect(compiled.enabled).toBe(false);
+      expect(compiled.cycles.length).toBe(0);
     });
   });
 });

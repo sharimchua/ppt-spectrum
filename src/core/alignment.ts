@@ -1,7 +1,8 @@
-﻿import { Shape, Placement, Filter, BandFilter } from './types';
+import { Shape, Placement, Filter, BandFilter } from './types';
 import { gcd, lcm, reduceRational, rationalise, ratioToValue } from './rational';
 import { freqToD } from './axis';
-import { evaluatePlacedShape, getEffectivePartials } from './shape';
+import { evaluatePlacedShape, getEffectivePartials, calculateFilterGain } from './shape';
+import { evaluateDutyGain, evaluateOnsetGain, PartialContext } from './filter-eval';
 
 /**
  * Calculates the exact ghost fundamental (greatest common divisor frequency) of rational partials.
@@ -262,25 +263,32 @@ export interface VoiceCoincidenceTrack {
   semitoneIndex: number;
   baseRatio: number;
   gain: number;
+  filteredGain?: number;
   colorHex?: string;
   partials: {
     ratioValue: number;
     amp: number;
+    filteredAmp?: number;
     phase: number;
     hits: number[];
+    hitGains?: number[];
   }[];
 }
 
 export interface RealignmentAnalysis {
   coherenceScore: number;
+  baseCoherenceScore?: number;
   coincidenceStride: number;
   isAperiodic: boolean;
   activeVoicesCount: number;
   activePartialsCount: number;
   windowCycles: number;
   samplePoints: Float32Array;
+  baseSamplePoints?: Float32Array;
   peaks: { tau: number; value: number; isDownbeat: boolean }[];
+  basePeaks?: { tau: number; value: number; isDownbeat: boolean }[];
   tracks: VoiceCoincidenceTrack[];
+  hasActiveFilter?: boolean;
 }
 
 /**
@@ -291,7 +299,7 @@ export interface RealignmentAnalysis {
 export function calculateRealignmentAnalysis(
   shape: Shape,
   placement?: Placement,
-  _filter?: Filter | BandFilter,
+  filter?: Filter | BandFilter,
   windowCycles?: number,
   numSamples: number = 256
 ): RealignmentAnalysis {
@@ -306,8 +314,27 @@ export function calculateRealignmentAnalysis(
       ? Math.max(1, Math.min(12, coincidenceStride))
       : 3.5;
 
+  const isModernFilter = Boolean(filter && 'conditions' in filter);
+  const hasActiveFilter = Boolean(
+    filter &&
+      filter.enabled &&
+      (isModernFilter
+        ? (filter as Filter).conditions.some((c) => c.enabled !== false)
+        : true)
+  );
+
   const tracks: VoiceCoincidenceTrack[] = [];
   const placementGain = placement ? (placement.mute ? 0 : placement.gain) : 1.0;
+
+  // Flattened components for composite constructive wave evaluation
+  interface FlattenedComponent {
+    ratio: number;
+    amp: number;
+    phase: number;
+    ctx: PartialContext;
+  }
+  const allComponents: FlattenedComponent[] = [];
+  let totalBaseAmp = 0;
 
   if (shape.anchors && shape.anchors.length > 1) {
     // Multi-voice chord or multi-anchor polyrhythm
@@ -326,30 +353,77 @@ export function calculateRealignmentAnalysis(
         const effectivePhase = (((anchor.phaseOffset || 0) + (p.phase || 0)) % 1.0 + 1.0) % 1.0;
         const effectiveAmp = anchorGain * p.amp;
 
+        const pD = -Math.log2(effectiveRatio);
+        const ctxPartial: PartialContext = {
+          partialD: pD,
+          ratio: p.ratio,
+          phase: effectivePhase,
+          anchorRatio: anchor.ratio,
+          placementD: placement ? placement.d : 0,
+          sceneD: placement ? placement.d : 0,
+          tplHz: 440,
+          ratioToScene: 1.0,
+        };
+
         const hits: number[] = [];
+        const hitGains: number[] = [];
         const maxK = Math.ceil(effectiveRatio * effectiveWindowCycles + effectivePhase) + 1;
         for (let k = 0; k <= maxK; k++) {
           const tau = (k - effectivePhase) / effectiveRatio;
           if (tau >= -0.005 && tau <= effectiveWindowCycles + 0.005) {
-            hits.push(Math.max(0, tau));
+            const hitTau = Math.max(0, tau);
+            hits.push(hitTau);
+            let hGain = 1.0;
+            if (hasActiveFilter && filter) {
+              if (isModernFilter) {
+                hGain = evaluateOnsetGain(filter as Filter, ctxPartial, hitTau);
+              } else {
+                hGain = calculateFilterGain(ctxPartial.partialD, filter);
+              }
+            }
+            hitGains.push(hGain);
+          }
+        }
+
+        let filteredAmp = effectiveAmp;
+        if (hasActiveFilter && filter) {
+          if (isModernFilter) {
+            filteredAmp = effectiveAmp * evaluateDutyGain(filter as Filter, ctxPartial);
+          } else {
+            filteredAmp = effectiveAmp * calculateFilterGain(ctxPartial.partialD, filter);
           }
         }
 
         trackPartials.push({
           ratioValue: effectiveRatio,
           amp: effectiveAmp,
+          filteredAmp,
           phase: effectivePhase,
           hits,
+          hitGains,
         });
+
+        allComponents.push({
+          ratio: effectiveRatio,
+          amp: effectiveAmp,
+          phase: effectivePhase,
+          ctx: ctxPartial,
+        });
+        totalBaseAmp += effectiveAmp;
       }
 
       if (trackPartials.length > 0) {
+        const avgFilteredAmp = trackPartials.reduce((sum, pr) => sum + (pr.filteredAmp ?? pr.amp), 0);
+        const avgEffectiveAmp = trackPartials.reduce((sum, pr) => sum + pr.amp, 0);
+        const filteredGain = avgEffectiveAmp > 0.001 ? anchorGain * (avgFilteredAmp / avgEffectiveAmp) : anchorGain;
+
         tracks.push({
           id: anchor.id,
           name: anchor.name,
           semitoneIndex,
           baseRatio,
           gain: anchorGain,
+          filteredGain,
           partials: trackPartials,
         });
       }
@@ -366,12 +440,44 @@ export function calculateRealignmentAnalysis(
       const semitone = Math.round(12 * Math.log2(pRatio));
       const semitoneIndex = ((semitone % 12) + 12) % 12;
       const effectiveAmp = p.amp * placementGain;
+
+      const pD = -Math.log2(pRatio);
+      const ctxPartial: PartialContext = {
+        partialD: pD,
+        ratio: p.ratio,
+        phase: p.phase,
+        placementD: placement ? placement.d : 0,
+        sceneD: placement ? placement.d : 0,
+        tplHz: 440,
+        ratioToScene: 1.0,
+      };
+
       const hits: number[] = [];
+      const hitGains: number[] = [];
       const maxK = Math.ceil(pRatio * effectiveWindowCycles + p.phase) + 1;
       for (let k = 0; k <= maxK; k++) {
         const tau = (k - p.phase) / pRatio;
         if (tau >= -0.005 && tau <= effectiveWindowCycles + 0.005) {
-          hits.push(Math.max(0, tau));
+          const hitTau = Math.max(0, tau);
+          hits.push(hitTau);
+          let hGain = 1.0;
+          if (hasActiveFilter && filter) {
+            if (isModernFilter) {
+              hGain = evaluateOnsetGain(filter as Filter, ctxPartial, hitTau);
+            } else {
+              hGain = calculateFilterGain(ctxPartial.partialD, filter);
+            }
+          }
+          hitGains.push(hGain);
+        }
+      }
+
+      let filteredAmp = effectiveAmp;
+      if (hasActiveFilter && filter) {
+        if (isModernFilter) {
+          filteredAmp = effectiveAmp * evaluateDutyGain(filter as Filter, ctxPartial);
+        } else {
+          filteredAmp = effectiveAmp * calculateFilterGain(ctxPartial.partialD, filter);
         }
       }
 
@@ -381,125 +487,162 @@ export function calculateRealignmentAnalysis(
         semitoneIndex,
         baseRatio: pRatio,
         gain: effectiveAmp,
+        filteredGain: filteredAmp,
         partials: [
           {
             ratioValue: pRatio,
             amp: effectiveAmp,
+            filteredAmp,
             phase: p.phase,
             hits,
+            hitGains,
           },
         ],
       });
     }
-  }
 
-  // Flatten all partials for composite constructive wave evaluation
-  interface FlattenedComponent {
-    ratio: number;
-    amp: number;
-    phase: number;
-  }
-  const allComponents: FlattenedComponent[] = [];
-  let totalAmp = 0;
-
-  if (shape.anchors && shape.anchors.length > 1) {
-    for (const track of tracks) {
-      for (const p of track.partials) {
-        allComponents.push({
-          ratio: p.ratioValue,
-          amp: p.amp,
-          phase: p.phase,
-        });
-        totalAmp += p.amp;
-      }
-    }
-  } else {
-    const rawPartials = getEffectivePartials(shape).filter((p) => p.amp > 0.001);
+    // Include all active partials (beyond the 5 mode tracks) in the composite wave
     for (const p of rawPartials) {
       const pRatio = ratioToValue(p.ratio);
       const effectiveAmp = p.amp * placementGain;
+      const pD = -Math.log2(pRatio);
+      const ctxPartial: PartialContext = {
+        partialD: pD,
+        ratio: p.ratio,
+        phase: p.phase,
+        placementD: placement ? placement.d : 0,
+        sceneD: placement ? placement.d : 0,
+        tplHz: 440,
+        ratioToScene: 1.0,
+      };
       allComponents.push({
         ratio: pRatio,
         amp: effectiveAmp,
         phase: p.phase,
+        ctx: ctxPartial,
       });
-      totalAmp += effectiveAmp;
+      totalBaseAmp += effectiveAmp;
     }
   }
 
-  if (totalAmp <= 0) totalAmp = 1.0;
+  if (totalBaseAmp <= 0) totalBaseAmp = 1.0;
 
   // Sample constructive interference and pulse coincidence across tau in [0, effectiveWindowCycles]
   const samplePoints = new Float32Array(numSamples);
+  const baseSamplePoints = hasActiveFilter ? new Float32Array(numSamples) : undefined;
   const sigma = 0.038;
   const twoSigmaSq = 2 * sigma * sigma;
 
   for (let s = 0; s < numSamples; s++) {
     const tau = (s / (numSamples - 1)) * effectiveWindowCycles;
-    let cosSum = 0;
-    let pulseSum = 0;
+    let baseCosSum = 0;
+    let basePulseSum = 0;
+    let filtCosSum = 0;
+    let filtPulseSum = 0;
 
     for (let c = 0; c < allComponents.length; c++) {
       const comp = allComponents[c];
       const cyclePos = comp.ratio * tau + comp.phase;
-      cosSum += comp.amp * Math.cos(2 * Math.PI * cyclePos);
+      const cosVal = Math.cos(2 * Math.PI * cyclePos);
       const sinVal = Math.sin(Math.PI * cyclePos);
-      pulseSum += comp.amp * Math.exp(-(sinVal * sinVal) / twoSigmaSq);
+      const pulseVal = Math.exp(-(sinVal * sinVal) / twoSigmaSq);
+
+      baseCosSum += comp.amp * cosVal;
+      basePulseSum += comp.amp * pulseVal;
+
+      if (hasActiveFilter && filter) {
+        let compGain = 1.0;
+        if (isModernFilter) {
+          compGain = evaluateOnsetGain(filter as Filter, comp.ctx, tau);
+        } else {
+          compGain = calculateFilterGain(comp.ctx.partialD, filter);
+        }
+        const fAmp = comp.amp * compGain;
+        filtCosSum += fAmp * cosVal;
+        filtPulseSum += fAmp * pulseVal;
+      }
     }
 
-    const cosNorm = Math.abs(cosSum) / totalAmp;
-    const pulseNorm = pulseSum / totalAmp;
-    samplePoints[s] = Math.max(0, Math.min(1.0, 0.45 * cosNorm + 0.55 * pulseNorm));
+    const baseCosNorm = Math.abs(baseCosSum) / totalBaseAmp;
+    const basePulseNorm = basePulseSum / totalBaseAmp;
+    const baseVal = Math.max(0, Math.min(1.0, 0.45 * baseCosNorm + 0.55 * basePulseNorm));
+
+    if (hasActiveFilter && baseSamplePoints) {
+      baseSamplePoints[s] = baseVal;
+      const filtCosNorm = Math.abs(filtCosSum) / totalBaseAmp;
+      const filtPulseNorm = filtPulseSum / totalBaseAmp;
+      samplePoints[s] = Math.max(0, Math.min(1.0, 0.45 * filtCosNorm + 0.55 * filtPulseNorm));
+    } else {
+      samplePoints[s] = baseVal;
+    }
   }
 
-  // Detect convergence peaks
-  const peaks: { tau: number; value: number; isDownbeat: boolean }[] = [];
-  peaks.push({ tau: 0, value: samplePoints[0], isDownbeat: true });
+  function extractPeaksAndCoherence(samples: Float32Array): {
+    peaks: { tau: number; value: number; isDownbeat: boolean }[];
+    coherenceScore: number;
+  } {
+    const pks: { tau: number; value: number; isDownbeat: boolean }[] = [];
+    pks.push({ tau: 0, value: samples[0], isDownbeat: true });
 
-  let highestSecondaryVal = 0;
+    let highestSecondaryVal = 0;
 
-  for (let s = 1; s < numSamples - 1; s++) {
-    const prev = samplePoints[s - 1];
-    const curr = samplePoints[s];
-    const next = samplePoints[s + 1];
-    if (curr > prev && curr >= next && curr > 0.4) {
-      const tau = (s / (numSamples - 1)) * effectiveWindowCycles;
-      if (tau >= 0.25) {
-        const isDownbeat = Math.abs(tau - Math.round(tau)) < 0.08 && curr > 0.65;
-        peaks.push({ tau, value: curr, isDownbeat });
-        if (curr > highestSecondaryVal) {
-          highestSecondaryVal = curr;
+    for (let s = 1; s < numSamples - 1; s++) {
+      const prev = samples[s - 1];
+      const curr = samples[s];
+      const next = samples[s + 1];
+      if (curr > prev && curr >= next && curr > 0.4) {
+        const tau = (s / (numSamples - 1)) * effectiveWindowCycles;
+        if (tau >= 0.25) {
+          const isDownbeat = Math.abs(tau - Math.round(tau)) < 0.08 && curr > 0.65;
+          pks.push({ tau, value: curr, isDownbeat });
+          if (curr > highestSecondaryVal) {
+            highestSecondaryVal = curr;
+          }
         }
       }
     }
+
+    if (!isAperiodic && samples[numSamples - 1] > 0.6) {
+      pks.push({ tau: effectiveWindowCycles, value: samples[numSamples - 1], isDownbeat: true });
+    }
+
+    let score = 0;
+    if (isAperiodic) {
+      score = Math.max(0.05, Math.min(0.38, highestSecondaryVal * 0.55));
+    } else {
+      const harmonicCadenceFactor = 1.0 / (1.0 + 0.18 * Math.max(0, coincidenceStride - 1));
+      const peakAlignment = Math.min(1.0, Math.max(highestSecondaryVal, samples[0]));
+      score = Math.max(0.25, Math.min(1.0, 0.65 * harmonicCadenceFactor + 0.35 * peakAlignment));
+    }
+
+    return { peaks: pks, coherenceScore: score };
   }
 
-  // Right boundary downbeat marker for complete periodic supercycles
-  if (!isAperiodic && samplePoints[numSamples - 1] > 0.6) {
-    peaks.push({ tau: effectiveWindowCycles, value: samplePoints[numSamples - 1], isDownbeat: true });
-  }
+  const { peaks, coherenceScore } = extractPeaksAndCoherence(samplePoints);
 
-  let coherenceScore = 0;
-  if (isAperiodic) {
-    coherenceScore = Math.max(0.05, Math.min(0.38, highestSecondaryVal * 0.55));
-  } else {
-    // Exact harmonic cadence factor matching bipedal stride:
-    // D=1 -> 1.0, D=2 -> 0.85, D=3 -> 0.74, D=4 -> 0.65, D=10 -> 0.38
-    const harmonicCadenceFactor = 1.0 / (1.0 + 0.18 * Math.max(0, coincidenceStride - 1));
-    const peakAlignment = Math.min(1.0, Math.max(highestSecondaryVal, samplePoints[0]));
-    coherenceScore = Math.max(0.25, Math.min(1.0, 0.65 * harmonicCadenceFactor + 0.35 * peakAlignment));
+  let basePeaks: { tau: number; value: number; isDownbeat: boolean }[] | undefined;
+  let baseCoherenceScore: number | undefined;
+
+  if (hasActiveFilter && baseSamplePoints) {
+    const baseRes = extractPeaksAndCoherence(baseSamplePoints);
+    basePeaks = baseRes.peaks;
+    baseCoherenceScore = baseRes.coherenceScore;
   }
 
   return {
     coherenceScore,
+    baseCoherenceScore,
     coincidenceStride,
     isAperiodic,
     activeVoicesCount: tracks.length,
     activePartialsCount: allComponents.length,
     windowCycles: effectiveWindowCycles,
     samplePoints,
+    baseSamplePoints,
     peaks,
+    basePeaks,
     tracks,
+    hasActiveFilter,
   };
 }
 

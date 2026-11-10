@@ -18,7 +18,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
-  private evaluateCoincidence(analysis: RealignmentAnalysis, tau: number): number {
+  private evaluateCoincidence(analysis: RealignmentAnalysis, tau: number, useBase: boolean = false): number {
     let cosSum = 0;
     let pulseSum = 0;
     let tAmp = 0;
@@ -28,9 +28,12 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     for (const tr of analysis.tracks) {
       for (const pr of tr.partials) {
         const cp = pr.ratioValue * tau + pr.phase;
-        cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
+        const amp = useBase || !analysis.hasActiveFilter
+          ? pr.amp
+          : (pr.filteredAmp ?? pr.amp);
+        cosSum += amp * Math.cos(2 * Math.PI * cp);
         const sv = Math.sin(Math.PI * cp);
-        pulseSum += pr.amp * Math.exp(-(sv * sv) / twoSigmaSq);
+        pulseSum += amp * Math.exp(-(sv * sv) / twoSigmaSq);
         tAmp += pr.amp;
       }
     }
@@ -93,7 +96,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = '#38bdf8';
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.fillText(
-      isCompact ? 'REALIGNMENT & COINCIDENCE METER' : 'REALIGNMENT & COINCIDENCE METER • UNIFIED CONSONANCE',
+      isCompact ? 'REALIGNMENT & COINCIDENCE METER' : 'REALIGNMENT & COINCIDENCE METER â€¢ UNIFIED CONSONANCE',
       isCompact ? 14 : 20,
       isShort ? 16 : 20
     );
@@ -106,6 +109,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     // Metric 1: Realignment Coherence Score
     const coherencePercent = Math.round(analysis.coherenceScore * 100);
+    const baseCoherencePercent = analysis.baseCoherenceScore !== undefined ? Math.round(analysis.baseCoherenceScore * 100) : undefined;
     const coherenceColor =
       analysis.coherenceScore >= 0.7
         ? '#34d399'
@@ -129,11 +133,20 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'COHERENCE' : 'REALIGNMENT COHERENCE', padX + 6, boxY + 12);
+    const coherenceLabel = analysis.hasActiveFilter && baseCoherencePercent !== undefined
+      ? (isCompact ? `COHERENCE (BASE ${baseCoherencePercent}%)` : `REALIGNMENT COHERENCE • BASE ${baseCoherencePercent}%`)
+      : (isCompact ? 'COHERENCE' : 'REALIGNMENT COHERENCE');
+    ctx.fillText(coherenceLabel, padX + 6, boxY + 12);
 
     ctx.fillStyle = coherenceColor;
     ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
     ctx.fillText(`${coherencePercent}%`, padX + 6, boxY + (isShort ? 26 : 30));
+
+    if (analysis.hasActiveFilter && baseCoherencePercent !== undefined && !isCompact && boxW > 110) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.fillText(`(Base: ${baseCoherencePercent}%)`, padX + 44, boxY + (isShort ? 26 : 30));
+    }
 
     // Mini coherence status bar
     const barW = Math.max(20, boxW - 12);
@@ -176,7 +189,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 11px JetBrains Mono, monospace';
-    const archText = `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P`;
+    const archText = analysis.hasActiveFilter
+      ? `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P (Filt)`
+      : `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P`;
     ctx.fillText(archText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 26 : 30));
 
     // Layout partitioning: Tracks area vs Convergence wave
@@ -217,7 +232,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.fillStyle = baseColor;
         ctx.font = isCompact ? 'bold 7.5px JetBrains Mono, monospace' : 'bold 8px JetBrains Mono, monospace';
         const labelText = track.name.length > (isCompact ? 10 : 16)
-          ? `${track.name.slice(0, isCompact ? 9 : 15)}…`
+          ? `${track.name.slice(0, isCompact ? 9 : 15)}â€¦`
           : track.name;
         ctx.fillText(labelText, padX, rowCenterY + 3);
 
@@ -234,9 +249,67 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
           // Hits in pickup bar (tau in [0, 0.35])
           for (const p of track.partials) {
-            for (const hitTau of p.hits) {
+            for (let hIdx = 0; hIdx < p.hits.length; hIdx++) {
+              const hitTau = p.hits[hIdx];
               if (hitTau >= 0 && hitTau <= 0.35) {
                 const hx = plotLeft + (hitTau / 0.35) * pickupW;
+                const hitGain = p.hitGains ? (p.hitGains[hIdx] ?? 1.0) : 1.0;
+                const isMuted = hitGain < 0.05;
+
+                if (isMuted) {
+                  ctx.save();
+                  ctx.globalAlpha = 0.25;
+                  ctx.strokeStyle = color;
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(hx, rowCenterY - 3);
+                  ctx.lineTo(hx, rowCenterY + 3);
+                  ctx.stroke();
+
+                  ctx.beginPath();
+                  ctx.arc(hx, rowCenterY, 1.4, 0, Math.PI * 2);
+                  ctx.stroke();
+                  ctx.restore();
+                } else {
+                  ctx.strokeStyle = color;
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.moveTo(hx, rowCenterY - 4);
+                  ctx.lineTo(hx, rowCenterY + 4);
+                  ctx.stroke();
+
+                  ctx.fillStyle = '#ffffff';
+                  ctx.beginPath();
+                  ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+              }
+            }
+
+            // Hits in ongoing window (tau in [ongoingStartTurn, ongoingStartTurn + ongoingSpan])
+            const minK = Math.ceil(p.ratioValue * ongoingStartTurn + p.phase);
+            const maxK = Math.floor(p.ratioValue * (ongoingStartTurn + ongoingSpan) + p.phase);
+            const isPartialMuted = p.filteredAmp !== undefined && p.filteredAmp <= 0.001;
+
+            for (let k = minK; k <= maxK; k++) {
+              const hitTau = (k - p.phase) / p.ratioValue;
+              const hx = ongoingLeft + ((hitTau - ongoingStartTurn) / ongoingSpan) * ongoingW;
+
+              if (isPartialMuted) {
+                ctx.save();
+                ctx.globalAlpha = 0.25;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(hx, rowCenterY - 3);
+                ctx.lineTo(hx, rowCenterY + 3);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(hx, rowCenterY, 1.4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+              } else {
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 1.2;
                 ctx.beginPath();
@@ -250,25 +323,6 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
                 ctx.fill();
               }
             }
-
-            // Hits in ongoing window (tau in [ongoingStartTurn, ongoingStartTurn + ongoingSpan])
-            const minK = Math.ceil(p.ratioValue * ongoingStartTurn + p.phase);
-            const maxK = Math.floor(p.ratioValue * (ongoingStartTurn + ongoingSpan) + p.phase);
-            for (let k = minK; k <= maxK; k++) {
-              const hitTau = (k - p.phase) / p.ratioValue;
-              const hx = ongoingLeft + ((hitTau - ongoingStartTurn) / ongoingSpan) * ongoingW;
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 1.2;
-              ctx.beginPath();
-              ctx.moveTo(hx, rowCenterY - 4);
-              ctx.lineTo(hx, rowCenterY + 4);
-              ctx.stroke();
-
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
-              ctx.fill();
-            }
           }
         } else {
           // Periodic: Single timeline wire across supercycle window
@@ -280,21 +334,40 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
           ctx.stroke();
 
           for (const p of track.partials) {
-            for (const hitTau of p.hits) {
+            for (let hIdx = 0; hIdx < p.hits.length; hIdx++) {
+              const hitTau = p.hits[hIdx];
               if (hitTau < 0 || hitTau > windowCycles) continue;
               const hx = plotLeft + (hitTau / windowCycles) * plotW;
+              const hitGain = p.hitGains ? (p.hitGains[hIdx] ?? 1.0) : 1.0;
+              const isMuted = hitGain < 0.05;
 
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 1.2;
-              ctx.beginPath();
-              ctx.moveTo(hx, rowCenterY - 4);
-              ctx.lineTo(hx, rowCenterY + 4);
-              ctx.stroke();
+              if (isMuted) {
+                ctx.save();
+                ctx.globalAlpha = 0.25;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(hx, rowCenterY - 3);
+                ctx.lineTo(hx, rowCenterY + 3);
+                ctx.stroke();
 
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
-              ctx.fill();
+                ctx.beginPath();
+                ctx.arc(hx, rowCenterY, 1.4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+              } else {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(hx, rowCenterY - 4);
+                ctx.lineTo(hx, rowCenterY + 4);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+              }
             }
           }
         }
@@ -303,11 +376,11 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     // 3. Composite Realignment Convergence Wave
     if (analysis.isAperiodic) {
-      // ─────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // APERIODIC / INHARMONIC DUAL WINDOW:
       // Left: Compact Initial Onset / Pickup Bar (showing pristine strike at tau = 0)
       // Right: Ongoing Inharmonic Horizon (block-advancing wave showing non-realignment)
-      // ─────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -329,8 +402,8 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 7px JetBrains Mono, monospace';
-      ctx.fillText('ONSET 𝄀𝄀', plotLeft + pickupW - (isCompact ? 28 : 36), waveTop + 8);
-      ctx.fillText('τ=0 (Strike)', plotLeft, waveBottom + 10);
+      ctx.fillText('ONSET ð„€ð„€', plotLeft + pickupW - (isCompact ? 28 : 36), waveTop + 8);
+      ctx.fillText('Ï„=0 (Strike)', plotLeft, waveBottom + 10);
 
       // Render pickup curve from tau = 0 to tau = 0.35
       const pickupSamples = 24;
@@ -424,6 +497,25 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = ongoingGrad;
       ctx.fill();
 
+      // Optional: Unfiltered Base Waveform Overlay in aperiodic ongoing horizon
+      if (analysis.hasActiveFilter) {
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let i = 0; i <= ongoingSamples; i++) {
+          const tau = ongoingStartTurn + (i / ongoingSamples) * ongoingSpan;
+          const x = ongoingLeft + (i / ongoingSamples) * ongoingW;
+          const val = this.evaluateCoincidence(analysis, tau, true);
+          const y = waveBottom - val * waveH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // Ongoing wave stroke
       ctx.strokeStyle = '#fb7185';
       ctx.lineWidth = 1.8;
@@ -443,8 +535,8 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.font = '7.5px JetBrains Mono, monospace';
       ctx.fillText(
         isAudioActive
-          ? `Ongoing Horizon: τ=${ongoingStartTurn.toFixed(0)} to ${(ongoingStartTurn + ongoingSpan).toFixed(0)}`
-          : `Ongoing Horizon: τ=0 to ${ongoingSpan.toFixed(0)}`,
+          ? `Ongoing Horizon: Ï„=${ongoingStartTurn.toFixed(0)} to ${(ongoingStartTurn + ongoingSpan).toFixed(0)}`
+          : `Ongoing Horizon: Ï„=0 to ${ongoingSpan.toFixed(0)}`,
         ongoingLeft,
         waveBottom + 10
       );
@@ -466,10 +558,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.fill();
       }
     } else {
-      // ─────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // PERIODIC / HARMONIC HARMONY WINDOW:
       // Charts the full cycle window synchronized with the supercycle
-      // ─────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -490,16 +582,55 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.fillStyle = c === 0 || c === windowCycles ? '#fbbf24' : '#64748b';
         ctx.font = '7.5px JetBrains Mono, monospace';
         const cycleLabel = c === 0
-          ? 'τ=0 (Downbeat)'
+          ? 'Ï„=0 (Downbeat)'
           : c === windowCycles
-          ? `τ=${c} (Realign)`
-          : `τ=${c}`;
+          ? `Ï„=${c} (Realign)`
+          : `Ï„=${c}`;
         ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : (c === windowCycles ? 32 : 12)), waveBottom + (isShort ? 10 : 12));
       }
       ctx.restore();
 
       const samples = analysis.samplePoints;
       const numS = samples.length;
+
+      // Optional: Unfiltered Base Waveform Overlay (when active filter shapes the coincidence)
+      if (analysis.hasActiveFilter && analysis.baseSamplePoints && analysis.baseSamplePoints.length > 1) {
+        const baseSamples = analysis.baseSamplePoints;
+        const numBase = baseSamples.length;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(plotLeft, waveBottom);
+        for (let s = 0; s < numBase; s++) {
+          const sx = plotLeft + (s / (numBase - 1)) * plotW;
+          const sy = waveBottom - baseSamples[s] * waveH;
+          ctx.lineTo(sx, sy);
+        }
+        ctx.lineTo(plotRight, waveBottom);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+        ctx.fill();
+
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let s = 0; s < numBase; s++) {
+          const sx = plotLeft + (s / (numBase - 1)) * plotW;
+          const sy = waveBottom - baseSamples[s] * waveH;
+          if (s === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Legend
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+        ctx.font = '7px JetBrains Mono, monospace';
+        ctx.fillText('╌╌ Base Shape', plotRight - (isCompact ? 95 : 125), waveTop + 8);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('— Filtered Wave', plotRight - (isCompact ? 45 : 55), waveTop + 8);
+      }
 
       if (numS > 1) {
         ctx.beginPath();
@@ -585,7 +716,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = coherenceColor;
     ctx.font = 'bold 7.5px JetBrains Mono, monospace';
     const domainLabel = isPitchSpace ? 'PITCH SPACE' : 'RHYTHM SPACE';
-    ctx.fillText(`${domainLabel} • ${coherenceStatus}`, padX, height - 6);
+    ctx.fillText(`${domainLabel} â€¢ ${coherenceStatus}`, padX, height - 6);
 
     ctx.restore();
   }
