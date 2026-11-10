@@ -1,6 +1,14 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
-import { calculatePlompLevelt, calculateTenneyHeight, calculateGhostFundamental, calculateCoincidenceCycle } from '../core/alignment';
+import {
+  calculatePlompLevelt,
+  calculateTenneyHeight,
+  calculateGhostFundamental,
+  calculateCoincidenceCycle,
+  calculateSetharesCurve,
+  calculateSupercycleTimeline,
+  CANONICAL_INTERVAL_MARKERS,
+} from '../core/alignment';
 import { rationalise } from '../core/rational';
 import { dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -18,7 +26,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx: CanvasRenderingContext2D,
     width: number,
     height: number,
-    scene: Scene
+    scene: Scene,
+    _transportTime: number = 0,
+    audioPhase: number = 0,
+    isAudioActive: boolean = false
   ): void {
     this.dynamicLights = [];
 
@@ -121,70 +132,182 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       : `${(coincidence.superCycleDurationSec * 1000).toFixed(1)}ms (${coincidence.rootTurnsToAlign}x)`;
     ctx.fillText(samMetricText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 31 : 36));
 
-    // 2. Plomp-Levelt Roughness Curve across interval ratios 1.0 to 2.0
-    const curveTop = boxY + boxH + (isShort ? 16 : 24);
-    const curveBottom = height - (isShort ? 22 : 30);
-    const curveH = Math.max(30, curveBottom - curveTop);
-    const plotLeft = isCompact ? 24 : 40;
-    const plotRight = width - (isCompact ? 16 : 30);
-    const plotW = plotRight - plotLeft;
+    const isPitchSpace = f0 >= 20;
 
-    // Axes
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.beginPath();
-    ctx.moveTo(plotLeft, curveTop);
-    ctx.lineTo(plotLeft, curveBottom);
-    ctx.lineTo(plotRight, curveBottom);
-    ctx.stroke();
+    if (isPitchSpace) {
+      // 2. Pitch Space: Sethares Sensory Dissonance & Consonance Landscape across interval ratios 1.0 to 2.0
+      const curveTop = boxY + boxH + (isShort ? 16 : 24);
+      const curveBottom = height - (isShort ? 22 : 30);
+      const curveH = Math.max(30, curveBottom - curveTop);
+      const plotLeft = isCompact ? 24 : 40;
+      const plotRight = width - (isCompact ? 16 : 30);
+      const plotW = plotRight - plotLeft;
 
-    ctx.fillStyle = '#64748b';
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText('INTERVAL RATIO (1/1 to 2/1)', plotLeft, curveBottom + 16);
-    ctx.fillText('DISSONANCE', 10, curveTop - 8);
+      // Axes
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, curveTop);
+      ctx.lineTo(plotLeft, curveBottom);
+      ctx.lineTo(plotRight, curveBottom);
+      ctx.stroke();
 
-    // Compute and draw theoretical Plomp-Levelt curve
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
+      ctx.fillStyle = '#64748b';
+      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.fillText(isCompact ? 'INTERVAL (1/1 to 2/1)' : 'INTERVAL RATIO (1/1 to 2/1) • CONSONANCE VALLEYS', plotLeft, curveBottom + 16);
+      ctx.fillText('DISSONANCE', 10, curveTop - 8);
 
-    const testFundamental = Math.max(20, Math.min(440, f0));
-    let maxRoughInPlot = 0.001;
-    const points: { x: number; rough: number }[] = [];
+      // Consonant interval guidelines
+      ctx.save();
+      ctx.setLineDash([2, 4]);
+      for (const m of CANONICAL_INTERVAL_MARKERS) {
+        const gx = plotLeft + (m.ratio - 1.0) * plotW;
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(gx, curveTop);
+        ctx.lineTo(gx, curveBottom);
+        ctx.stroke();
 
-    for (let i = 0; i <= plotW; i += 3) {
-      const ratio = 1.0 + (i / plotW); // 1.0 to 2.0
-      let rSum = 0;
-      for (const p of activePartials) {
-        const fInterv = testFundamental * ratio * p.ratioValue;
-        rSum += calculatePlompLevelt(p.freqHz, p.filteredAmp, fInterv, 0.8);
+        ctx.fillStyle = '#0284c7';
+        ctx.font = '7.5px JetBrains Mono, monospace';
+        ctx.fillText(m.label, gx - 6, curveBottom + 8);
       }
-      if (rSum > maxRoughInPlot) maxRoughInPlot = rSum;
-      points.push({ x: plotLeft + i, rough: rSum });
+      ctx.restore();
+
+      // Compute and draw Sethares curve
+      const sethares = calculateSetharesCurve(activePartials, f0, Math.max(32, Math.floor(plotW / 3)));
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+
+      for (let i = 0; i < sethares.points.length; i++) {
+        const pt = sethares.points[i];
+        const px = plotLeft + (pt.ratio - 1.0) * plotW;
+        const normY = curveBottom - (pt.roughness / sethares.maxRoughness) * (curveH * 0.85);
+        if (i === 0) ctx.moveTo(px, normY);
+        else ctx.lineTo(px, normY);
+      }
+      ctx.stroke();
+
+      // Determine active shape's primary overtone interval ratio
+      const primaryOvertone = activePartials.find((p) => p.ratioValue > 1.02)?.ratioValue ?? 1.0;
+      const clampedRatio = Math.min(2.0, Math.max(1.0, primaryOvertone));
+      const markerX = plotLeft + (clampedRatio - 1.0) * plotW;
+
+      let markerRoughness = internalRoughness;
+      if (sethares.points.length > 0) {
+        const closestPt = sethares.points.reduce((prev, curr) =>
+          Math.abs(curr.ratio - clampedRatio) < Math.abs(prev.ratio - clampedRatio) ? curr : prev
+        );
+        markerRoughness = closestPt.roughness;
+      }
+      const markerY = curveBottom - Math.min(1.0, markerRoughness / sethares.maxRoughness) * (curveH * 0.85);
+
+      ctx.fillStyle = '#E13610';
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Marker badge text
+      ctx.fillStyle = '#f87171';
+      ctx.font = 'bold 8px JetBrains Mono, monospace';
+      ctx.fillText(`${clampedRatio.toFixed(2)}x`, markerX - 8, markerY - 8);
+
+      this.dynamicLights.push({
+        x: markerX,
+        y: markerY,
+        velocity: 0.9,
+        colorHex: '#FF4D4D',
+      });
+    } else {
+      // 2. Rhythm Space: Supercycle Coincidence & Polyrhythmic Timeline
+      const timeTop = boxY + boxH + (isShort ? 14 : 20);
+      const timeBottom = height - (isShort ? 16 : 22);
+      const timeH = Math.max(40, timeBottom - timeTop);
+      const plotLeft = isCompact ? 24 : 40;
+      const plotRight = width - (isCompact ? 16 : 30);
+      const plotW = plotRight - plotLeft;
+
+      const turns = coincidence.isAperiodic ? 4 : coincidence.rootTurnsToAlign;
+      const timelines = calculateSupercycleTimeline(shape, turns);
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.fillText(
+        isCompact
+          ? `SUPERCYCLE (${turns}T • Sam Coincidence)`
+          : `SUPERCYCLE COINCIDENCE TIMELINE (${turns} ROOT TURNS • SAM ALIGNMENT)`,
+        plotLeft,
+        timeTop - 6
+      );
+
+      // Render each voice lane
+      const laneH = Math.min(28, timeH / Math.max(1, timelines.length));
+      for (let l = 0; l < timelines.length; l++) {
+        const line = timelines[l];
+        const ly = timeTop + l * laneH + laneH * 0.5;
+
+        // Lane baseline
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(plotLeft, ly);
+        ctx.lineTo(plotRight, ly);
+        ctx.stroke();
+
+        // Voice label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '7.5px JetBrains Mono, monospace';
+        ctx.fillText(line.label, plotLeft, ly - 4);
+
+        // Render pulse events
+        for (const ev of line.events) {
+          const ex = plotLeft + ev * plotW;
+          const isSam = ev < 0.01 || ev > 0.99;
+
+          ctx.fillStyle = isSam ? '#fbbf24' : '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(ex, ly, isSam ? 4 : 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (isSam) {
+            this.dynamicLights.push({
+              x: ex,
+              y: ly,
+              velocity: 0.8,
+              colorHex: '#FBBF24',
+            });
+          }
+        }
+      }
+
+      // Sam Downbeat Boundary Lines (0 and 1.0)
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, timeTop);
+      ctx.lineTo(plotLeft, timeBottom);
+      ctx.moveTo(plotRight, timeTop);
+      ctx.lineTo(plotRight, timeBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '7.5px JetBrains Mono, monospace';
+      ctx.fillText('SAM (APEX)', plotLeft + 2, timeBottom + 10);
+      ctx.fillText('SAM', plotRight - 18, timeBottom + 10);
+
+      // Supercycle playhead
+      if (isAudioActive) {
+        const superPhase = ((audioPhase / turns) % 1.0 + 1.0) % 1.0;
+        const playheadX = plotLeft + superPhase * plotW;
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(playheadX, timeTop - 4);
+        ctx.lineTo(playheadX, timeBottom + 4);
+        ctx.stroke();
+      }
     }
-
-    for (let i = 0; i < points.length; i++) {
-      const pt = points[i];
-      const normY = curveBottom - (pt.rough / maxRoughInPlot) * (curveH * 0.85);
-      if (i === 0) ctx.moveTo(pt.x, normY);
-      else ctx.lineTo(pt.x, normY);
-    }
-    ctx.stroke();
-
-    // Mark current shape's internal roughness point
-    const markerY = curveBottom - Math.min(1.0, internalRoughness / maxRoughInPlot) * (curveH * 0.85);
-    const markerX = plotLeft + 30;
-
-    ctx.fillStyle = '#E13610';
-    ctx.beginPath();
-    ctx.arc(markerX, markerY, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    this.dynamicLights.push({
-      x: markerX,
-      y: markerY,
-      velocity: 0.9,
-      colorHex: '#FF4D4D',
-    });
 
     ctx.restore();
   }

@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit, ratioToValue } from '../rational';
-import { calculateGhostFundamental, calculateCoincidenceCycle, calculatePlompLevelt } from '../alignment';
+import {
+  calculateGhostFundamental,
+  calculateCoincidenceCycle,
+  calculatePlompLevelt,
+  calculateSetharesCurve,
+  calculateSupercycleTimeline,
+  CANONICAL_INTERVAL_MARKERS,
+} from '../alignment';
 import { calculateFilterGain, evaluatePartialAdsr } from '../shape';
 import { PRESET_SHAPES, createPianoPartials } from '../presets';
 import { TPL_FREQUENCY_HZ } from '../ppt-constants';
@@ -109,6 +116,33 @@ describe('Alignment & Ghost Fundamental', () => {
     // Dissonance peaking near critical bandwidth fraction
     const roughnessCents50 = calculatePlompLevelt(440, 1.0, 452, 1.0);
     expect(roughnessCents50).toBeGreaterThan(0);
+  });
+
+  it('calculates Sethares dissonance landscape with consonance dips for harmonic timbres', () => {
+    const activePartials = [
+      { freqHz: 220, filteredAmp: 1.0, ratioValue: 1.0 },
+      { freqHz: 330, filteredAmp: 0.8, ratioValue: 1.5 },
+    ];
+    const sethares = calculateSetharesCurve(activePartials, 220, 64);
+    expect(sethares.points.length).toBe(65);
+    expect(sethares.maxRoughness).toBeGreaterThan(0);
+    // Unison probe (1.0) should have lowest or near-zero roughness
+    const ptUnison = sethares.points[0];
+    expect(ptUnison.ratio).toBe(1.0);
+    expect(CANONICAL_INTERVAL_MARKERS.length).toBe(7);
+  });
+
+  it('calculates Supercycle timeline events across polyrhythmic root turns', () => {
+    const hemiola = PRESET_SHAPES.find((s) => s.id === 'hemiola-3-2')!;
+    const timelines = calculateSupercycleTimeline(hemiola, 2);
+    expect(timelines).toHaveLength(2);
+    // Root partial (1/1) completes 2 events in 2 turns
+    expect(timelines[0].events).toHaveLength(2);
+    // Upper partial (3/2) completes 3 events in 2 turns
+    expect(timelines[1].events).toHaveLength(3);
+    // Both voices coincide at Sam (0.0)
+    expect(timelines[0].events[0]).toBe(0);
+    expect(timelines[1].events[0]).toBe(0);
   });
 });
 

@@ -199,3 +199,90 @@ export function calculatePairwiseRoughness(
 
   return totalRoughness;
 }
+
+export interface ConsonantIntervalMarker {
+  ratio: number;
+  label: string;
+  name: string;
+}
+
+export const CANONICAL_INTERVAL_MARKERS: ConsonantIntervalMarker[] = [
+  { ratio: 1.0, label: '1/1', name: 'Unison' },
+  { ratio: 1.2, label: '6/5', name: 'Minor 3rd' },
+  { ratio: 1.25, label: '5/4', name: 'Major 3rd' },
+  { ratio: 4 / 3, label: '4/3', name: 'Fourth' },
+  { ratio: 1.5, label: '3/2', name: 'Fifth' },
+  { ratio: 5 / 3, label: '5/3', name: 'Major 6th' },
+  { ratio: 2.0, label: '2/1', name: 'Octave' },
+];
+
+/**
+ * Calculates William Sethares' Sensory Dissonance curve for a timbre swept across an octave of interval probes (1.0 to 2.0).
+ * Uses consistent base fundamental scaling to avoid register warps.
+ */
+export function calculateSetharesCurve(
+  activePartials: { freqHz: number; filteredAmp: number; ratioValue: number }[],
+  f0: number,
+  numPoints: number = 64
+): { points: { ratio: number; roughness: number }[]; maxRoughness: number } {
+  if (activePartials.length === 0 || f0 <= 0) {
+    return { points: [], maxRoughness: 0.001 };
+  }
+
+  const baseF0 = Math.max(20, f0);
+  const points: { ratio: number; roughness: number }[] = [];
+  let maxRoughness = 0.001;
+
+  for (let i = 0; i <= numPoints; i++) {
+    const ratio = 1.0 + i / numPoints; // 1.0 to 2.0
+    let rSum = 0;
+
+    for (const p of activePartials) {
+      if (p.filteredAmp <= 0.001) continue;
+      for (const probe of activePartials) {
+        if (probe.filteredAmp <= 0.001) continue;
+        const probeFreq = baseF0 * ratio * probe.ratioValue;
+        rSum += calculatePlompLevelt(p.freqHz, p.filteredAmp, probeFreq, probe.filteredAmp * 0.85);
+      }
+    }
+
+    if (rSum > maxRoughness) maxRoughness = rSum;
+    points.push({ ratio, roughness: rSum });
+  }
+
+  return { points, maxRoughness };
+}
+
+export interface SupercycleVoiceTimeline {
+  voiceId: string;
+  label: string;
+  ratioValue: number;
+  events: number[];
+}
+
+/**
+ * Calculates normalized event pulse hit positions [0, 1) across a super-cycle window.
+ */
+export function calculateSupercycleTimeline(
+  shape: Shape,
+  rootTurns: number
+): SupercycleVoiceTimeline[] {
+  const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
+  const turns = Math.max(1, rootTurns);
+
+  return activePartials.map((p) => {
+    const val = ratioToValue(p.ratio);
+    const totalEvents = Math.max(1, Math.round(val * turns));
+    const events: number[] = [];
+    for (let e = 0; e < totalEvents; e++) {
+      const frac = ((e / totalEvents) + (p.phase / turns)) % 1.0;
+      events.push((frac + 1.0) % 1.0);
+    }
+    return {
+      voiceId: p.voice || 'kick',
+      label: p.label || `${val.toFixed(2)}x`,
+      ratioValue: val,
+      events,
+    };
+  });
+}
