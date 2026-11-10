@@ -105,8 +105,8 @@ export function flattenAnchorsWithProvenance(anchors: VoiceAnchor[]): Provenance
 export function mergeCoincidentPartials(
   partials: ProvenancedPartial[],
   gains?: number[]
-): (PartialComponent & { filteredAmpMultiplier?: number })[] {
-  const raw: (PartialComponent & { filteredAmpMultiplier?: number })[] = [];
+): (PartialComponent & { filteredAmpMultiplier?: number; anchorRatio?: Ratio })[] {
+  const raw: (PartialComponent & { filteredAmpMultiplier?: number; anchorRatio?: Ratio })[] = [];
 
   for (let i = 0; i < partials.length; i++) {
     const p = partials[i];
@@ -241,6 +241,8 @@ export interface EvaluatedPartial {
   d: number;
   freqHz: number;
   ratioValue: number;
+  ratio?: Ratio;
+  anchorRatio?: Ratio;
   amp: number;
   filteredAmp: number;
   phase: number;
@@ -357,6 +359,8 @@ export function evaluatePlacedShape(
       d: partialD,
       freqHz,
       ratioValue: ratioVal,
+      ratio: p.ratio,
+      anchorRatio: p.anchorRatio,
       amp: effectiveAmp,
       filteredAmp: effectiveAmp * filterGain,
       phase: p.phase,

@@ -10,6 +10,7 @@ The `src/audio` domain owns all real-time Web Audio API synthesis, the master-ph
 - `src/audio/audio-engine.ts` — `AudioContext` lifecycle manager, user-gesture unlock (iOS Safari compatibility), real-time window blur auto-muting, message port communication with the worklet, small-speaker assist filter graphs, and `buildAudioPayloadShapes` (scene → worklet payload).
 - `src/audio/pitch-capture.ts` — Microphone pitch capture via the McLeod Pitch Method (MPM) for the capture modal.
 - `src/audio/__tests__/audio.test.ts` — Node-environment tests: substring assertions over the worklet source (registration, master-phase integration, crossing thresholds, ADSR) and payload construction via `buildAudioPayloadShapes` / `AudioEngine`. No real `AudioContext` is available.
+- `src/audio/__tests__/worklet-filter-parity.test.ts` — Parity test suite verifying identical onset gating, supercycle evaluation, and fuzzy logic between core evaluation and the worklet implementation.
 
 ## Worklet Source Caveat
 

@@ -2,15 +2,19 @@ export const SPECTRUM_WORKLET_CODE = `
 class SpectrumSynthProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.shapes = []; // Array of { shapeId, placementD, targetD, gain, mute, partials: [{ ratio, amp, phaseOffset, voice }] }
+    this.shapes = []; // Array of { shapeId, placementD, targetD, gain, mute, partials: [{ ratio, amp, phaseOffset, voice, staticMatch }] }
     this.masterPhases = new Map(); // shapeId -> phase in [0, 1)
     this.smoothedD = new Map(); // shapeId -> smoothed coordinate
     this.audioMode = 'poetic'; // 'poetic' | 'literal'
     this.masterGain = 0.75;
     this.tplHz = 25.8;
 
+    // Filter state & pre-allocated gate buffers
+    this.filter = null;
+    this.filterBuffers = new Map(); // shapeId -> { gateTarget: Float32Array, gateSmooth: Float32Array, lastOnsetIdx: Float64Array }
+
     // Poetic voice envelopes & triggers
-    this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz }
+    this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz, gate }
     this.noteStates = new Map(); // shapeId -> { noteAge, lastD, isKeyDown, isAuditioning, isReleased, releaseAge, releaseStartAmp, rhythmTurnsElapsed }
     this.isPlaying = false; // Transport playback state
 
@@ -26,6 +30,22 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         this.masterGain = payload.masterGain !== undefined ? payload.masterGain : 0.75;
         this.tplHz = payload.tplHz || 25.8;
         this.isPlaying = !!payload.isPlaying;
+        this.filter = payload.filter || null;
+
+        // Allocate gate buffers for each shape's partials only when count changes
+        for (let sIdx = 0; sIdx < this.shapes.length; sIdx++) {
+          const sh = this.shapes[sIdx];
+          const pCount = sh.partials ? sh.partials.length : 0;
+          let buf = this.filterBuffers.get(sh.shapeId);
+          if (!buf || buf.gateTarget.length !== pCount) {
+            buf = {
+              gateTarget: new Float32Array(pCount).fill(1.0),
+              gateSmooth: new Float32Array(pCount).fill(1.0),
+              lastOnsetIdx: new Float64Array(pCount).fill(-1),
+            };
+            this.filterBuffers.set(sh.shapeId, buf);
+          }
+        }
 
         // If transport stopped, silence all active notes and auditions immediately
         if (wasPlaying && !this.isPlaying) {
@@ -42,13 +62,14 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           }
         }
 
-        // Clean up stale noteStates / voiceStates for removed shapes
+        // Clean up stale noteStates / voiceStates / filterBuffers for removed shapes
         const activeIds = new Set(this.shapes.map((s) => s.shapeId));
         for (const id of this.noteStates.keys()) {
           if (!activeIds.has(id)) {
             this.noteStates.delete(id);
             this.smoothedD.delete(id);
             this.masterPhases.delete(id);
+            this.filterBuffers.delete(id);
           }
         }
       } else if (type === 'STOP_ALL') {
@@ -136,6 +157,75 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     };
   }
 
+  evalOnsetGain(staticMatch, sceneTurns) {
+    const f = this.filter;
+    if (!f || !f.enabled) return 1.0;
+    if (!f.hasCycle) {
+      const m = staticMatch !== undefined ? staticMatch : 1.0;
+      return f.action === 1 ? 1.0 - m * f.depth : 1.0 - (1.0 - m) * f.depth;
+    }
+
+    const matches = [];
+    if (staticMatch !== undefined) {
+      matches.push(staticMatch);
+    }
+
+    if (f.cycles && f.cycles.length > 0) {
+      for (let i = 0; i < f.cycles.length; i++) {
+        const cCond = f.cycles[i];
+        const D = Math.max(1, cCond.divisions || 1);
+
+        let c = Math.floor(sceneTurns);
+        const u = sceneTurns - c;
+        const rawSlot = Math.round(u * D);
+        let slotIndex = rawSlot;
+        if (slotIndex >= D) {
+          slotIndex = 0;
+          c += 1;
+        }
+
+        const off = Math.abs(u * D - rawSlot);
+        const tol = cCond.tolerance !== undefined ? cCond.tolerance : 0.25;
+        const isSlotOnGrid = off <= tol;
+        const rot = cCond.rotation || 0;
+        const rotatedSlot = ((slotIndex - rot) % D + D) % D;
+        const slotWeight = isSlotOnGrid
+          ? ((cCond.slotWeights && cCond.slotWeights[rotatedSlot] !== undefined) ? cCond.slotWeights[rotatedSlot] : 0.0)
+          : (cCond.offGridMatch !== undefined ? cCond.offGridMatch : 0.0);
+
+        let superMatch = 1.0;
+        if (cCond.superLength > 0 && cCond.superWeights && cCond.superWeights.length > 0) {
+          const L = cCond.superLength;
+          const superIdx = ((c % L) + L) % L;
+          superMatch = cCond.superWeights[superIdx] !== undefined ? cCond.superWeights[superIdx] : 1.0;
+        }
+
+        matches.push(Math.max(0.0, Math.min(1.0, slotWeight * superMatch)));
+      }
+    }
+
+    let combined = 1.0;
+    if (matches.length > 0) {
+      if (f.combine === 1) {
+        combined = 0;
+        for (let i = 0; i < matches.length; i++) {
+          if (matches[i] > combined) combined = matches[i];
+        }
+      } else {
+        combined = 1.0;
+        for (let i = 0; i < matches.length; i++) {
+          if (matches[i] < combined) combined = matches[i];
+        }
+      }
+    }
+
+    if (f.action === 1) {
+      return 1.0 - combined * f.depth;
+    } else {
+      return 1.0 - (1.0 - combined) * f.depth;
+    }
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     const channelLeft = output[0];
@@ -213,8 +303,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         // Keep masterPhase unwrapped so non-integer harmonic ratios (5/4, 3/2, 7/4, stretched piano)
         // never suffer a phase jump when the fundamental crosses integer cycle boundaries
         masterPhase = masterPhase + masterPhaseIncrement;
-        if (masterPhase > 1e7) {
-          masterPhase -= 1e7;
+        if (masterPhase > 9369360) {
+          masterPhase -= 9369360;
         }
         const cyclePhase = masterPhase % 1.0;
         const prevCyclePhase = prevPhase % 1.0;
@@ -248,6 +338,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
         let sampleValL = 0;
         let sampleValR = 0;
+        const fBuf = this.filterBuffers.get(shapeId);
 
         for (let pIdx = 0; pIdx < shape.partials.length; pIdx++) {
           const p = shape.partials[pIdx];
@@ -256,6 +347,29 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           const ratioVal = p.ratio;
           const partialFreq = f0 * ratioVal;
           const partialPhase = ((masterPhase * ratioVal + p.phaseOffset) % 1.0 + 1.0) % 1.0;
+
+          // Time-varying Filter Gate Evaluation:
+          let curGateTarget = 1.0;
+          let curGateSmooth = 1.0;
+
+          if (fBuf && this.filter && this.filter.enabled) {
+            if (this.filter.hasCycle) {
+              const n = Math.floor((masterPhase - p.phaseOffset) * ratioVal);
+              if (n !== fBuf.lastOnsetIdx[pIdx]) {
+                fBuf.lastOnsetIdx[pIdx] = n;
+                const onsetMaster = n / ratioVal + p.phaseOffset;
+                const sceneTurns = shape.isPrimary ? onsetMaster : onsetMaster * (shape.ratioToScene || 1.0);
+                fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.staticMatch, sceneTurns);
+              }
+              const a = 1.0 - Math.exp(-sampleDt / Math.max(0.0005, 0.25 / partialFreq));
+              fBuf.gateSmooth[pIdx] += (fBuf.gateTarget[pIdx] - fBuf.gateSmooth[pIdx]) * a;
+            } else {
+              fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.staticMatch, 0);
+              fBuf.gateSmooth[pIdx] = fBuf.gateTarget[pIdx];
+            }
+            curGateTarget = fBuf.gateTarget[pIdx];
+            curGateSmooth = fBuf.gateSmooth[pIdx];
+          }
 
           // Event phase aligned with visual CycleWheel & EventLanes:
           // Dots are placed at (dot / ratioVal + p.phaseOffset) % 1.0, so playhead crosses a dot
@@ -323,10 +437,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             }
           }
 
-          // 1. Tone Component (Pure sinusoid shaped by dynamic ADSR envelope)
+          // 1. Tone Component (Pure sinusoid shaped by dynamic ADSR envelope & smoothed gate)
           let toneSample = 0;
           if (toneWeight > 0.001) {
-            toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * toneWeight;
+            toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * toneWeight * curGateSmooth;
           }
 
           // 2. Event / Pulse Component
@@ -335,7 +449,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             if (this.audioMode === 'literal') {
               const pulseW = 0.08;
               if (eventPhase < pulseW) {
-                eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (eventPhase / pulseW))) * p.amp * eventWeight;
+                eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (eventPhase / pulseW))) * p.amp * eventWeight * curGateTarget;
               }
             } else {
               // Poetic Mode: voice-specific pitched percussion synthesis on eventPhase wrap
@@ -354,13 +468,16 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 else if (voiceId === 'hihat') { decaySec = 0.038; pitchHz = 3800; }
                 else if (voiceId === 'triangle') { decaySec = 0.11; pitchHz = 2400; }
                 else { decaySec = 0.035; pitchHz = 1100; }
-                vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId };
+                vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0 };
                 this.voiceStates.set(voiceKey, vState);
               }
 
               if (wrapped) {
-                vState.active = true;
-                vState.sampleIndex = 0;
+                if (curGateTarget > 0.001) {
+                  vState.active = true;
+                  vState.sampleIndex = 0;
+                  vState.gate = curGateTarget;
+                }
               }
 
               if (vState.active) {
@@ -382,7 +499,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 } else {
                   clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
                 }
-                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45;
+                const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
+                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult;
                 vState.sampleIndex++;
                 if (vState.sampleIndex >= vState.decaySamples) {
                   vState.active = false;

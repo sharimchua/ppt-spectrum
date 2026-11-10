@@ -5,6 +5,8 @@ import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import { shouldUseDutyGain } from './filter-render-utils';
+import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
 
 export class EventLanesLensRenderer implements RegisteredLensRenderer {
   public id = 'event-lanes';
@@ -38,7 +40,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     if (!shape) return;
 
     const partials = evaluatePlacedShape(shape, placement, scene.filter, placement.d, scene.anchors.tplFrequencyHz);
-    const activePartials = partials.filter((p) => p.filteredAmp > 0.001);
+    const activePartials = partials.filter((p) => p.amp > 0.001);
     if (activePartials.length === 0) return;
 
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
@@ -60,9 +62,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
 
     const isCompactSuperCycle = coincidence.isCompactSuperCycle;
     const windowTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 4;
-    const windowStartTurn = isCompactSuperCycle
-      ? 0
-      : Math.floor(Math.max(0, unwrappedRootTurns) / windowTurns) * windowTurns;
+    const windowStartTurn = Math.floor(Math.max(0, unwrappedRootTurns) / windowTurns) * windowTurns;
 
     const phaseProgress = isCompactSuperCycle
       ? (((unwrappedRootTurns % windowTurns) + windowTurns) % windowTurns) / windowTurns
@@ -131,21 +131,22 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     // Render individual partial lanes
     for (let i = 0; i < numLanes; i++) {
       const p = activePartials[i];
+      const isAttenuated = p.filteredAmp <= 0.001;
       const y = topMargin + i * laneHeight;
       const addr = resolveDuPeriodAddress(p.d);
       const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#38bdf8';
       const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
 
       // Lane track line
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = isAttenuated ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(leftX, y + laneHeight / 2);
       ctx.lineTo(rightX, y + laneHeight / 2);
       ctx.stroke();
 
-      // Lane descriptor
-      ctx.fillStyle = neonCol;
+      // Lane descriptor (dimmed if attenuated)
+      ctx.fillStyle = isAttenuated ? 'rgba(148, 163, 184, 0.4)' : neonCol;
       ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
       const phaseTag = !isCompact && p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
@@ -153,6 +154,18 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
         ? `${addr.syllable} ${p.ratioValue.toFixed(2)}x`
         : `${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`;
       ctx.fillText(laneText, leftX - 6, y + laneHeight / 2 + 3);
+
+      const ctxPartial: PartialContext = {
+        partialD: p.d,
+        sceneD: placement.d,
+        placementD: placement.d,
+        ratio: p.ratio,
+        phase: p.phase,
+        anchorRatio: p.anchorRatio,
+        tplHz: scene.anchors.tplFrequencyHz,
+        ratioToScene: 1.0,
+      };
+      const isHighFreq = shouldUseDutyGain(p.freqHz);
 
       if (isCompactSuperCycle) {
         // Exact integer events across the D-turn Super-Cycle
@@ -165,21 +178,39 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
           const tickDist = Math.abs(eventFrac - phaseProgress);
           const isHit = isAudioActive && (tickDist < hitTol || tickDist > 1.0 - hitTol);
 
-          if (isHit) compositeHits++;
+          const onsetSceneTurns = windowStartTurn + eventFrac * windowTurns;
+          const onsetGain = isHighFreq
+            ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
+            : evaluateOnsetGain(scene.filter, ctxPartial, onsetSceneTurns);
 
-          const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
-          ctx.fillStyle = isHit ? '#ffffff' : col;
-          ctx.beginPath();
-          ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
-          ctx.fill();
+          const isGatedOut = onsetGain < 0.05;
 
-          if (isHit) {
-            this.dynamicLights.push({
-              x: tickX,
-              y: y + laneHeight / 2,
-              velocity: 1.0,
-              colorHex: neonCol,
-            });
+          if (isGatedOut) {
+            // Attenuated tick drawn hollow at low alpha
+            const tickH = laneHeight * 0.45;
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(tickX - 1, y + (laneHeight - tickH) / 2, 2, tickH);
+            ctx.restore();
+          } else {
+            if (isHit) compositeHits++;
+
+            const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
+            ctx.fillStyle = isHit ? '#ffffff' : col;
+            ctx.beginPath();
+            ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
+            ctx.fill();
+
+            if (isHit) {
+              this.dynamicLights.push({
+                x: tickX,
+                y: y + laneHeight / 2,
+                velocity: 1.0,
+                colorHex: neonCol,
+              });
+            }
           }
         }
       } else {
@@ -198,21 +229,38 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
           const tickDist = Math.abs(eventFrac - phaseProgress);
           const isHit = isAudioActive && tickDist < 0.018;
 
-          if (isHit) compositeHits++;
+          const onsetGain = isHighFreq
+            ? (p.amp > 0.001 ? p.filteredAmp / p.amp : 0)
+            : evaluateOnsetGain(scene.filter, ctxPartial, eventTurn);
 
-          const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
-          ctx.fillStyle = isHit ? '#ffffff' : col;
-          ctx.beginPath();
-          ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
-          ctx.fill();
+          const isGatedOut = onsetGain < 0.05;
 
-          if (isHit) {
-            this.dynamicLights.push({
-              x: tickX,
-              y: y + laneHeight / 2,
-              velocity: 1.0,
-              colorHex: neonCol,
-            });
+          if (isGatedOut) {
+            // Attenuated tick drawn hollow at low alpha
+            const tickH = laneHeight * 0.45;
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(tickX - 1, y + (laneHeight - tickH) / 2, 2, tickH);
+            ctx.restore();
+          } else {
+            if (isHit) compositeHits++;
+
+            const tickH = (laneHeight * 0.45) * (isHit ? 1.4 : 1.0);
+            ctx.fillStyle = isHit ? '#ffffff' : col;
+            ctx.beginPath();
+            ctx.roundRect(tickX - (isHit ? 2 : 1), y + (laneHeight - tickH) / 2, isHit ? 4 : 2, tickH, 2);
+            ctx.fill();
+
+            if (isHit) {
+              this.dynamicLights.push({
+                x: tickX,
+                y: y + laneHeight / 2,
+                velocity: 1.0,
+                colorHex: neonCol,
+              });
+            }
           }
         }
       }
