@@ -182,14 +182,16 @@ export class RenderCoordinator {
     const now = performance.now();
     const elapsedMs = now - this.lastFrameTime;
 
-    // Detect mobile touch devices to cap frame rate at 60 FPS (preventing 120Hz ProMotion battery/thermal strain)
-    const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    // Detect handheld mobile touch devices vs desktop environments with precision pointers
+    const hasFinePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
+    const isMobile = !hasFinePointer && typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
     const minFrameInterval = isMobile ? 15.5 : 7.5; // ~60 FPS mobile, ~120 FPS desktop
 
-    // When audio is paused and no shockwaves are active, throttle to ~30 FPS to keep device cool
+    // Throttle idle frame rate to ~30 FPS only on mobile touch devices when audio is paused to keep battery cool;
+    // on desktop with GPU, maintain high refresh responsiveness
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
     const hasActiveShockwaves = this.cosmeticsEngine.getActiveShockwaves().length > 0;
-    const targetInterval = (!isAudioActive && !hasActiveShockwaves) ? 31.0 : minFrameInterval;
+    const targetInterval = (isMobile && !isAudioActive && !hasActiveShockwaves) ? 31.0 : minFrameInterval;
 
     if (elapsedMs < targetInterval) {
       this.animId = requestAnimationFrame(this.loop);

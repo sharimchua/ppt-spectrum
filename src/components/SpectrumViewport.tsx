@@ -61,7 +61,8 @@ export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
       if (!container) return;
 
       const rawDpr = window.devicePixelRatio || 1;
-      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const hasFinePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
+      const isMobile = !hasFinePointer && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
       // Cap WebGL post-processing DPR to 1.25 on mobile to eliminate GPU overheating while maintaining crisp glow
       const ppDpr = isMobile ? Math.min(rawDpr, 1.25) : Math.min(rawDpr, 1.5);
       const bgDpr = Math.min(rawDpr, 1.5);
