@@ -73,9 +73,18 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
   const prevRmsRef = useRef<number>(0);
 
   const stopAllMicCapture = () => {
-    if (micAnimRef.current) cancelAnimationFrame(micAnimRef.current);
-    if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-    if (audioContextRef.current) audioContextRef.current.close();
+    if (micAnimRef.current) {
+      cancelAnimationFrame(micAnimRef.current);
+      micAnimRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
     setIsListening(false);
     setIsRhythmMicListening(false);
   };
@@ -157,18 +166,37 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
     onClose();
   };
 
-  const startRhythmMicCapture = async () => {
+  const acquireAudioStream = async (): Promise<MediaStream> => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        throw new Error('Microphone access requires a secure context (HTTPS or localhost).');
+      }
+      throw new Error('Microphone input is not supported in this browser environment.');
+    }
+
     try {
-      stopAllMicCapture();
-      const stream = await navigator.mediaDevices.getUserMedia({
+      return await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
         },
       });
+    } catch {
+      // Fallback for browser audio drivers that reject custom raw constraints
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+  };
+
+  const startRhythmMicCapture = async () => {
+    try {
+      stopAllMicCapture();
+      const stream = await acquireAudioStream();
       streamRef.current = stream;
       const ctx = new AudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
       audioContextRef.current = ctx;
 
       const source = ctx.createMediaStreamSource(stream);
@@ -200,22 +228,20 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       micAnimRef.current = requestAnimationFrame(poll);
     } catch (e) {
       console.warn('[RhythmMicCapture] Failed to access microphone:', e);
-      alert('Could not access microphone. Ensure microphone permission is granted.');
+      const msg = e instanceof Error ? e.message : 'Could not access microphone.';
+      alert(`${msg} Please ensure microphone permission is granted in browser settings.`);
     }
   };
 
   const startMicCapture = async () => {
     try {
       stopAllMicCapture();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
+      const stream = await acquireAudioStream();
       streamRef.current = stream;
       const ctx = new AudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
       audioContextRef.current = ctx;
 
       const source = ctx.createMediaStreamSource(stream);
@@ -249,7 +275,8 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
       micAnimRef.current = requestAnimationFrame(poll);
     } catch (e) {
       console.warn('[MicCapture] Failed to access microphone:', e);
-      alert('Could not access microphone. Ensure microphone permission is granted.');
+      const msg = e instanceof Error ? e.message : 'Could not access microphone.';
+      alert(`${msg} Please ensure microphone permission is granted in browser settings.`);
     }
   };
 
