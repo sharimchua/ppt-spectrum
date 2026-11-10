@@ -39,10 +39,12 @@ export interface RadialMenuOverlayProps {
   onJumpBookmarkB: () => void;
   /** Custom spawn point (under thumb), or centered in viewport if omitted */
   anchorPos?: { x: number; y: number } | null;
+  /** Switch to full-canvas Filter Edit mode (closing radial menu) */
+  onEnterFilterEditMode?: (param?: FilterControlParam) => void;
 }
 
 type SubMenuDirection = 'none' | 'north' | 'east' | 'west';
-type FilterControlParam = 'centre' | 'width' | 'skirt';
+export type FilterControlParam = 'centre' | 'width' | 'skirt';
 
 export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   isOpen,
@@ -65,6 +67,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onJumpBookmarkA,
   onJumpBookmarkB,
   anchorPos,
+  onEnterFilterEditMode,
 }) => {
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuDirection>('none');
   const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
@@ -436,12 +439,18 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
               {/* Enter Filter Edit Mode */}
               <button
                 onClick={() => {
-                  setIsFilterEditMode(true);
                   if (onUpdateFilterParams && !filter?.enabled) {
                     onToggleFilter();
                   }
+                  if (onEnterFilterEditMode) {
+                    onEnterFilterEditMode('centre');
+                    onClose();
+                  } else {
+                    setIsFilterEditMode(true);
+                  }
                 }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-950/80 border border-sky-400 text-sky-200 text-xs font-mono font-bold shadow-[0_0_12px_rgba(56,189,248,0.4)] cursor-pointer"
+                title="Enter Fullscreen Cell Filter Edit Mode"
               >
                 <Sliders className="w-3.5 h-3.5" />
                 <span>Filter Edit ►</span>

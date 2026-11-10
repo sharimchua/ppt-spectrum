@@ -97,6 +97,9 @@ export class AudioEngine {
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', this.onFocus);
       window.addEventListener('blur', this.onBlur);
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
+      }
       (window as unknown as { __PPT_AUDIO_ENGINE__?: AudioEngine }).__PPT_AUDIO_ENGINE__ = this;
     }
     AudioEngine.instance = this;
@@ -104,10 +107,16 @@ export class AudioEngine {
 
   private onFocus = (): void => this.handleFocusChange(true);
   private onBlur = (): void => this.handleFocusChange(false);
+  private onVisibilityChange = (): void => {
+    if (typeof document !== 'undefined') {
+      this.handleFocusChange(!document.hidden);
+    }
+  };
 
   public async unlock(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
     try {
+      this.isMutedForFocus = false;
       if (!this.ctx) {
         const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         this.ctx = new AudioContextClass();
@@ -128,7 +137,8 @@ export class AudioEngine {
         const blob = new Blob([SPECTRUM_WORKLET_CODE], { type: 'application/javascript' });
         const url = URL.createObjectURL(blob);
         await this.ctx.audioWorklet.addModule(url);
-        URL.revokeObjectURL(url);
+        // Delay URL revocation to avoid iOS Safari/WebKit module loading race conditions
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
 
         this.workletNode = new AudioWorkletNode(this.ctx, 'spectrum-synth-processor', {
           outputChannelCount: [2],
@@ -166,6 +176,7 @@ export class AudioEngine {
   }
 
   public async play(): Promise<boolean> {
+    this.isMutedForFocus = false;
     const ok = await this.unlock();
     if (!ok) return false;
     this.isPlaying = true;
@@ -294,8 +305,15 @@ export class AudioEngine {
   }
 
   private handleFocusChange(focused: boolean): void {
-    if (!this.scene.cosmetics.focusModeEnabled) return;
-    this.isMutedForFocus = !focused;
+    if (!this.scene.cosmetics.focusModeEnabled) {
+      this.isMutedForFocus = false;
+      this.applyMasterGain();
+      this.syncSceneToWorklet();
+      return;
+    }
+    // Only mute when document is genuinely hidden in background
+    const isActuallyHidden = typeof document !== 'undefined' && document.hidden;
+    this.isMutedForFocus = !focused && isActuallyHidden;
     this.applyMasterGain();
     this.syncSceneToWorklet();
   }

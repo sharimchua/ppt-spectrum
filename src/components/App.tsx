@@ -29,7 +29,8 @@ import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
 import { MusicalBookmarksModal, loadSavedBookmarks, saveBookmarks, createBookmarkPointFromD, BookmarkSettings } from './MusicalBookmarksModal';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
-import { RadialMenuOverlay } from './RadialMenuOverlay';
+import { RadialMenuOverlay, FilterControlParam } from './RadialMenuOverlay';
+import { Check } from 'lucide-react';
 
 const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
 const STORAGE_KEY_CUSTOM_LAYOUT = 'ppt_spectrum_custom_layout_v1';
@@ -77,11 +78,21 @@ function loadInitialLayout(): LayoutDefinition {
     if (decoded) return decoded.layout;
   }
 
+  // Small portrait screens default to a stacked Duo Split layout for optimal lens visibility
+  const isMobilePortrait =
+    typeof window !== 'undefined' &&
+    window.innerWidth < 768 &&
+    window.innerHeight > window.innerWidth;
+
   // 2. Persisted last selected layout in localStorage
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY_LAYOUT);
       if (saved) {
+        // Upgrade mobile portrait from solo to Duo Split so users never get trapped on solo
+        if (isMobilePortrait && saved === 'solo') {
+          return PRESET_DUO_HORIZONTAL;
+        }
         if (PRESET_LAYOUTS[saved]) {
           return PRESET_LAYOUTS[saved];
         }
@@ -94,12 +105,6 @@ function loadInitialLayout(): LayoutDefinition {
       // Fall through to default
     }
   }
-
-  // Small portrait screens default to a stacked Duo Split layout for optimal lens visibility
-  const isMobilePortrait =
-    typeof window !== 'undefined' &&
-    window.innerWidth < 768 &&
-    window.innerHeight > window.innerWidth;
 
   return isMobilePortrait ? PRESET_DUO_HORIZONTAL : PRESET_SOLO;
 }
@@ -117,6 +122,8 @@ export const App: React.FC = () => {
   const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
   const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
+  const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
 
   // Session-only history of selected shapes for quick Up/Down arrow navigation
   const [, setShapeHistory] = useState<{ stack: string[]; index: number }>(() => {
@@ -409,6 +416,15 @@ export const App: React.FC = () => {
       if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
         setIsOscillating((prev) => !prev);
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        setIsFilterEditMode((prev) => {
+          const next = !prev;
+          if (next) {
+            updateScene((sc) => ({ ...sc, filter: { ...sc.filter, enabled: true } }));
+          }
+          return next;
+        });
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         updateScene((prev) => ({
@@ -575,6 +591,18 @@ export const App: React.FC = () => {
         ...prev.filter,
         enabled: true,
         ...params,
+      },
+    }));
+  }, [updateScene]);
+
+  const handleEnterFilterEditMode = useCallback((param: FilterControlParam = 'centre') => {
+    setFilterControlParam(param);
+    setIsFilterEditMode(true);
+    updateScene((prev) => ({
+      ...prev,
+      filter: {
+        ...prev.filter,
+        enabled: true,
       },
     }));
   }, [updateScene]);
@@ -906,6 +934,75 @@ export const App: React.FC = () => {
         onOpenRadialMenu={handleOpenRadialMenu}
       />
 
+      {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
+      {isFilterEditMode && (
+        <div className="absolute top-14 sm:top-16 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-40 flex flex-wrap items-center justify-between sm:justify-center gap-2 px-3 py-1.5 rounded-xl bg-[#080d1a]/95 border border-sky-500/60 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md animate-in slide-in-from-top-2 duration-150 text-xs font-mono select-none">
+          {/* Badge & Mode */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+            <span className="font-bold text-sky-200 uppercase tracking-wider text-[11px]">Filter Edit</span>
+            <button
+              onClick={handleCycleFilterMode}
+              className="px-1.5 py-0.5 rounded bg-sky-950/80 border border-sky-500/50 text-[10px] text-sky-300 uppercase hover:bg-sky-900/60 transition cursor-pointer"
+              title="Cycle Filter Mode (Band-pass, Low-pass, High-pass)"
+            >
+              {scene.filter?.mode || 'band-pass'}
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
+
+          {/* Parameter Selector Pills */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setFilterControlParam('centre')}
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                filterControlParam === 'centre'
+                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title="Scrub Filter Centre Frequency (Drag on cells)"
+            >
+              Centre ({scene.filter?.centreD.toFixed(2) ?? '0.00'})
+            </button>
+            <button
+              onClick={() => setFilterControlParam('width')}
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                filterControlParam === 'width'
+                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title="Scrub Filter Bandwidth (Drag on cells)"
+            >
+              Width ({scene.filter?.widthD.toFixed(1) ?? '4.0'})
+            </button>
+            <button
+              onClick={() => setFilterControlParam('skirt')}
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                filterControlParam === 'skirt'
+                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title="Scrub Filter Skirt Softness (Drag on cells)"
+            >
+              Skirt ({scene.filter?.softnessD.toFixed(1) ?? '1.0'})
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
+
+          {/* Done Button */}
+          <button
+            onClick={() => setIsFilterEditMode(false)}
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-600/30 border border-emerald-500/60 text-emerald-200 hover:bg-emerald-600/50 font-semibold text-[10px] transition cursor-pointer shrink-0"
+            title="Finish Filter Editing"
+          >
+            <Check className="w-3 h-3 text-emerald-400" />
+            <span>Done</span>
+          </button>
+        </div>
+      )}
+
       <SpectrumViewport
         scene={scene}
         coordinator={coordinator}
@@ -928,6 +1025,8 @@ export const App: React.FC = () => {
             onTogglePlay={handleTogglePlay}
             onOpenRadialMenuAt={handleOpenRadialMenuAt}
             isEditMode={isEditMode}
+            isFilterEditMode={isFilterEditMode}
+            filterControlParam={filterControlParam}
             canDelete={canDelete}
             onSplitCell={handleSplitCell}
             onRemoveCell={handleRemoveCell}
@@ -1018,6 +1117,7 @@ export const App: React.FC = () => {
         onJumpBookmarkA={handleJumpBookmarkA}
         onJumpBookmarkB={handleJumpBookmarkB}
         anchorPos={radialMenuAnchor}
+        onEnterFilterEditMode={handleEnterFilterEditMode}
       />
     </div>
   );

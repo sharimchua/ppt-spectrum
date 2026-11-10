@@ -31,6 +31,8 @@ interface CellViewportProps {
   onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
+  isFilterEditMode?: boolean;
+  filterControlParam?: 'centre' | 'width' | 'skirt';
   canDelete?: boolean;
   onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
   onRemoveCell?: (targetCellId: string) => void;
@@ -48,6 +50,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onTogglePlay,
   onOpenRadialMenuAt,
   isEditMode = false,
+  isFilterEditMode = false,
+  filterControlParam = 'centre',
   canDelete = false,
   onSplitCell,
   onRemoveCell,
@@ -208,6 +212,26 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
 
+      // In Filter Edit Mode: simple drag controls the active parameter directly without modifiers
+      if (isFilterEditMode && onUpdateFilterParams) {
+        if (filterControlParam === 'centre') {
+          setFilterGestureMode('centre');
+          const targetFilterD = Math.max(-7, Math.min(7, dragStartPos.filterD - dx * 0.015));
+          onUpdateFilterParams({ centreD: targetFilterD });
+        } else if (filterControlParam === 'width') {
+          setFilterGestureMode('width');
+          const delta = Math.abs(dx) > Math.abs(dy) ? dx * 0.02 : -dy * 0.02;
+          const targetWidth = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth + delta));
+          onUpdateFilterParams({ widthD: targetWidth });
+        } else if (filterControlParam === 'skirt') {
+          setFilterGestureMode('skirt');
+          const delta = Math.abs(dx) > Math.abs(dy) ? dx * 0.015 : -dy * 0.015;
+          const targetSoftness = Math.max(0.05, Math.min(4.0, dragStartPos.filterSoftness + delta));
+          onUpdateFilterParams({ softnessD: targetSoftness });
+        }
+        return;
+      }
+
       if (isCtrlOrMeta && isShift) {
         // CTRL + Shift + Mouse Up/Down: control skirt (softnessD)
         if (onUpdateFilterParams) {
@@ -288,6 +312,23 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     const isCtrlOrMeta = e.ctrlKey || e.metaKey;
     const isShift = e.shiftKey;
 
+    if (isFilterEditMode && onUpdateFilterParams) {
+      if (filterControlParam === 'centre') {
+        const curFilterD = scene.filter?.centreD ?? 0;
+        const deltaFilter = e.deltaY > 0 ? 0.08 : -0.08;
+        onUpdateFilterParams({ centreD: Math.max(-7, Math.min(7, curFilterD + deltaFilter)) });
+      } else if (filterControlParam === 'width') {
+        const curWidth = scene.filter?.widthD ?? 4.0;
+        const deltaWidth = e.deltaY < 0 ? 0.2 : -0.2;
+        onUpdateFilterParams({ widthD: Math.max(0.25, Math.min(12.0, curWidth + deltaWidth)) });
+      } else if (filterControlParam === 'skirt') {
+        const curSoftness = scene.filter?.softnessD ?? 1.0;
+        const deltaSoftness = e.deltaY < 0 ? 0.1 : -0.1;
+        onUpdateFilterParams({ softnessD: Math.max(0.05, Math.min(4.0, curSoftness + deltaSoftness)) });
+      }
+      return;
+    }
+
     if (isCtrlOrMeta && isShift && onUpdateFilterParams) {
       // CTRL + Shift + Wheel: Control skirt softnessD
       const curSoftness = scene.filter?.softnessD ?? 1.0;
@@ -337,18 +378,23 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
-    // 1. Double-tap to Play/Pause
+    // 1. Double-tap to Play/Pause (with preventDefault to prevent mobile zoom)
     const now = performance.now();
     const prevTap = lastTapRef.current;
-    if (prevTap && now - prevTap.time < 300) {
+    if (prevTap && now - prevTap.time < 400) {
       const dist = Math.hypot(touch.clientX - prevTap.x, touch.clientY - prevTap.y);
-      if (dist < 35 && onTogglePlay) {
+      if (dist < 45 && onTogglePlay) {
+        if (e.cancelable) e.preventDefault();
         onTogglePlay();
         const rect = container.getBoundingClientRect();
         setDoubleTapRipple({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
         setTimeout(() => setDoubleTapRipple(null), 450);
         lastTapRef.current = null;
-        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        setIsTouchScrubbing(false);
         return;
       }
     }
@@ -395,7 +441,58 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       longPressTimerRef.current = null;
     }
 
-    if (!isTouchScrubbing || !onUpdatePlacementD) return;
+    if (!isTouchScrubbing) return;
+
+    // In Filter Edit Mode: touch scrubbing adjusts the active filter parameter
+    if (isFilterEditMode && onUpdateFilterParams) {
+      const jx = touch.clientX - jogCenterRef.current.cx;
+      const jy = touch.clientY - jogCenterRef.current.cy;
+      const dist = Math.hypot(jx, jy);
+
+      if (dist > 16) {
+        const currentAngle = Math.atan2(jy, jx);
+        if (lastAngleRef.current !== null && lastAngleRef.current !== 0) {
+          let deltaAngle = currentAngle - lastAngleRef.current;
+          if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+          if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+          if (filterControlParam === 'centre') {
+            const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
+            const targetD = Math.max(-7, Math.min(7, (scene.filter?.centreD ?? 0) + deltaD));
+            onUpdateFilterParams({ centreD: targetD });
+          } else if (filterControlParam === 'width') {
+            const deltaW = (deltaAngle / (2 * Math.PI)) * 2.0;
+            const targetW = Math.max(0.25, Math.min(12.0, (scene.filter?.widthD ?? 4.0) + deltaW));
+            onUpdateFilterParams({ widthD: targetW });
+          } else if (filterControlParam === 'skirt') {
+            const deltaS = (deltaAngle / (2 * Math.PI)) * 1.0;
+            const targetS = Math.max(0.05, Math.min(4.0, (scene.filter?.softnessD ?? 1.0) + deltaS));
+            onUpdateFilterParams({ softnessD: targetS });
+          }
+        }
+        lastAngleRef.current = currentAngle;
+        setJogAngle(currentAngle);
+      } else {
+        const dLinearX = touch.clientX - dragStartPos.x;
+        const canvasWidth = containerRef.current?.clientWidth || 300;
+        if (filterControlParam === 'centre') {
+          const deltaD = -(dLinearX / canvasWidth) * 2.5;
+          const targetD = Math.max(-7, Math.min(7, dragStartPos.filterD + deltaD));
+          onUpdateFilterParams({ centreD: targetD });
+        } else if (filterControlParam === 'width') {
+          const deltaW = (dLinearX / canvasWidth) * 4.0;
+          const targetW = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth + deltaW));
+          onUpdateFilterParams({ widthD: targetW });
+        } else if (filterControlParam === 'skirt') {
+          const deltaS = (dLinearX / canvasWidth) * 2.0;
+          const targetS = Math.max(0.05, Math.min(4.0, dragStartPos.filterSoftness + deltaS));
+          onUpdateFilterParams({ softnessD: targetS });
+        }
+      }
+      return;
+    }
+
+    if (!onUpdatePlacementD) return;
     const jx = touch.clientX - jogCenterRef.current.cx;
     const jy = touch.clientY - jogCenterRef.current.cy;
     const dist = Math.hypot(jx, jy);
@@ -463,6 +560,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       className={`relative w-full h-full min-w-0 min-h-0 rounded-xl border bg-[#090c14]/80 overflow-hidden shadow-inner group transition-all duration-200 select-none ${
         isEditMode
           ? 'border-purple-500/50 ring-1 ring-purple-500/30'
+          : isFilterEditMode
+          ? 'border-sky-500/60 ring-1 ring-sky-500/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
           : 'border-slate-800/80 hover:border-slate-700/80'
       }`}
     >
@@ -477,6 +576,14 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         onTouchCancel={handleTouchEnd}
         className="absolute inset-0 block w-full h-full cursor-grab active:cursor-grabbing touch-none"
       />
+
+      {/* Filter Edit Mode active badge */}
+      {isFilterEditMode && (
+        <div className="absolute bottom-2 left-2 z-20 pointer-events-none px-2 py-0.5 rounded bg-sky-950/85 border border-sky-500/50 text-[9px] font-mono font-bold text-sky-300 uppercase shadow-md flex items-center gap-1.5 animate-in fade-in duration-150">
+          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+          <span>Scrubbing: {filterControlParam}</span>
+        </div>
+      )}
 
       {/* Cell Header - only visible when in Edit Mode */}
       {isEditMode && (

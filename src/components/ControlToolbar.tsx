@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Scene } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
-import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
+import { LayoutDefinition, PRESET_LAYOUTS, PRESET_DUO_HORIZONTAL, PRESET_SOLO } from '../core/layout-models';
 import { BookmarkSettings } from './MusicalBookmarksModal';
 import {
   Play,
@@ -173,7 +173,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           {onToggleShapeEditor && (
             <button
               onClick={onToggleShapeEditor}
-              className={`flex items-center gap-1.5 h-7 sm:h-9 px-2 sm:px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
+              className={`hidden md:flex items-center gap-1.5 h-7 sm:h-9 px-2 sm:px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
                 isShapeEditorOpen
                   ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
@@ -266,17 +266,62 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Right Tools Group: Capture, Layout Tools, Filter, Settings, Fullscreen */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Mobile Tutorial / Info Button */}
+        {/* Mobile Right Tools Group (< md): Tutorial, Duo/Solo Toggle, Edit Layout, Play/Pause */}
+        <div className="flex md:hidden items-center gap-1.5 shrink-0">
+          {/* Tutorial / Info */}
           <button
             onClick={onOpenInfo}
-            className="flex md:hidden p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
-            title="Theory Primer & Tutorial"
+            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
+            title="Theory Primer & Walkthrough"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
 
+          {/* Quick Layout Duo/Solo Toggle */}
+          <button
+            onClick={() => {
+              const next = currentLayoutId === 'duo-horizontal' ? PRESET_SOLO : PRESET_DUO_HORIZONTAL;
+              onSelectLayout(next);
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-purple-500/50 bg-purple-950/60 text-purple-200 text-xs font-semibold cursor-pointer"
+            title="Toggle Duo Split / Solo Ruler Layout"
+          >
+            <Layers className="w-3 h-3 text-purple-400" />
+            <span>{currentLayoutId === 'duo-horizontal' ? 'Duo' : 'Solo'}</span>
+          </button>
+
+          {/* Layout Edit Mode Toggle */}
+          {onToggleEditMode && (
+            <button
+              onClick={onToggleEditMode}
+              className={`p-1.5 rounded-md border text-xs font-medium transition cursor-pointer ${
+                isEditMode
+                  ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)] ring-1 ring-purple-400'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title={isEditMode ? 'Exit Layout Editor' : 'Edit Layout & Cell Lenses'}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Audio Play/Pause Button */}
+          <button
+            onClick={onTogglePlay}
+            className={`h-7 px-2.5 flex items-center justify-center gap-1 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
+              isPlaying
+                ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
+                : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
+            }`}
+            title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
+          >
+            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+            <span className="hidden xs:inline">{isPlaying ? 'Pause' : 'Play'}</span>
+          </button>
+        </div>
+
+        {/* Desktop Right Tools Group (>= md): Capture, Layout Tools, Filter, Settings, Fullscreen */}
+        <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Capture Pad / Mic Pitch Modal */}
           <button
             onClick={onOpenCapture}
@@ -285,19 +330,6 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           >
             <Radio className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Sample</span>
-          </button>
-
-          {/* Audio Play/Pause Button (Mobile) */}
-          <button
-            onClick={onTogglePlay}
-            className={`flex md:hidden h-7 px-2 items-center justify-center gap-1 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
-              isPlaying
-                ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
-                : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
-            }`}
-            title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
-          >
-            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
           </button>
 
           {/* Layout Presets Dropdown */}
