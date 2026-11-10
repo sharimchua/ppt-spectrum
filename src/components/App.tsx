@@ -313,11 +313,20 @@ export const App: React.FC = () => {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
+  const getViewportCenter = useCallback(() => {
+    const pp = coordinator.getPostProcessingCanvas();
+    if (pp && pp.clientWidth > 0 && pp.clientHeight > 0) {
+      return { cx: pp.clientWidth / 2, cy: pp.clientHeight / 2 };
+    }
+    return { cx: window.innerWidth / 2, cy: window.innerHeight / 2 };
+  }, [coordinator]);
+
   const handleNoteOn = useCallback((shapeId?: string) => {
     audioEngine.noteOn(shapeId, sceneRef.current);
     coordinator.triggerNoteStrike();
-    coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
-  }, [audioEngine, coordinator]);
+    const { cx, cy } = getViewportCenter();
+    coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
+  }, [audioEngine, coordinator, getViewportCenter]);
 
   const handleNoteOff = useCallback((shapeId?: string) => {
     audioEngine.noteOff(shapeId);
@@ -326,19 +335,21 @@ export const App: React.FC = () => {
   const handleTriggerNote = useCallback((shapeId?: string) => {
     audioEngine.triggerNote(shapeId, sceneRef.current);
     coordinator.triggerNoteStrike();
-    coordinator.cosmeticsEngine.spawnNoteSparks(window.innerWidth / 2, window.innerHeight / 2, '#f59e0b', 1.0, 16);
-  }, [audioEngine, coordinator]);
+    const { cx, cy } = getViewportCenter();
+    coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
+  }, [audioEngine, coordinator, getViewportCenter]);
 
   const handleTogglePlay = useCallback(async () => {
     if (!audioEngine.getIsPlaying()) {
       setIsPlaying(true);
-      coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#E13610', 100);
+      const { cx, cy } = getViewportCenter();
+      coordinator.cosmeticsEngine.triggerShockwave(cx, cy, '#E13610', 100);
       await audioEngine.play();
     } else {
       audioEngine.pause();
       setIsPlaying(false);
     }
-  }, [audioEngine, coordinator]);
+  }, [audioEngine, coordinator, getViewportCenter]);
 
   // Keyboard shortcuts:
   // - Spacebar: toggles simulation/audio playback (intercepted in capture phase so focused buttons/dropdowns don't steal it)
@@ -693,8 +704,9 @@ export const App: React.FC = () => {
       ],
     }));
 
-    coordinator.cosmeticsEngine.triggerShockwave(window.innerWidth / 2, window.innerHeight / 2, '#38bdf8', 120);
-    coordinator.cosmeticsEngine.spawnFluidDroplets(window.innerWidth / 2, window.innerHeight / 2, '#38bdf8', 1.0, 32);
+    const { cx, cy } = getViewportCenter();
+    coordinator.cosmeticsEngine.triggerShockwave(cx, cy, '#38bdf8', 120);
+    coordinator.cosmeticsEngine.spawnFluidDroplets(cx, cy, '#38bdf8', 1.0, 32);
   };
 
   // Modular Layout Tree Editing Handlers

@@ -417,6 +417,12 @@ export class WebGLPostProcessingPipeline {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
+    const cssWidth = this.canvas.clientWidth || parseFloat(this.canvas.style.width) || this.canvas.width;
+    const cssHeight = this.canvas.clientHeight || parseFloat(this.canvas.style.height) || this.canvas.height;
+    const scaleX = cssWidth > 0 ? this.canvas.width / cssWidth : 1;
+    const scaleY = cssHeight > 0 ? this.canvas.height / cssHeight : 1;
+    const effectiveDpr = (scaleX + scaleY) * 0.5;
+
     // 1. Draw GPU Point Sprites
     if (
       this.particleProgram &&
@@ -426,9 +432,8 @@ export class WebGLPostProcessingPipeline {
       config.sparksEnabled
     ) {
       gl.useProgram(this.particleProgram);
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       gl.uniform2f(this.uParticleResolutionLoc, this.canvas.width, this.canvas.height);
-      gl.uniform1f(this.uParticleDprLoc, dpr);
+      gl.uniform1f(this.uParticleDprLoc, effectiveDpr);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
       gl.bufferData(
@@ -457,12 +462,11 @@ export class WebGLPostProcessingPipeline {
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     gl.uniform2f(this.uResolutionLoc, this.canvas.width, this.canvas.height);
     gl.uniform1f(this.uTimeLoc, performance.now() / 1000.0);
 
     gl.uniform1f(this.uGrainIntensityLoc, config.filmGrainEnabled ? config.filmGrainIntensity : 0.0);
-    gl.uniform1f(this.uGrainSizeLoc, config.filmGrainSize * dpr);
+    gl.uniform1f(this.uGrainSizeLoc, config.filmGrainSize * effectiveDpr);
     gl.uniform1f(this.uGrainContrastLoc, config.filmGrainContrast);
     gl.uniform1f(this.uScanlineIntensityLoc, config.scanlinesEnabled ? config.scanlineIntensity : 0.0);
     gl.uniform1f(this.uScanlineDensityLoc, config.scanlineDensity);
@@ -476,14 +480,14 @@ export class WebGLPostProcessingPipeline {
     );
     gl.uniform2f(this.uOpticalCenterLoc, this.canvas.width * 0.5, this.canvas.height * 0.5);
 
-    // Populate lights
+    // Populate lights (mapped from CSS coordinates to actual WebGL drawing buffer coordinates)
     const count = Math.min(lights.length, 16);
     gl.uniform1i(this.uLightCountLoc, count);
     for (let i = 0; i < count; i++) {
       const l = lights[i];
       const rgb = parseHexColor(l.colorHex);
-      this.lightsArray[i * 4] = l.x * dpr;
-      this.lightsArray[i * 4 + 1] = l.y * dpr;
+      this.lightsArray[i * 4] = l.x * scaleX;
+      this.lightsArray[i * 4 + 1] = l.y * scaleY;
       this.lightsArray[i * 4 + 2] = l.velocity;
       this.lightsArray[i * 4 + 3] = 1.0;
       this.lightColorsArray[i * 3] = rgb[0];
@@ -495,15 +499,15 @@ export class WebGLPostProcessingPipeline {
       gl.uniform3fv(this.uLightColorsLoc, this.lightColorsArray);
     }
 
-    // Populate shockwaves
+    // Populate shockwaves (mapped from CSS coordinates to actual WebGL drawing buffer coordinates)
     const swCount = Math.min(shockwaves.length, 4);
     gl.uniform1i(this.uShockwaveCountLoc, swCount);
     for (let i = 0; i < swCount; i++) {
       const sw = shockwaves[i];
       const rgb = parseHexColor(sw.colorHex);
-      this.shockwavesArray[i * 4] = sw.x * dpr;
-      this.shockwavesArray[i * 4 + 1] = sw.y * dpr;
-      this.shockwavesArray[i * 4 + 2] = sw.radius * dpr;
+      this.shockwavesArray[i * 4] = sw.x * scaleX;
+      this.shockwavesArray[i * 4 + 1] = sw.y * scaleY;
+      this.shockwavesArray[i * 4 + 2] = sw.radius * effectiveDpr;
       this.shockwavesArray[i * 4 + 3] = sw.alpha;
       this.shockwaveColorsArray[i * 3] = rgb[0];
       this.shockwaveColorsArray[i * 3 + 1] = rgb[1];

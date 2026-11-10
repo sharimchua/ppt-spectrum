@@ -248,12 +248,21 @@ export class RenderCoordinator {
 
     // Render each lens cell
     for (const [cellId, { canvas, ctx, renderer, labelMode, configOverrides }] of this.registeredLenses.entries()) {
+      let cellRect = this.cachedLensRects.get(cellId);
+      if (!cellRect || cellRect.width === 0 || cellRect.height === 0) {
+        const r = canvas.getBoundingClientRect();
+        cellRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        this.cachedLensRects.set(cellId, cellRect);
+      }
+
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
+      const w = cellRect.width > 0 ? cellRect.width : canvas.width / dpr;
+      const h = cellRect.height > 0 ? cellRect.height : canvas.height / dpr;
+      const scaleX = w > 0 ? canvas.width / w : dpr;
+      const scaleY = h > 0 ? canvas.height / h : dpr;
 
       ctx.save();
-      ctx.scale(dpr, dpr);
+      ctx.scale(scaleX, scaleY);
       ctx.clearRect(0, 0, w, h);
       renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, configOverrides, noteAge);
       ctx.restore();
@@ -261,13 +270,6 @@ export class RenderCoordinator {
       if (renderer.getDynamicLights) {
         const rawLights = renderer.getDynamicLights();
         if (rawLights.length > 0) {
-          let cellRect = this.cachedLensRects.get(cellId);
-          if (!cellRect) {
-            const r = canvas.getBoundingClientRect();
-            cellRect = { left: r.left, top: r.top, width: r.width, height: r.height };
-            this.cachedLensRects.set(cellId, cellRect);
-          }
-
           const ppLeft = this.cachedPpRect ? this.cachedPpRect.left : 0;
           const ppTop = this.cachedPpRect ? this.cachedPpRect.top : 0;
           const offsetX = cellRect.left - ppLeft;
@@ -292,13 +294,14 @@ export class RenderCoordinator {
 
     // Render 2D effects fallback
     if (this.effectsCanvas && this.effectsCtx) {
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      const w = this.effectsCanvas.width / dpr;
-      const h = this.effectsCanvas.height / dpr;
+      const ppW = this.cachedPpRect?.width || this.effectsCanvas.clientWidth || this.effectsCanvas.width;
+      const ppH = this.cachedPpRect?.height || this.effectsCanvas.clientHeight || this.effectsCanvas.height;
+      const effScaleX = ppW > 0 ? this.effectsCanvas.width / ppW : 1;
+      const effScaleY = ppH > 0 ? this.effectsCanvas.height / ppH : 1;
       this.effectsCtx.save();
-      this.effectsCtx.scale(dpr, dpr);
-      this.effectsCtx.clearRect(0, 0, w, h);
-      this.cosmeticsEngine.render2DFallback(this.effectsCtx, w, h, effectiveCosmetics);
+      this.effectsCtx.scale(effScaleX, effScaleY);
+      this.effectsCtx.clearRect(0, 0, ppW, ppH);
+      this.cosmeticsEngine.render2DFallback(this.effectsCtx, ppW, ppH, effectiveCosmetics);
       this.effectsCtx.restore();
     }
 

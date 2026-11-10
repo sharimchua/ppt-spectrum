@@ -163,6 +163,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       canvas.height = Math.round(rect.height * dpr);
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
+      coordinator.invalidateRectCaches();
     };
 
     handleResize();
