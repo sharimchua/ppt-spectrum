@@ -53,14 +53,14 @@ export const CycleSlotRing: React.FC<CycleSlotRingProps> = ({
           return (
             <g
               key={idx}
-              className="cursor-pointer transition-transform hover:scale-110"
+              className="cursor-pointer group"
               onClick={() => onToggleSlot(effectiveIdx)}
             >
               {/* Hit circle */}
               <circle
                 cx={sx}
                 cy={sy}
-                r={nodeRadius + 4}
+                r={nodeRadius + 6}
                 fill="transparent"
               />
 
@@ -71,7 +71,8 @@ export const CycleSlotRing: React.FC<CycleSlotRingProps> = ({
                 r={nodeRadius}
                 fill={isActive ? 'rgba(56, 189, 248, 0.9)' : 'rgba(30, 41, 59, 0.8)'}
                 stroke={isActive ? '#38bdf8' : 'rgba(100, 116, 139, 0.5)'}
-                strokeWidth={isActive ? '2' : '1'}
+                strokeWidth={isActive ? '2' : '1.5'}
+                className="transition-all duration-150 group-hover:stroke-sky-300 group-hover:brightness-125"
               />
 
               {/* Slot Index Label */}
@@ -86,6 +87,7 @@ export const CycleSlotRing: React.FC<CycleSlotRingProps> = ({
                   fill={isActive ? '#0f172a' : '#94a3b8'}
                   fontWeight="bold"
                   pointerEvents="none"
+                  className="transition-colors group-hover:fill-sky-200"
                 >
                   {effectiveIdx}
                 </text>

@@ -30,18 +30,20 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         this.masterGain = payload.masterGain !== undefined ? payload.masterGain : 0.75;
         this.tplHz = payload.tplHz || 25.8;
         this.isPlaying = !!payload.isPlaying;
+        const prevFilter = this.filter;
         this.filter = payload.filter || null;
+        const filterChanged = JSON.stringify(prevFilter) !== JSON.stringify(this.filter);
 
         // Allocate gate buffers for each shape's partials only when count changes
         for (let sIdx = 0; sIdx < this.shapes.length; sIdx++) {
           const sh = this.shapes[sIdx];
           const pCount = sh.partials ? sh.partials.length : 0;
           let buf = this.filterBuffers.get(sh.shapeId);
-          if (!buf || buf.gateTarget.length !== pCount) {
+          if (!buf || buf.gateTarget.length !== pCount || filterChanged) {
             buf = {
               gateTarget: new Float32Array(pCount).fill(1.0),
               gateSmooth: new Float32Array(pCount).fill(1.0),
-              lastOnsetIdx: new Float64Array(pCount).fill(-1),
+              lastOnsetIdx: new Float64Array(pCount).fill(-999999),
             };
             this.filterBuffers.set(sh.shapeId, buf);
           }
@@ -161,8 +163,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     const f = this.filter;
     if (!f || !f.enabled) return 1.0;
     if (!f.hasCycle) {
-      const m = staticMatch !== undefined ? staticMatch : 1.0;
-      return f.action === 1 ? 1.0 - m * f.depth : 1.0 - (1.0 - m) * f.depth;
+      if (staticMatch !== undefined) {
+        return f.action === 1 ? 1.0 - staticMatch * f.depth : 1.0 - (1.0 - staticMatch) * f.depth;
+      }
+      return 1.0;
     }
 
     const matches = [];
@@ -204,18 +208,20 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       }
     }
 
+    if (matches.length === 0) {
+      return 1.0;
+    }
+
     let combined = 1.0;
-    if (matches.length > 0) {
-      if (f.combine === 1) {
-        combined = 0;
-        for (let i = 0; i < matches.length; i++) {
-          if (matches[i] > combined) combined = matches[i];
-        }
-      } else {
-        combined = 1.0;
-        for (let i = 0; i < matches.length; i++) {
-          if (matches[i] < combined) combined = matches[i];
-        }
+    if (f.combine === 1) {
+      combined = 0;
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i] > combined) combined = matches[i];
+      }
+    } else {
+      combined = 1.0;
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i] < combined) combined = matches[i];
       }
     }
 

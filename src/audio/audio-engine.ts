@@ -1,8 +1,8 @@
-import { Scene, VoiceId, ADSREnvelope } from '../core/types';
+import { Scene, VoiceId, ADSREnvelope, Filter } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
 import { calculateFilterGain, getFilterablePartials } from '../core/shape';
-import { evaluateStaticMatch, compileFilterForWorklet } from '../core/filter-eval';
+import { evaluateStaticMatch, applyFilterAction, compileFilterForWorklet } from '../core/filter-eval';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
 
 export interface WorkletPartialPayload {
@@ -33,27 +33,47 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
   return scene.placements.map((placement, placementIdx) => {
     const shapeObj = scene.shapes.find((s) => s.id === placement.shapeId);
     const filterablePartials = shapeObj ? getFilterablePartials(shapeObj) : [];
+
+    const hasModernFilter = Boolean(
+      scene.filter && scene.filter.enabled && 'conditions' in scene.filter
+    );
+    const hasActiveRangeConds = Boolean(
+      hasModernFilter &&
+        (scene.filter as Filter).conditions.some((c) => c.kind === 'range' && c.enabled !== false)
+    );
+
     const partials = filterablePartials.map((p) => {
       const ratioVal = ratioToValue(p.ratio);
       const partialD = placement.d - Math.log2(ratioVal);
-      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter, sceneD) : 1.0;
-      const staticMatch = scene.filter
-        ? evaluateStaticMatch(scene.filter, {
-            partialD,
-            sceneD,
-            ratio: p.ratio,
-            phase: p.phase,
-            anchorRatio: p.anchorRatio,
-            placementD: placement.d,
-            tplHz: scene.anchors.tplFrequencyHz,
-          })
-        : 1.0;
+
+      // Range conditions statically attenuate frequency bands.
+      // Cycle conditions are evaluated dynamically per onset inside the AudioWorklet.
+      let staticGain = 1.0;
+      if (hasActiveRangeConds && scene.filter && 'conditions' in scene.filter) {
+        const staticMatch = evaluateStaticMatch(scene.filter as Filter, {
+          partialD,
+          sceneD,
+          ratio: p.ratio,
+          phase: p.phase,
+          anchorRatio: p.anchorRatio,
+          placementD: placement.d,
+          tplHz: scene.anchors.tplFrequencyHz,
+        });
+        staticGain = applyFilterAction(
+          staticMatch,
+          (scene.filter as Filter).action,
+          (scene.filter as Filter).depth
+        );
+      } else if (!hasModernFilter && scene.filter) {
+        staticGain = calculateFilterGain(partialD, scene.filter, sceneD);
+      }
+
       return {
         ratio: ratioVal,
-        amp: p.amp * filterGain,
+        amp: p.amp * staticGain,
         phaseOffset: p.phase,
         voice: p.voice,
-        staticMatch,
+        staticMatch: undefined,
       };
     });
 

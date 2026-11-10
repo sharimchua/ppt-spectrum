@@ -180,4 +180,52 @@ describe('worklet-filter-parity', () => {
       expect(workletGain).toBeCloseTo(coreGain, 4);
     }
   });
+
+  it('correctly inverts pattern on action: remove without downbeat (staticMatch undefined)', () => {
+    // 4 subdivisions, slot 0 selected, slots 1, 2, 3 unselected.
+    // Action remove should MUTE slot 0 and PASS slots 1, 2, 3.
+    const filter: Filter = {
+      name: 'Remove Downbeat Test',
+      enabled: true,
+      action: 'remove',
+      combine: 'all',
+      depth: 1.0,
+      conditions: [
+        {
+          kind: 'cycle',
+          id: 'c-downbeat',
+          divisions: 4,
+          slotWeights: [1.0, 0.0, 0.0, 0.0],
+          rotation: 0,
+          tolerance: 0.25,
+          offGridMatch: 0.0,
+          supercycle: null,
+        },
+      ],
+      focus: null,
+      centreD: 0,
+      widthD: 4,
+      softnessD: 1,
+      mode: 'band-pass',
+      trackingMode: 'fixed',
+    };
+
+    const compiled = compileFilterForWorklet(filter);
+    const proc = instantiateWorklet();
+    proc.filter = compiled;
+
+    // Slot 0 (t = 0.0): should be MUTED (0.0)
+    const g0Core = evaluateOnsetGain(filter, { partialD: 0, sceneD: 0 }, 0.0);
+    const g0Worklet = proc.evalOnsetGain(undefined, 0.0);
+    expect(g0Core).toBe(0.0);
+    expect(g0Worklet).toBe(0.0);
+
+    // Slots 1, 2, 3: should be ACTIVE (1.0)
+    for (const t of [0.25, 0.5, 0.75]) {
+      const gCore = evaluateOnsetGain(filter, { partialD: 0, sceneD: 0 }, t);
+      const gWorklet = proc.evalOnsetGain(undefined, t);
+      expect(gCore).toBe(1.0);
+      expect(gWorklet).toBe(1.0);
+    }
+  });
 });
