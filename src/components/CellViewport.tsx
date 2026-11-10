@@ -176,7 +176,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [coordinator]);
 
   // Mouse drag scrubbing on desktop canvas (Shift + Drag scrubs Band Filter centreD & widthD, Ctrl+Shift scrubs skirt)
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -289,7 +289,15 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const targetD = Math.max(-7, Math.min(7, dragStartPos.d - dx * sensitivity));
       onUpdatePlacementD(targetD);
     },
-    [isDragging, dragStartPos, onUpdatePlacementD, onUpdateFilterCentreD, onUpdateFilterParams]
+    [
+      isDragging,
+      dragStartPos,
+      isFilterEditMode,
+      filterControlParam,
+      onUpdatePlacementD,
+      onUpdateFilterCentreD,
+      onUpdateFilterParams,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {

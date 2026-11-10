@@ -78,7 +78,7 @@ export class AudioEngine {
   private ctx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private fallbackProcessorNode: ScriptProcessorNode | null = null;
-  private fallbackPort: { postMessage: (msg: unknown) => void; onmessage: ((ev: { data: any }) => void) | null } | null = null;
+  private fallbackPort: { postMessage: (msg: unknown) => void; onmessage: ((ev: { data: unknown }) => void) | null } | null = null;
   private masterGainNode: GainNode | null = null;
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
@@ -116,9 +116,10 @@ export class AudioEngine {
     }
   };
 
-  private handleTelemetryEvent = (event: { data: any }): void => {
-    if (event.data?.type === 'AUDIO_SYNC') {
-      this.latestTelemetry = event.data.payload;
+  private handleTelemetryEvent = (event: { data: unknown }): void => {
+    const data = event.data as { type?: string; payload?: AudioTelemetryData } | null;
+    if (data?.type === 'AUDIO_SYNC' && data.payload) {
+      this.latestTelemetry = data.payload;
       this.latestTelemetryTime = performance.now();
       const anyAuditioning = Boolean(
         this.latestTelemetry?.phases &&
@@ -152,15 +153,15 @@ export class AudioEngine {
       if (typeof ctx.createScriptProcessor !== 'function') return false;
       const scriptNode = ctx.createScriptProcessor(1024, 0, 2);
 
-      let processorMessageHandler: ((ev: { data: any }) => void) | null = null;
+      let processorMessageHandler: ((ev: { data: unknown }) => void) | null = null;
       const portShim = {
-        set onmessage(fn: ((ev: { data: any }) => void) | null) {
+        set onmessage(fn: ((ev: { data: unknown }) => void) | null) {
           processorMessageHandler = fn;
         },
         get onmessage() {
           return processorMessageHandler;
         },
-        postMessage: (data: any) => {
+        postMessage: (data: unknown) => {
           this.handleTelemetryEvent({ data });
         },
       };
@@ -169,8 +170,11 @@ export class AudioEngine {
         public port = portShim;
       }
 
-      let RegisteredClass: any = null;
-      const registerProcessorShim = (_name: string, cls: any) => {
+      let RegisteredClass: (new () => { process: (inputs: Float32Array[][], outputs: Float32Array[][]) => boolean }) | null = null;
+      const registerProcessorShim = (
+        _name: string,
+        cls: new () => { process: (inputs: Float32Array[][], outputs: Float32Array[][]) => boolean }
+      ) => {
         RegisteredClass = cls;
       };
 
