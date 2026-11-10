@@ -450,7 +450,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] overflow-hidden bg-black/65 backdrop-blur-md select-none animate-in fade-in duration-150 touch-none"
+      className="fixed inset-0 z-[100] overflow-hidden select-none animate-in fade-in duration-150 touch-none pointer-events-auto"
       onClick={onClose}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
