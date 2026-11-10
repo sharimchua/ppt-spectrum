@@ -45,6 +45,7 @@ interface ControlToolbarProps {
   onToggleSettings?: () => void;
   onToggleShapeEditor?: () => void;
   onToggleFilter?: () => void;
+  onOpenFilters?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
   onOpenRadialMenu?: () => void;
@@ -71,6 +72,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleSettings,
   onToggleShapeEditor,
   onToggleFilter,
+  onOpenFilters,
   onOpenCapture,
   onOpenInfo,
   onOpenRadialMenu,
@@ -419,20 +421,22 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Quick Band Filter Lens View Toggle */}
-          {onToggleFilter && (
+          {/* Dedicated Filters Sheet Launcher */}
+          {(onOpenFilters || onToggleFilter) && (
             <button
-              onClick={onToggleFilter}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+              onClick={onOpenFilters ?? onToggleFilter}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 scene.filter?.enabled
-                  ? 'border-cyan-500 bg-cyan-950/70 text-cyan-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
+                  ? 'border-sky-500 bg-sky-950/70 text-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Toggle Non-Destructive Band Filter Aperture View (F)"
+              title="Acoustic Aperture & Sieve Filters (Shift+F to open, F to toggle)"
             >
-              <Filter className="w-3 h-3 text-cyan-400" />
-              <span className="hidden md:inline">Filter:</span>
-              <span>{scene.filter?.enabled ? 'ON' : 'OFF'}</span>
+              <Filter className="w-3.5 h-3.5 text-sky-400" />
+              <span className="hidden md:inline">Filters</span>
+              <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">
+                {scene.filter?.enabled ? 'ON' : 'OFF'}
+              </span>
             </button>
           )}
 

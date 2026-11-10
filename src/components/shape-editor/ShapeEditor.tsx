@@ -1,21 +1,18 @@
 /**
  * Shape Editor main container.
- * Coordinates shape library header, tab switching, and partial/envelope/filter inspectors.
+ * Coordinates shape library header, tab switching, and partial/envelope inspectors.
  */
 
 import React, { useState } from 'react';
-import { Shape, BandFilter } from '../../core/types';
+import { Shape } from '../../core/types';
 import { useShapeEditing } from './useShapeEditing';
 import { ShapeLibraryHeader } from './ShapeLibraryHeader';
 import { PartialsTab } from './PartialsTab';
 import { EnvelopeTab } from './EnvelopeTab';
-import { FilterTab } from './FilterTab';
 
 export interface ShapeEditorProps {
   shape: Shape;
   onUpdateShape: (updatedShape: Shape) => void;
-  filter?: BandFilter;
-  onUpdateFilter?: (filter: BandFilter) => void;
   allShapes?: Shape[];
   onSelectShape?: (shapeId: string) => void;
   onDuplicateShape?: (shape: Shape) => void;
@@ -29,8 +26,6 @@ export interface ShapeEditorProps {
 export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   shape,
   onUpdateShape,
-  filter,
-  onUpdateFilter,
   allShapes = [],
   onSelectShape,
   onDuplicateShape,
@@ -40,7 +35,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   onNoteOn,
   onNoteOff,
 }) => {
-  const [activeTab, setActiveTab] = useState<'partials' | 'envelope' | 'filter'>('partials');
+  const [activeTab, setActiveTab] = useState<'partials' | 'envelope'>('partials');
 
   const {
     isPreset,
@@ -110,10 +105,6 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
           onNoteOn={onNoteOn}
           onNoteOff={onNoteOff}
         />
-      )}
-
-      {activeTab === 'filter' && filter && onUpdateFilter && (
-        <FilterTab filter={filter} onUpdateFilter={onUpdateFilter} />
       )}
     </div>
   );

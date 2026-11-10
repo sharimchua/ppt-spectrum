@@ -16,11 +16,26 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
 - `src/components/shape-editor/ShapeEditor.tsx` — Modular shape inspector container and tab orchestrator.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
-- `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a full-canvas BandFilter edit mode (`centre`, `width`, `skirt`).
+- `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a dedicated Filters sub-menu.
+- `src/components/radial-menu-segments.tsx` — Annular radial pie wedge segment definitions and sub-menu builders.
 - `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor.
 - `src/components/bookmarks-storage.ts` — Bookmark data contracts, defaults, and localStorage persistence (`loadSavedBookmarks`, `saveBookmarks`).
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
+
+### Filters & Rhythm Sieves (`src/components/filters/`)
+
+- `FiltersSheet.tsx` — Mobile bottom sheet and desktop side drawer for compound filters.
+- `FilterSummaryBar.tsx` — Action (keep/remove), Combine (all/any), depth slider, and plain-language summary.
+- `ConditionCard.tsx` — Collapsible condition chip with match preview, reordering, and editor expansion.
+- `PresetPicker.tsx` — Grouped modal list of starter filters and condition presets.
+- `RangeConditionEditor.tsx` — Range condition editor with spans list and skirt softness.
+- `SpanRow.tsx` — Lower and upper endpoint inputs with open-ended toggles.
+- `EndpointInput.tsx` — Validated text field for endpoints (`5/4`, `400¢`, `440hz`, `d:1.5`).
+- `CycleConditionEditor.tsx` — Divisions selector, rotation, tolerance, off-grid match, and Euclidean generator.
+- `CycleSlotRing.tsx` — Interactive SVG circular slot ring with Apex slot 0.
+- `SupercycleStrip.tsx` — Modulation across repeated scene cycles.
+- `filter-ui-format.ts` — Pure display formatting helpers.
 
 ### Shape Editor (`src/components/shape-editor/`)
 
@@ -35,7 +50,6 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `EnvelopeTab.tsx` — Acoustic ADSR envelope tab with interactive curve, instrument presets, and parameter sliders.
 - `AdsrCurve.tsx` — SVG ADSR curve visualiser with high-harmonic damping overlay and phase labels.
 - `adsr-curve-geometry.ts` — Pure mathematical calculation of SVG bezier curve geometry and anchor coordinates.
-- `FilterTab.tsx` — Acoustic formant lens controls, tracking mode switcher, aperture mode selector, and frequency sliders.
 
 ### Custom Hooks (`src/components/hooks/`)
 
@@ -45,7 +59,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useTransport.ts` — Playback transport state, note strikes, and viewport cosmetic shockwaves/sparks.
 - `useBookmarks.ts` — Musical bookmarks, A/B jump and set, and requestAnimationFrame continuum sweep loop.
 - `useShapeLibrary.ts` — Preset selection, user shape creation, duplication, deletion, capture, and undo/redo history stack.
-- `useFilterControls.ts` — BandFilter aperture edit mode, parameter selection, and mode cycling.
+- `useFilters.ts` — Dedicated Filters sheet visibility, condition CRUD, canvas aperture parameter scrubbing, and mode cycling.
 - `useCanvasFilterGestures.ts` — Canvas gesture interactions for filter aperture scrubbing (drag, wheel, touch).
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.

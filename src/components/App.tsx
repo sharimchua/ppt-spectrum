@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { setPrimaryPlacementD, stepPrimaryPlacementD, enableFilter } from '../core/scene-ops';
+import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
@@ -16,14 +16,16 @@ import { MusicalBookmarksModal } from './MusicalBookmarksModal';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FilterEditHud } from './FilterEditHud';
+import { FiltersSheet } from './filters/FiltersSheet';
 import { useSceneEngine } from './hooks/useSceneEngine';
 import { useLayoutState } from './hooks/useLayoutState';
 import { useTransport } from './hooks/useTransport';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useShapeLibrary } from './hooks/useShapeLibrary';
-import { useFilterControls } from './hooks/useFilterControls';
+import { useFilters } from './hooks/useFilters';
 import { useKeyboardShortcuts, KeyboardActions } from './hooks/useKeyboardShortcuts';
 import { useFullscreen } from './hooks/useFullscreen';
+import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
   // Modal visibility states
@@ -129,8 +131,12 @@ export const App: React.FC = () => {
     historyForward,
   } = useShapeLibrary({ scene, updateScene, coordinator, getViewportCenter });
 
-  // Band filter controls and HUD edit state
+  // Filters state management and HUD edit state
   const {
+    isFiltersOpen,
+    openFilters,
+    closeFilters,
+    toggleFiltersOpen,
     isFilterEditMode,
     setIsFilterEditMode,
     filterControlParam,
@@ -141,7 +147,14 @@ export const App: React.FC = () => {
     handleCycleFilterMode,
     toggleFilter,
     toggleFilterEditMode,
-  } = useFilterControls({ updateScene });
+    updateFilterState,
+    addFilterCondition,
+    updateFilterCondition,
+    removeFilterCondition,
+    moveFilterCondition,
+    applyStarter,
+    focusCondition,
+  } = useFilters({ updateScene });
 
   // Audio mode toggle
   const handleToggleAudioMode = useCallback(() => {
@@ -176,6 +189,7 @@ export const App: React.FC = () => {
       onToggleOscillate: toggleOscillating,
       onToggleFilterEditMode: toggleFilterEditMode,
       onToggleFilter: toggleFilter,
+      onToggleFiltersOpen: toggleFiltersOpen,
       onNoteOn: () => handleNoteOn(),
       onNoteOff: () => handleNoteOff(),
       onJumpBookmarkA: handleJumpBookmarkA,
@@ -190,6 +204,7 @@ export const App: React.FC = () => {
       toggleOscillating,
       toggleFilterEditMode,
       toggleFilter,
+      toggleFiltersOpen,
       handleNoteOn,
       handleNoteOff,
       handleJumpBookmarkA,
@@ -231,6 +246,7 @@ export const App: React.FC = () => {
         onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
         onToggleFilter={toggleFilter}
+        onOpenFilters={openFilters}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenRadialMenu={handleOpenRadialMenu}
@@ -240,9 +256,11 @@ export const App: React.FC = () => {
       {isFilterEditMode && (
         <FilterEditHud
           filter={scene.filter}
+          spanView={getFocusedSpanView(scene.filter)}
           controlParam={filterControlParam}
           onSelectParam={setFilterControlParam}
           onCycleMode={handleCycleFilterMode}
+          onOpenFilters={openFilters}
           onDone={() => setIsFilterEditMode(false)}
         />
       )}
@@ -299,8 +317,6 @@ export const App: React.FC = () => {
         onClose={() => setIsShapeEditorOpen(false)}
         activeShape={activeShape}
         onUpdateShape={handleUpdateActiveShape}
-        filter={scene.filter}
-        onUpdateFilter={(newFilter) => updateScene((prev) => enableFilter(prev, newFilter))}
         allShapes={scene.shapes}
         onSelectShape={handleSelectPreset}
         onDuplicateShape={handleDuplicateShape}
@@ -355,6 +371,7 @@ export const App: React.FC = () => {
         onOpenLibrary={() => setIsShapeEditorOpen(true)}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenFilters={openFilters}
         isOscillating={isOscillating}
         onToggleOscillate={toggleOscillating}
         bookmarks={bookmarks}
@@ -364,6 +381,20 @@ export const App: React.FC = () => {
         onJumpBookmarkB={handleJumpBookmarkB}
         anchorPos={radialMenuAnchor}
         onEnterFilterEditMode={handleEnterFilterEditMode}
+      />
+
+      <FiltersSheet
+        isOpen={isFiltersOpen}
+        filter={scene.filter}
+        onClose={closeFilters}
+        onToggleEnabled={toggleFilter}
+        onUpdateFilter={updateFilterState}
+        onAddCondition={addFilterCondition}
+        onUpdateCondition={updateFilterCondition}
+        onRemoveCondition={removeFilterCondition}
+        onMoveCondition={moveFilterCondition}
+        onApplyStarter={applyStarter}
+        onFocusCondition={focusCondition}
       />
     </div>
   );

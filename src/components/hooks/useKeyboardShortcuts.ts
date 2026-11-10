@@ -7,7 +7,7 @@
  * - Shift + 'L': opens Quick Shape Search Modal with autocomplete
  * - 's' / 'S': toggles continuum sweep oscillation
  * - 'e' / 'E': toggles band filter interactive edit mode HUD (and enables filter if disabled)
- * - 'f' / 'F': toggles band filter aperture
+ * - 'f' / 'F': toggles filter bypass (Shift + 'F' opens Filters & Rhythm Sieves sheet)
  * - 't' / 'T': triggers/strikes acoustic ADSR note (keydown on, keyup off)
  * - 'a' / 'A': jump fundamental to Bookmark A (Shift + A sets Bookmark A to current d with sparks)
  * - 'b' / 'B': jump fundamental to Bookmark B (Shift + B sets Bookmark B to current d with sparks)
@@ -26,6 +26,7 @@ export interface KeyboardActions {
   onToggleOscillate: () => void;
   onToggleFilterEditMode: () => void;
   onToggleFilter: () => void;
+  onToggleFiltersOpen?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
   onJumpBookmarkA: () => void;
@@ -124,7 +125,11 @@ export function useKeyboardShortcuts({
         actionsRef.current.onToggleFilterEditMode();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        actionsRef.current.onToggleFilter();
+        if (e.shiftKey && actionsRef.current.onToggleFiltersOpen) {
+          actionsRef.current.onToggleFiltersOpen();
+        } else {
+          actionsRef.current.onToggleFilter();
+        }
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         if (!e.repeat) {

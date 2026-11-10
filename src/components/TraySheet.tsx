@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, SlidersHorizontal, Minimize2, Maximize2, Move } from 'lucide-react';
-import { Shape, BandFilter } from '../core/types';
+import { Shape } from '../core/types';
 import { ShapeEditor } from './shape-editor/ShapeEditor';
 
 interface TraySheetProps {
@@ -8,8 +8,6 @@ interface TraySheetProps {
   onClose: () => void;
   activeShape: Shape | undefined;
   onUpdateShape: (shape: Shape) => void;
-  filter?: BandFilter;
-  onUpdateFilter?: (filter: BandFilter) => void;
   allShapes?: Shape[];
   onSelectShape?: (shapeId: string) => void;
   onDuplicateShape?: (shape: Shape) => void;
@@ -25,8 +23,6 @@ export const TraySheet: React.FC<TraySheetProps> = ({
   onClose,
   activeShape,
   onUpdateShape,
-  filter,
-  onUpdateFilter,
   allShapes = [],
   onSelectShape,
   onDuplicateShape,
@@ -135,8 +131,6 @@ export const TraySheet: React.FC<TraySheetProps> = ({
             <ShapeEditor
               shape={activeShape}
               onUpdateShape={onUpdateShape}
-              filter={filter}
-              onUpdateFilter={onUpdateFilter}
               allShapes={allShapes}
               onSelectShape={onSelectShape}
               onDuplicateShape={onDuplicateShape}
@@ -174,8 +168,6 @@ export const TraySheet: React.FC<TraySheetProps> = ({
           <ShapeEditor
             shape={activeShape}
             onUpdateShape={onUpdateShape}
-            filter={filter}
-            onUpdateFilter={onUpdateFilter}
             allShapes={allShapes}
             onSelectShape={onSelectShape}
             onDuplicateShape={onDuplicateShape}
