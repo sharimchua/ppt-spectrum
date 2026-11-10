@@ -1,5 +1,6 @@
 import { Scene } from '../core/types';
-import { getShapeAnchors, calculateFilterGain, multiplyRatios } from '../core/shape';
+import { getShapeAnchors, multiplyRatios } from '../core/shape';
+import { evaluateDutyGain } from '../core/filter-eval';
 import { calculateCoincidenceCycle } from '../core/alignment';
 import { ratioToValue } from '../core/rational';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
@@ -159,7 +160,15 @@ export class PhasorLensRenderer implements RegisteredLensRenderer {
         const combRatioVal = ratioToValue(combRatio);
         const combPhase = (((anchorPhase + (p.phase || 0)) % 1 + 1) % 1);
         const pD = placement.d - Math.log2(Math.max(0.001, combRatioVal));
-        const fGain = scene.filter ? calculateFilterGain(pD, scene.filter, placement.d) : 1.0;
+        const fGain = scene.filter
+          ? evaluateDutyGain(scene.filter, {
+              partialD: pD,
+              sceneD: scene.placements[0]?.d ?? placement.d,
+              anchorRatio: anchor.ratio,
+              placementD: placement.d,
+              tplHz: scene.anchors.tplFrequencyHz,
+            })
+          : 1.0;
         const filteredAmp = p.amp * anchorGain * placement.gain * fGain;
 
         if (filteredAmp > 0.001) {

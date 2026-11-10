@@ -8,8 +8,10 @@ import {
   LayoutFlexDirection,
   getLensDisplayName,
 } from '../core/layout-models';
-import { Scene, BandFilter } from '../core/types';
+import { Scene, SpanView } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
+import { getFocusedSpanView } from '../core/scene-ops';
+import { useCanvasFilterGestures } from './hooks/useCanvasFilterGestures';
 import { RenderCoordinator, RegisteredLensRenderer } from '../renderers/render-coordinator';
 import { RulerLensRenderer } from '../renderers/ruler-lens';
 import { RingClockLensRenderer } from '../renderers/ring-clock-lens';
@@ -41,7 +43,7 @@ interface CellViewportProps {
   coordinator: RenderCoordinator;
   onUpdatePlacementD?: (d: number) => void;
   onUpdateFilterCentreD?: (centreD: number) => void;
-  onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
+  onUpdateFilterParams?: (params: Partial<SpanView>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   onTogglePlay?: () => void;
   onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
@@ -92,8 +94,20 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   const longPressTimerRef = useRef<number | null>(null);
 
   // Drag scrubbing & mobile rotary jog wheel states
-  type FilterGestureMode = 'none' | 'width' | 'skirt' | 'centre';
-  const [filterGestureMode, setFilterGestureMode] = useState<FilterGestureMode>('none');
+  const {
+    filterGestureMode,
+    setFilterGestureMode,
+    determineInitialGesture,
+    processFilterDrag,
+    processFilterWheel,
+    processFilterTouch,
+  } = useCanvasFilterGestures({
+    scene,
+    isFilterEditMode,
+    filterControlParam,
+    onUpdateFilterParams,
+    onUpdateFilterCentreD,
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({
     x: 0,
@@ -210,18 +224,12 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || isEditMode) return;
     setIsDragging(true);
-    const filter = scene.filter;
-    const filterD = filter?.centreD ?? 0;
-    const filterWidth = filter?.widthD ?? 4.0;
-    const filterSoftness = filter?.softnessD ?? 1.0;
+    const view = getFocusedSpanView(scene.filter);
+    const filterD = view?.centreD ?? 0;
+    const filterWidth = view?.widthD ?? 4.0;
+    const filterSoftness = view?.softnessD ?? 1.0;
 
-    let initialGesture: FilterGestureMode = 'none';
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-      initialGesture = 'skirt';
-    } else if (e.shiftKey) {
-      initialGesture = 'width';
-    }
-
+    const initialGesture = determineInitialGesture(Boolean(e.ctrlKey || e.metaKey), e.shiftKey);
     setFilterGestureMode(initialGesture);
     setDragStartPos({
       x: e.clientX,
@@ -242,70 +250,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
 
-      // In Filter Edit Mode: simple drag controls the active parameter directly without modifiers
-      if (isFilterEditMode && onUpdateFilterParams) {
-        if (filterControlParam === 'centre') {
-          setFilterGestureMode('centre');
-          const targetFilterD = Math.max(-7, Math.min(7, dragStartPos.filterD - dx * 0.015));
-          onUpdateFilterParams({ centreD: targetFilterD });
-        } else if (filterControlParam === 'width') {
-          setFilterGestureMode('width');
-          const delta = Math.abs(dx) > Math.abs(dy) ? dx * 0.02 : -dy * 0.02;
-          const targetWidth = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth + delta));
-          onUpdateFilterParams({ widthD: targetWidth });
-        } else if (filterControlParam === 'skirt') {
-          setFilterGestureMode('skirt');
-          const delta = Math.abs(dx) > Math.abs(dy) ? dx * 0.015 : -dy * 0.015;
-          const targetSoftness = Math.max(0.05, Math.min(4.0, dragStartPos.filterSoftness + delta));
-          onUpdateFilterParams({ softnessD: targetSoftness });
-        }
-        return;
-      }
-
-      if (isCtrlOrMeta && isShift) {
-        // CTRL + Shift + Mouse Up/Down: control skirt (softnessD)
-        if (onUpdateFilterParams) {
-          setFilterGestureMode('skirt');
-          // Dragging up (dy < 0) increases softness, dragging down (dy > 0) decreases softness (steeper skirt)
-          const targetSoftness = Math.max(0.05, Math.min(4.0, dragStartPos.filterSoftness - dy * 0.015));
-          onUpdateFilterParams({ softnessD: targetSoftness });
-        }
-        return;
-      }
-
-      if (isShift) {
-        // Shift + Mouse:
-        // Up/down controls amplitude width (widthD)
-        // Left/right controls centreD
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
-
-        if (absY > absX * 1.15) {
-          // Predominantly vertical: adjust width
-          if (onUpdateFilterParams) {
-            setFilterGestureMode('width');
-            // Dragging up (dy < 0) widens filter, dragging down narrows
-            const targetWidth = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth - dy * 0.025));
-            onUpdateFilterParams({ widthD: targetWidth });
-          }
-        } else if (absX > absY * 1.15) {
-          // Predominantly horizontal: scrub centreD
-          setFilterGestureMode('centre');
-          const targetFilterD = Math.max(-7, Math.min(7, dragStartPos.filterD - dx * 0.015));
-          if (onUpdateFilterParams) {
-            onUpdateFilterParams({ centreD: targetFilterD });
-          } else if (onUpdateFilterCentreD) {
-            onUpdateFilterCentreD(targetFilterD);
-          }
-        } else {
-          // Simultaneous diagonal adjustment
-          setFilterGestureMode('width');
-          const targetWidth = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth - dy * 0.025));
-          const targetFilterD = Math.max(-7, Math.min(7, dragStartPos.filterD - dx * 0.015));
-          if (onUpdateFilterParams) {
-            onUpdateFilterParams({ widthD: targetWidth, centreD: targetFilterD });
-          }
-        }
+      if (processFilterDrag(dx, dy, dragStartPos, isCtrlOrMeta, isShift)) {
         return;
       }
 
@@ -313,25 +258,22 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       setFilterGestureMode('none');
       if (!onUpdatePlacementD) return;
       const sensitivity = 0.015;
-      // Moving right increases frequency (faster) => decreases d
       const targetD = Math.max(-7, Math.min(7, dragStartPos.d - dx * sensitivity));
       onUpdatePlacementD(targetD);
     },
     [
       isDragging,
       dragStartPos,
-      isFilterEditMode,
-      filterControlParam,
+      processFilterDrag,
       onUpdatePlacementD,
-      onUpdateFilterCentreD,
-      onUpdateFilterParams,
+      setFilterGestureMode,
     ]
   );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setFilterGestureMode('none');
-  }, []);
+  }, [setFilterGestureMode]);
 
   useEffect(() => {
     if (isDragging) {
@@ -347,61 +289,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   // Mouse wheel fine scrub on canvas (Shift + Wheel scrubs Filter width/centre, Ctrl+Shift scrubs skirt)
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const isCtrlOrMeta = e.ctrlKey || e.metaKey;
-    const isShift = e.shiftKey;
-
-    if (isFilterEditMode && onUpdateFilterParams) {
-      if (filterControlParam === 'centre') {
-        const curFilterD = scene.filter?.centreD ?? 0;
-        const deltaFilter = e.deltaY > 0 ? 0.08 : -0.08;
-        onUpdateFilterParams({ centreD: Math.max(-7, Math.min(7, curFilterD + deltaFilter)) });
-      } else if (filterControlParam === 'width') {
-        const curWidth = scene.filter?.widthD ?? 4.0;
-        const deltaWidth = e.deltaY < 0 ? 0.2 : -0.2;
-        onUpdateFilterParams({ widthD: Math.max(0.25, Math.min(12.0, curWidth + deltaWidth)) });
-      } else if (filterControlParam === 'skirt') {
-        const curSoftness = scene.filter?.softnessD ?? 1.0;
-        const deltaSoftness = e.deltaY < 0 ? 0.1 : -0.1;
-        onUpdateFilterParams({ softnessD: Math.max(0.05, Math.min(4.0, curSoftness + deltaSoftness)) });
-      }
-      return;
-    }
-
-    if (isCtrlOrMeta && isShift && onUpdateFilterParams) {
-      // CTRL + Shift + Wheel: Control skirt softnessD
-      const curSoftness = scene.filter?.softnessD ?? 1.0;
-      // Wheel up (e.deltaY < 0) increases softness, wheel down decreases
-      const deltaSoftness = e.deltaY < 0 ? 0.1 : -0.1;
-      const targetSoftness = Math.max(0.05, Math.min(4.0, curSoftness + deltaSoftness));
-      onUpdateFilterParams({ softnessD: targetSoftness });
-      return;
-    }
-
-    if (isShift) {
-      // Shift + Wheel:
-      // If horizontal wheel delta (deltaX) is dominant, scrub centreD
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        const curFilterD = scene.filter?.centreD ?? 0;
-        const deltaFilter = e.deltaX > 0 ? 0.08 : -0.08;
-        const targetFilterD = Math.max(-7, Math.min(7, curFilterD + deltaFilter));
-        if (onUpdateFilterParams) {
-          onUpdateFilterParams({ centreD: targetFilterD });
-        } else if (onUpdateFilterCentreD) {
-          onUpdateFilterCentreD(targetFilterD);
-        }
-        return;
-      }
-
-      // Otherwise vertical wheel: control amplitude width (widthD)
-      if (onUpdateFilterParams) {
-        const curWidth = scene.filter?.widthD ?? 4.0;
-        // Wheel up (e.deltaY < 0) widens filter, wheel down narrows
-        const deltaWidth = e.deltaY < 0 ? 0.2 : -0.2;
-        const targetWidth = Math.max(0.25, Math.min(12.0, curWidth + deltaWidth));
-        onUpdateFilterParams({ widthD: targetWidth });
-        return;
-      }
-    }
+    if (processFilterWheel(e)) return;
 
     if (!onUpdatePlacementD) return;
     const step = 0.05;
@@ -486,47 +374,23 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const jx = touch.clientX - jogCenterRef.current.cx;
       const jy = touch.clientY - jogCenterRef.current.cy;
       const dist = Math.hypot(jx, jy);
+      const isDial = dist > 16;
+      let deltaAngle = 0;
 
-      if (dist > 16) {
+      if (isDial) {
         const currentAngle = Math.atan2(jy, jx);
         if (lastAngleRef.current !== null && lastAngleRef.current !== 0) {
-          let deltaAngle = currentAngle - lastAngleRef.current;
+          deltaAngle = currentAngle - lastAngleRef.current;
           if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
           if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
-
-          if (filterControlParam === 'centre') {
-            const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
-            const targetD = Math.max(-7, Math.min(7, (scene.filter?.centreD ?? 0) + deltaD));
-            onUpdateFilterParams({ centreD: targetD });
-          } else if (filterControlParam === 'width') {
-            const deltaW = (deltaAngle / (2 * Math.PI)) * 2.0;
-            const targetW = Math.max(0.25, Math.min(12.0, (scene.filter?.widthD ?? 4.0) + deltaW));
-            onUpdateFilterParams({ widthD: targetW });
-          } else if (filterControlParam === 'skirt') {
-            const deltaS = (deltaAngle / (2 * Math.PI)) * 1.0;
-            const targetS = Math.max(0.05, Math.min(4.0, (scene.filter?.softnessD ?? 1.0) + deltaS));
-            onUpdateFilterParams({ softnessD: targetS });
-          }
         }
         lastAngleRef.current = currentAngle;
         setJogAngle(currentAngle);
-      } else {
-        const dLinearX = touch.clientX - dragStartPos.x;
-        const canvasWidth = containerRef.current?.clientWidth || 300;
-        if (filterControlParam === 'centre') {
-          const deltaD = -(dLinearX / canvasWidth) * 2.5;
-          const targetD = Math.max(-7, Math.min(7, dragStartPos.filterD + deltaD));
-          onUpdateFilterParams({ centreD: targetD });
-        } else if (filterControlParam === 'width') {
-          const deltaW = (dLinearX / canvasWidth) * 4.0;
-          const targetW = Math.max(0.25, Math.min(12.0, dragStartPos.filterWidth + deltaW));
-          onUpdateFilterParams({ widthD: targetW });
-        } else if (filterControlParam === 'skirt') {
-          const deltaS = (dLinearX / canvasWidth) * 2.0;
-          const targetS = Math.max(0.05, Math.min(4.0, dragStartPos.filterSoftness + deltaS));
-          onUpdateFilterParams({ softnessD: targetS });
-        }
       }
+
+      const dLinearX = touch.clientX - dragStartPos.x;
+      const canvasWidth = containerRef.current?.clientWidth || 300;
+      processFilterTouch(isDial, deltaAngle, dLinearX, canvasWidth, dragStartPos);
       return;
     }
 

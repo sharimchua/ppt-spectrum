@@ -2,7 +2,7 @@ import { Shape, VoiceAnchor, VoiceId, Ratio } from './types';
 import { flattenAnchorsToPartials } from './shape';
 
 /**
- * Builds a chord-tone VoiceAnchor with its own fundamental and overtone series up to P5 (1x, 2x, 3x).
+ * Builds a chord-tone VoiceAnchor with its own fundamental and harmonic overtone series up to P5 (1x, 2x, 3x, 4x, 5x).
  */
 export function createChordVoiceAnchor(
   id: string,
@@ -33,8 +33,8 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h2`,
         ratio: { kind: 'rational', num: 2, den: 1 },
-        amp: 0.48,
-        previousAmp: 0.48,
+        amp: 0.50,
+        previousAmp: 0.50,
         phase: 0,
         voice: 'clave',
         label: `${name} (2x Oct)`,
@@ -42,11 +42,29 @@ export function createChordVoiceAnchor(
       {
         id: `${id}_h3`,
         ratio: { kind: 'rational', num: 3, den: 1 },
-        amp: 0.28,
-        previousAmp: 0.28,
+        amp: 0.35,
+        previousAmp: 0.35,
         phase: 0,
         voice: 'triangle',
         label: `${name} (3x P5)`,
+      },
+      {
+        id: `${id}_h4`,
+        ratio: { kind: 'rational', num: 4, den: 1 },
+        amp: 0.22,
+        previousAmp: 0.22,
+        phase: 0,
+        voice: 'hihat',
+        label: `${name} (4x 2Oct)`,
+      },
+      {
+        id: `${id}_h5`,
+        ratio: { kind: 'rational', num: 5, den: 1 },
+        amp: 0.15,
+        previousAmp: 0.15,
+        phase: 0,
+        voice: 'woodblock',
+        label: `${name} (5x M3)`,
       },
     ],
   };
@@ -290,7 +308,7 @@ export const PRESET_SHAPES: Shape[] = [
       name: 'Major Triad (4 : 5 : 6 Root Position)',
       origin: 'preset' as const,
       category: 'harmony' as const,
-      description: 'Pure Just Major Triad (1 : 5/4 : 3/2) with 3 Voice Anchors (Do, Mi, So) voiced equally, each carrying its own fundamental, octave (2x), and fifth (3x) overtone partials.',
+      description: 'Pure Just Major Triad (1 : 5/4 : 3/2) with 3 Voice Anchors (Do, Mi, So) voiced equally, each carrying rich harmonic overtone partials up to P5 (1x, 2x, 3x, 4x, 5x).',
       adsr: { attack: 0.04, decay: 1.2, sustain: 0.75, release: 0.35, damping: 0.2 },
       anchors,
       partials: flattenAnchorsToPartials(anchors),

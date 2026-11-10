@@ -292,9 +292,20 @@ export function calculateRealignmentAnalysis(
   shape: Shape,
   placement?: Placement,
   _filter?: Filter | BandFilter,
-  windowCycles: number = 2.5,
+  windowCycles?: number,
   numSamples: number = 256
 ): RealignmentAnalysis {
+  const coincidence = calculateCoincidenceCycle(shape, 440);
+  const isAperiodic = coincidence.isAperiodic;
+  const coincidenceStride = isAperiodic ? Infinity : coincidence.rootTurnsToAlign;
+
+  const effectiveWindowCycles =
+    windowCycles !== undefined
+      ? windowCycles
+      : !isAperiodic && coincidenceStride <= 4
+      ? Math.max(2.5, coincidenceStride <= 2 ? 2.5 : coincidenceStride * 1.08)
+      : 3.5;
+
   const tracks: VoiceCoincidenceTrack[] = [];
   const placementGain = placement ? (placement.mute ? 0 : placement.gain) : 1.0;
 
@@ -316,10 +327,10 @@ export function calculateRealignmentAnalysis(
         const effectiveAmp = anchorGain * p.amp;
 
         const hits: number[] = [];
-        const maxK = Math.ceil(effectiveRatio * windowCycles + effectivePhase) + 1;
+        const maxK = Math.ceil(effectiveRatio * effectiveWindowCycles + effectivePhase) + 1;
         for (let k = 0; k <= maxK; k++) {
           const tau = (k - effectivePhase) / effectiveRatio;
-          if (tau >= -0.005 && tau <= windowCycles + 0.005) {
+          if (tau >= -0.005 && tau <= effectiveWindowCycles + 0.005) {
             hits.push(Math.max(0, tau));
           }
         }
@@ -356,10 +367,10 @@ export function calculateRealignmentAnalysis(
       const semitoneIndex = ((semitone % 12) + 12) % 12;
       const effectiveAmp = p.amp * placementGain;
       const hits: number[] = [];
-      const maxK = Math.ceil(pRatio * windowCycles + p.phase) + 1;
+      const maxK = Math.ceil(pRatio * effectiveWindowCycles + p.phase) + 1;
       for (let k = 0; k <= maxK; k++) {
         const tau = (k - p.phase) / pRatio;
-        if (tau >= -0.005 && tau <= windowCycles + 0.005) {
+        if (tau >= -0.005 && tau <= effectiveWindowCycles + 0.005) {
           hits.push(Math.max(0, tau));
         }
       }
@@ -404,13 +415,13 @@ export function calculateRealignmentAnalysis(
 
   if (totalAmp <= 0) totalAmp = 1.0;
 
-  // Sample constructive interference and pulse coincidence across tau in [0, windowCycles]
+  // Sample constructive interference and pulse coincidence across tau in [0, effectiveWindowCycles]
   const samplePoints = new Float32Array(numSamples);
   const sigma = 0.038;
   const twoSigmaSq = 2 * sigma * sigma;
 
   for (let s = 0; s < numSamples; s++) {
-    const tau = (s / (numSamples - 1)) * windowCycles;
+    const tau = (s / (numSamples - 1)) * effectiveWindowCycles;
     let cosSum = 0;
     let pulseSum = 0;
 
@@ -432,49 +443,32 @@ export function calculateRealignmentAnalysis(
   peaks.push({ tau: 0, value: samplePoints[0], isDownbeat: true });
 
   let highestSecondaryVal = 0;
-  let highestSecondaryTau = 1.0;
 
   for (let s = 1; s < numSamples - 1; s++) {
     const prev = samplePoints[s - 1];
     const curr = samplePoints[s];
     const next = samplePoints[s + 1];
     if (curr > prev && curr >= next && curr > 0.4) {
-      const tau = (s / (numSamples - 1)) * windowCycles;
+      const tau = (s / (numSamples - 1)) * effectiveWindowCycles;
       if (tau >= 0.25) {
         const isDownbeat = Math.abs(tau - Math.round(tau)) < 0.08 && curr > 0.65;
         peaks.push({ tau, value: curr, isDownbeat });
         if (curr > highestSecondaryVal) {
           highestSecondaryVal = curr;
-          highestSecondaryTau = tau;
         }
       }
     }
   }
 
   let coherenceScore = 0;
-  let coincidenceStride = 1.0;
-  let isAperiodic = false;
-
-  if (highestSecondaryVal >= 0.58) {
-    // Harmonic or rational coincidence achieved within window
-    isAperiodic = false;
-    // Snap stride to simple harmonic interval
-    if (Math.abs(highestSecondaryTau - 1.0) < 0.12) {
-      coincidenceStride = 1.0;
-    } else if (Math.abs(highestSecondaryTau - 2.0) < 0.15) {
-      coincidenceStride = 2.0;
-    } else if (Math.abs(highestSecondaryTau - 1.5) < 0.12) {
-      coincidenceStride = 1.5;
-    } else {
-      coincidenceStride = Math.round(highestSecondaryTau * 10) / 10;
-    }
-    const strideDecay = 1.0 / Math.sqrt(Math.max(1.0, coincidenceStride));
-    coherenceScore = Math.max(0.2, Math.min(1.0, highestSecondaryVal * strideDecay * 1.15));
+  if (isAperiodic) {
+    coherenceScore = Math.max(0.05, Math.min(0.38, highestSecondaryVal * 0.55));
   } else {
-    // Inharmonic, dispersed or cluster spectrum: lacks unified recurrence
-    isAperiodic = true;
-    coincidenceStride = Infinity;
-    coherenceScore = Math.max(0.05, Math.min(0.42, highestSecondaryVal * 0.65));
+    // Exact harmonic cadence factor matching bipedal stride:
+    // D=1 -> 1.0, D=2 -> 0.85, D=3 -> 0.74, D=4 -> 0.65, D=10 -> 0.38
+    const harmonicCadenceFactor = 1.0 / (1.0 + 0.18 * Math.max(0, coincidenceStride - 1));
+    const peakAlignment = Math.min(1.0, Math.max(highestSecondaryVal, samplePoints[0]));
+    coherenceScore = Math.max(0.25, Math.min(1.0, 0.65 * harmonicCadenceFactor + 0.35 * peakAlignment));
   }
 
   return {
@@ -483,7 +477,7 @@ export function calculateRealignmentAnalysis(
     isAperiodic,
     activeVoicesCount: tracks.length,
     activePartialsCount: allComponents.length,
-    windowCycles,
+    windowCycles: effectiveWindowCycles,
     samplePoints,
     peaks,
     tracks,

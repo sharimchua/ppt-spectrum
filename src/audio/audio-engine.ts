@@ -1,7 +1,8 @@
 import { Scene, VoiceId, ADSREnvelope } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
-import { calculateFilterGain, getEffectivePartials } from '../core/shape';
+import { calculateFilterGain, getFilterablePartials } from '../core/shape';
+import { evaluateStaticMatch, compileFilterForWorklet } from '../core/filter-eval';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
 
 export interface WorkletPartialPayload {
@@ -9,6 +10,7 @@ export interface WorkletPartialPayload {
   amp: number;
   phaseOffset: number;
   voice?: VoiceId;
+  staticMatch?: number;
 }
 
 export interface WorkletShapePayload {
@@ -18,25 +20,40 @@ export interface WorkletShapePayload {
   mute: boolean;
   partials: WorkletPartialPayload[];
   adsr?: ADSREnvelope;
+  ratioToScene?: number;
+  isPrimary?: boolean;
 }
 
 /**
  * Pure function mapping Scene placements and shapes to AudioWorklet payloads,
- * applying active Band Filter attenuation to partial amplitudes.
+ * calculating static filter matches and duty gain for partials.
  */
 export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
-  return scene.placements.map((placement) => {
+  const sceneD = scene.placements[0]?.d ?? 0;
+  return scene.placements.map((placement, placementIdx) => {
     const shapeObj = scene.shapes.find((s) => s.id === placement.shapeId);
-    const effectivePartials = shapeObj ? getEffectivePartials(shapeObj) : [];
-    const partials = effectivePartials.map((p) => {
+    const filterablePartials = shapeObj ? getFilterablePartials(shapeObj) : [];
+    const partials = filterablePartials.map((p) => {
       const ratioVal = ratioToValue(p.ratio);
       const partialD = placement.d - Math.log2(ratioVal);
-      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter, placement.d) : 1.0;
+      const filterGain = scene.filter ? calculateFilterGain(partialD, scene.filter, sceneD) : 1.0;
+      const staticMatch = scene.filter
+        ? evaluateStaticMatch(scene.filter, {
+            partialD,
+            sceneD,
+            ratio: p.ratio,
+            phase: p.phase,
+            anchorRatio: p.anchorRatio,
+            placementD: placement.d,
+            tplHz: scene.anchors.tplFrequencyHz,
+          })
+        : 1.0;
       return {
         ratio: ratioVal,
         amp: p.amp * filterGain,
         phaseOffset: p.phase,
         voice: p.voice,
+        staticMatch,
       };
     });
 
@@ -47,6 +64,8 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
       mute: placement.mute,
       partials,
       adsr: shapeObj?.adsr,
+      ratioToScene: Math.pow(2, sceneD - placement.d),
+      isPrimary: placementIdx === 0,
     };
   });
 }
@@ -448,6 +467,7 @@ export class AudioEngine {
         masterGain: effectiveGain,
         isPlaying: this.isPlaying,
         tplHz: this.scene.anchors.tplFrequencyHz,
+        filter: compileFilterForWorklet(this.scene.filter),
       },
     });
   }

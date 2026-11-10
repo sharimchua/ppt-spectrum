@@ -34,16 +34,15 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const isPitchSpace = f0 >= 20;
-    const windowCycles = 2.5;
-
     // Run Unified Realignment & Coincidence Analysis across all active voice anchors and partials
     const analysis: RealignmentAnalysis = calculateRealignmentAnalysis(
       shape,
       placement,
       scene.filter,
-      windowCycles,
+      undefined,
       Math.min(320, Math.max(128, Math.floor(width / 2)))
     );
+    const windowCycles = analysis.windowCycles;
 
     ctx.save();
 

@@ -175,13 +175,14 @@ describe('Alignment & Ghost Fundamental', () => {
     expect(analysisHemiola.isAperiodic).toBe(false);
     expect(analysisHemiola.coincidenceStride).toBe(2.0);
 
-    // 3. Multi-voice chord (Major Triad)
-    const majorTriad = PRESET_SHAPES.find((s) => s.id === 'major-triad');
-    if (majorTriad) {
-      const analysisTriad = calculateRealignmentAnalysis(majorTriad);
-      expect(analysisTriad.coherenceScore).toBeGreaterThan(0.65);
-      expect(analysisTriad.activeVoicesCount).toBeGreaterThanOrEqual(1);
-    }
+    // 3. Multi-voice chord (Major Triad with P1 through P5 overtones)
+    const majorTriad = PRESET_SHAPES.find((s) => s.id === 'major-triad-4-5-6')!;
+    const analysisTriad = calculateRealignmentAnalysis(majorTriad);
+    expect(analysisTriad.coherenceScore).toBeGreaterThan(0.60);
+    expect(analysisTriad.activeVoicesCount).toBe(3);
+    // Cadence stride matches exact supercycle (lcm of 1, 4, 2 = 4)
+    expect(analysisTriad.coincidenceStride).toBe(4.0);
+    expect(majorTriad.anchors![0].partials).toHaveLength(5);
 
     // 4. Inharmonic timbre (Tibetan Singing Bowl)
     const bowl = PRESET_SHAPES.find((s) => s.id === 'tibetan-singing-bowl');

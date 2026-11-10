@@ -1,11 +1,15 @@
 import { Scene } from '../core/types';
-import { evaluatePlacedShape, calculateFilterGain, evaluatePartialAdsr } from '../core/shape';
+import { evaluatePlacedShape, evaluatePartialAdsr } from '../core/shape';
 import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
 import { LensLabelMode } from '../core/layout-models';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import { getApertureColours, endpointToRulerD } from './filter-render-utils';
+import { evaluateDutyGain } from '../core/filter-eval';
+import { formatEndpoint } from '../core/endpoint-parse';
+import { RangeCondition } from '../core/filter-types';
 
 export class RulerLensRenderer implements RegisteredLensRenderer {
   public id = 'ruler';
@@ -110,10 +114,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       ctx.save();
       const filter = scene.filter;
       const primaryPlacement = scene.placements[0];
-      const fundamentalD = primaryPlacement?.d;
-      const effectiveFilterCenterD = filter.trackingMode === 'relative' && fundamentalD !== undefined
-        ? fundamentalD + filter.centreD
-        : filter.centreD;
+      const fundamentalD = primaryPlacement?.d ?? 0;
+      const colours = getApertureColours(filter.action ?? 'keep');
 
       const apertureMaxH = height * 0.56;
 
@@ -124,15 +126,19 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       const step = 3;
       for (let x = 0; x <= width; x += step) {
         const d = xToD(x);
-        const gain = calculateFilterGain(d, filter, fundamentalD);
+        const gain = evaluateDutyGain(filter, {
+          partialD: d,
+          sceneD: fundamentalD,
+          tplHz: scene.anchors.tplFrequencyHz,
+        });
         const fy = baselineY - gain * apertureMaxH;
         ctx.lineTo(x, fy);
       }
       ctx.lineTo(width, baselineY);
       ctx.closePath();
 
-      // Semi-transparent cyan acoustic aperture fill
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+      // Transmission / rejection fill
+      ctx.fillStyle = colours.fill;
       ctx.fill();
 
       // Transmission envelope stroke
@@ -140,7 +146,11 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       let started = false;
       for (let x = 0; x <= width; x += step) {
         const d = xToD(x);
-        const gain = calculateFilterGain(d, filter, fundamentalD);
+        const gain = evaluateDutyGain(filter, {
+          partialD: d,
+          sceneD: fundamentalD,
+          tplHz: scene.anchors.tplFrequencyHz,
+        });
         const fy = baselineY - gain * apertureMaxH;
         if (!started) {
           ctx.moveTo(x, fy);
@@ -149,16 +159,70 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           ctx.lineTo(x, fy);
         }
       }
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.strokeStyle = colours.stroke;
       ctx.lineWidth = 1.8;
       ctx.setLineDash([4, 2]);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Aperture Center Landmark line
+      // Range condition span boundaries & ratio/cents labels
+      const rangeConditions = filter.conditions.filter((c): c is RangeCondition => c.kind === 'range');
+      for (const rc of rangeConditions) {
+        for (const span of rc.spans) {
+          if (span.lo) {
+            const loD = endpointToRulerD(span.lo, rc.reference, fundamentalD, fundamentalD, scene.anchors.tplFrequencyHz);
+            const loX = dToX(loD);
+            if (loX >= 0 && loX <= width) {
+              ctx.strokeStyle = colours.landmark;
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 3]);
+              ctx.beginPath();
+              ctx.moveTo(loX, baselineY);
+              ctx.lineTo(loX, baselineY - apertureMaxH * 0.7);
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              if (!isCompact && span.lo.unit !== 'd') {
+                ctx.font = '7px JetBrains Mono, monospace';
+                ctx.fillStyle = colours.text;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(formatEndpoint(span.lo), loX, baselineY - apertureMaxH * 0.7 - 2);
+              }
+            }
+          }
+          if (span.hi) {
+            const hiD = endpointToRulerD(span.hi, rc.reference, fundamentalD, fundamentalD, scene.anchors.tplFrequencyHz);
+            const hiX = dToX(hiD);
+            if (hiX >= 0 && hiX <= width) {
+              ctx.strokeStyle = colours.landmark;
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 3]);
+              ctx.beginPath();
+              ctx.moveTo(hiX, baselineY);
+              ctx.lineTo(hiX, baselineY - apertureMaxH * 0.7);
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              if (!isCompact && span.hi.unit !== 'd') {
+                ctx.font = '7px JetBrains Mono, monospace';
+                ctx.fillStyle = colours.text;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(formatEndpoint(span.hi), hiX, baselineY - apertureMaxH * 0.7 - 2);
+              }
+            }
+          }
+        }
+      }
+
+      // Aperture Centre Landmark line
+      const effectiveFilterCenterD = filter.trackingMode === 'relative'
+        ? fundamentalD + filter.centreD
+        : filter.centreD;
       const filterCenterX = dToX(effectiveFilterCenterD);
       if (filterCenterX >= 0 && filterCenterX <= width) {
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.strokeStyle = colours.landmark;
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 3]);
         ctx.beginPath();
@@ -168,11 +232,15 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.setLineDash([]);
       }
 
-      // Filter Mode Badge
-      const trackingLabel = filter.trackingMode === 'relative' ? 'REL' : 'FIX';
+      // Filter Mode / Aperture Badge
+      const actionLabel = (filter.action === 'remove' ? 'REJECT' : (filter.mode ?? 'PASS')).toUpperCase();
+      const isRelative = filter.trackingMode === 'relative' || rangeConditions.some((c) => c.reference !== 'absolute');
+      const trackingLabel = isRelative ? 'REL' : 'FIX';
+      const condCount = filter.conditions.length;
       const badgeText = isCompact
-        ? `${filter.mode.toUpperCase()} [${trackingLabel}] d=${effectiveFilterCenterD.toFixed(1)} w=${filter.widthD.toFixed(1)}`
-        : `ACOUSTIC APERTURE: ${filter.mode.toUpperCase()} [${trackingLabel}] (d=${effectiveFilterCenterD.toFixed(1)}, width=${filter.widthD.toFixed(1)} oct, skirt=${filter.softnessD.toFixed(1)} oct)`;
+        ? `${actionLabel} [${trackingLabel}] (${condCount})`
+        : `ACOUSTIC APERTURE: ${actionLabel} [${trackingLabel}] ${Math.round((filter.depth ?? 1) * 100)}% DEPTH (${condCount} COND)`;
+
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const bWidth = ctx.measureText(badgeText).width;
       const badgeX = Math.max(bWidth / 2 + 8, Math.min(width - bWidth / 2 - 8, filterCenterX));
@@ -180,11 +248,11 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
       ctx.fillStyle = 'rgba(11, 14, 23, 0.9)';
       ctx.fillRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.strokeStyle = colours.border;
       ctx.lineWidth = 1;
       ctx.strokeRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
 
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = colours.text;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(badgeText, badgeX, badgeY);
@@ -197,7 +265,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       const shape = scene.shapes.find((s) => s.id === placement.shapeId);
       if (!shape) continue;
 
-      const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
+      const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.placements[0]?.d, scene.anchors.tplFrequencyHz);
       const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
       const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
 

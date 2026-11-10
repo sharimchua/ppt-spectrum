@@ -47,7 +47,7 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     if (!shape) return;
 
     const isCompact = width < 520;
-    const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
+    const partials = evaluatePlacedShape(shape, placement, scene.filter, placement.d, scene.anchors.tplFrequencyHz);
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
 

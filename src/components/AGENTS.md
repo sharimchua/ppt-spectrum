@@ -46,6 +46,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useBookmarks.ts` — Musical bookmarks, A/B jump and set, and requestAnimationFrame continuum sweep loop.
 - `useShapeLibrary.ts` — Preset selection, user shape creation, duplication, deletion, capture, and undo/redo history stack.
 - `useFilterControls.ts` — BandFilter aperture edit mode, parameter selection, and mode cycling.
+- `useCanvasFilterGestures.ts` — Canvas gesture interactions for filter aperture scrubbing (drag, wheel, touch).
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 

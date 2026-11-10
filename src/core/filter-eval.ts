@@ -18,10 +18,10 @@ import { TPL_FREQUENCY_HZ } from './ppt-constants';
 
 export interface PartialContext {
   partialD: number;
-  ratio: Ratio;
-  phase: number;
+  ratio?: Ratio;
+  phase?: number;
   anchorRatio?: Ratio;
-  placementD: number;
+  placementD?: number;
   sceneD: number;
   tplHz?: number;
   ratioToScene?: number;
@@ -255,7 +255,8 @@ export function evaluateStaticMatch(filter: Filter, ctx: PartialContext): number
   }
 
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
-  const anchorD = ctx.placementD - Math.log2(anchorRatioVal);
+  const placementD = ctx.placementD ?? ctx.sceneD;
+  const anchorD = placementD - Math.log2(anchorRatioVal);
 
   const matches = rangeConds.map((cond) => {
     const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
@@ -295,8 +296,10 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
   if (!filter.enabled || filter.conditions.length === 0) return 1.0;
 
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
-  const anchorD = ctx.placementD - Math.log2(anchorRatioVal);
-  const ratioVal = ratioToValue(ctx.ratio);
+  const placementD = ctx.placementD ?? ctx.sceneD;
+  const anchorD = placementD - Math.log2(anchorRatioVal);
+  const ratioVal = ctx.ratio ? ratioToValue(ctx.ratio) : 1.0;
+  const phase = ctx.phase ?? 0;
   const ratioToScene = ctx.ratioToScene ?? 1.0;
 
   const matches = filter.conditions.map((cond) => {
@@ -304,7 +307,7 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
       const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
       return evaluateRangeMatch(x, cond, ctx.tplHz);
     }
-    return meanCycleMatch(cond, ratioVal, ctx.phase, ratioToScene);
+    return meanCycleMatch(cond, ratioVal, phase, ratioToScene);
   });
 
   const combined = combineMatches(matches, filter.combine, filter.action);
@@ -322,7 +325,8 @@ export function evaluateOnsetGain(
   if (!filter.enabled || filter.conditions.length === 0) return 1.0;
 
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
-  const anchorD = ctx.placementD - Math.log2(anchorRatioVal);
+  const placementD = ctx.placementD ?? ctx.sceneD;
+  const anchorD = placementD - Math.log2(anchorRatioVal);
 
   const matches = filter.conditions.map((cond) => {
     if (cond.kind === 'range') {
@@ -405,15 +409,16 @@ export function computeOnsetGates(
     out.fill(1.0);
     return out.length;
   }
-  const ratioVal = ratioToValue(ctx.ratio);
+  const ratioVal = ctx.ratio ? ratioToValue(ctx.ratio) : 1.0;
+  const phase = ctx.phase ?? 0;
   const ratioToScene = ctx.ratioToScene ?? 1.0;
   const spanTurns = Math.max(1e-6, toTurns - fromTurns);
   const count = out.length;
 
   for (let i = 0; i < count; i++) {
     const t = fromTurns + (i / count) * spanTurns;
-    const n = Math.floor((t - ctx.phase) * ratioVal);
-    const onsetMaster = n / ratioVal + ctx.phase;
+    const n = Math.floor((t - phase) * ratioVal);
+    const onsetMaster = n / ratioVal + phase;
     const sceneTurns = onsetMaster * ratioToScene;
     out[i] = evaluateOnsetGain(filter, ctx, sceneTurns);
   }

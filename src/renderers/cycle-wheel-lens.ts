@@ -49,7 +49,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     const f0 = dToFreq(primaryPlacement.d, scene.anchors.tplFrequencyHz);
     const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
-    const partials = evaluatePlacedShape(shape, primaryPlacement, scene.filter, scene.anchors.tplFrequencyHz);
+    const partials = evaluatePlacedShape(shape, primaryPlacement, scene.filter, primaryPlacement.d, scene.anchors.tplFrequencyHz);
 
     // Unwrapped continuous root turns:
     let unwrappedRootTurns = 0;

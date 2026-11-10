@@ -309,7 +309,7 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
       const shape = scene.shapes.find((s) => s.id === placement.shapeId);
       if (!shape) continue;
 
-      const partials = evaluatePlacedShape(shape, placement, scene.filter);
+      const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.placements[0]?.d, scene.anchors.tplFrequencyHz);
 
       // Draw connecting interval chord line ONLY for dyad partial pairs (exactly 2 active partials)
       const activePartials = partials.filter((p) => p.filteredAmp > 0.001);

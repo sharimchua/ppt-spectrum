@@ -37,7 +37,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     const shape = scene.shapes.find((s) => s.id === placement.shapeId);
     if (!shape) return;
 
-    const partials = evaluatePlacedShape(shape, placement, scene.filter, scene.anchors.tplFrequencyHz);
+    const partials = evaluatePlacedShape(shape, placement, scene.filter, placement.d, scene.anchors.tplFrequencyHz);
     const activePartials = partials.filter((p) => p.filteredAmp > 0.001);
     if (activePartials.length === 0) return;
 
