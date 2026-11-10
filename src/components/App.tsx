@@ -30,6 +30,7 @@ import { MusicalBookmarksModal, loadSavedBookmarks, saveBookmarks, createBookmar
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 
 const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
+const STORAGE_KEY_CUSTOM_LAYOUT = 'ppt_spectrum_custom_layout_v1';
 
 // Helper to extract layout slug from URL query or hash
 function extractLayoutSlugFromUrl(): string | null {
@@ -41,6 +42,27 @@ function extractLayoutSlugFromUrl(): string | null {
   if (window.location.hash) {
     const match = window.location.hash.match(/layout=([^&]+)/);
     if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
+}
+
+function loadInitialCustomLayout(): LayoutDefinition | null {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY_CUSTOM_LAYOUT);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.root) {
+          return {
+            ...parsed,
+            id: 'custom',
+            name: parsed.name || 'Custom Layout',
+          };
+        }
+      }
+    } catch {
+      // Fall through
+    }
   }
   return null;
 }
@@ -102,7 +124,25 @@ export const App: React.FC = () => {
   }, []);
 
   // Initialize layout from URL slug, last saved layout, or default to PRESET_SOLO
-  const [layout, setLayout] = useState<LayoutDefinition>(loadInitialLayout);
+  const initialLoadedLayout = useMemo(() => loadInitialLayout(), []);
+  const [layout, setLayout] = useState<LayoutDefinition>(initialLoadedLayout);
+  const [customLayout, setCustomLayout] = useState<LayoutDefinition | null>(() => {
+    const savedCustom = loadInitialCustomLayout();
+    if (savedCustom) return savedCustom;
+    if (
+      initialLoadedLayout &&
+      (initialLoadedLayout.id === 'custom' ||
+        initialLoadedLayout.id.startsWith('custom') ||
+        !PRESET_LAYOUTS[initialLoadedLayout.id])
+    ) {
+      return {
+        ...initialLoadedLayout,
+        id: 'custom',
+        name: 'Custom Layout',
+      };
+    }
+    return null;
+  });
 
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
 
@@ -213,6 +253,17 @@ export const App: React.FC = () => {
     }
   }, [layout]);
 
+  // Persist custom layout to localStorage
+  useEffect(() => {
+    if (customLayout && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY_CUSTOM_LAYOUT, JSON.stringify(customLayout));
+      } catch (err) {
+        console.warn('[Layout] Failed to save custom layout:', err);
+      }
+    }
+  }, [customLayout]);
+
   // Handle URL hash changes dynamically (#layout=<slug>)
   useEffect(() => {
     const handleHashChange = () => {
@@ -221,6 +272,14 @@ export const App: React.FC = () => {
         const decoded = decodeLayoutFromSlug(slug);
         if (decoded) {
           setLayout(decoded.layout);
+          if (!PRESET_LAYOUTS[decoded.layout.id]) {
+            const custom: LayoutDefinition = {
+              ...decoded.layout,
+              id: 'custom',
+              name: decoded.layout.name || 'Custom Layout',
+            };
+            setCustomLayout(custom);
+          }
         }
       }
     };
@@ -551,42 +610,58 @@ export const App: React.FC = () => {
   // Modular Layout Tree Editing Handlers
   const handleSplitCell = useCallback(
     (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => {
-      setLayout((prev) => ({
-        ...prev,
-        id: `custom-${Date.now().toString(36)}`,
-        name: 'Custom Layout',
-        root: splitCellInTree(prev.root, targetCellId, direction, newModule),
-      }));
+      setLayout((prev) => {
+        const updated: LayoutDefinition = {
+          ...prev,
+          id: 'custom',
+          name: 'Custom Layout',
+          root: splitCellInTree(prev.root, targetCellId, direction, newModule),
+        };
+        setCustomLayout(updated);
+        return updated;
+      });
     },
     []
   );
 
   const handleRemoveCell = useCallback((targetCellId: string) => {
-    setLayout((prev) => ({
-      ...prev,
-      id: `custom-${Date.now().toString(36)}`,
-      name: 'Custom Layout',
-      root: removeCellFromTree(prev.root, targetCellId),
-    }));
+    setLayout((prev) => {
+      const updated: LayoutDefinition = {
+        ...prev,
+        id: 'custom',
+        name: 'Custom Layout',
+        root: removeCellFromTree(prev.root, targetCellId),
+      };
+      setCustomLayout(updated);
+      return updated;
+    });
   }, []);
 
   const handleDuplicateCell = useCallback((targetCellId: string) => {
-    setLayout((prev) => ({
-      ...prev,
-      id: `custom-${Date.now().toString(36)}`,
-      name: 'Custom Layout',
-      root: duplicateCellInTree(prev.root, targetCellId),
-    }));
+    setLayout((prev) => {
+      const updated: LayoutDefinition = {
+        ...prev,
+        id: 'custom',
+        name: 'Custom Layout',
+        root: duplicateCellInTree(prev.root, targetCellId),
+      };
+      setCustomLayout(updated);
+      return updated;
+    });
   }, []);
 
   const handleAddCell = useCallback(
     (direction: LayoutFlexDirection = 'row', module: SpectrumLensType = 'cycle-wheel') => {
-      setLayout((prev) => ({
-        ...prev,
-        id: `custom-${Date.now().toString(36)}`,
-        name: 'Custom Layout',
-        root: addCellToTree(prev.root, direction, module),
-      }));
+      setLayout((prev) => {
+        const updated: LayoutDefinition = {
+          ...prev,
+          id: 'custom',
+          name: 'Custom Layout',
+          root: addCellToTree(prev.root, direction, module),
+        };
+        setCustomLayout(updated);
+        return updated;
+      });
     },
     []
   );
@@ -710,10 +785,16 @@ export const App: React.FC = () => {
   }, [updateScene, pushShapeHistory]);
 
   const handleUpdateCell = useCallback((updatedCell: LayoutCellNode) => {
-    setLayout((prev) => ({
-      ...prev,
-      root: updateCellInTree(prev.root, updatedCell),
-    }));
+    setLayout((prev) => {
+      const updated: LayoutDefinition = {
+        ...prev,
+        id: 'custom',
+        name: 'Custom Layout',
+        root: updateCellInTree(prev.root, updatedCell),
+      };
+      setCustomLayout(updated);
+      return updated;
+    });
   }, []);
 
   const handleShareLayout = useCallback(() => {
@@ -738,6 +819,7 @@ export const App: React.FC = () => {
         scene={scene}
         isPlaying={isPlaying}
         currentLayoutId={layout.id}
+        customLayout={customLayout}
         isEditMode={isEditMode}
         isFullscreen={isFullscreen}
         isShapeEditorOpen={isShapeEditorOpen}

@@ -26,6 +26,7 @@ interface ControlToolbarProps {
   scene: Scene;
   isPlaying: boolean;
   currentLayoutId: string;
+  customLayout?: LayoutDefinition | null;
   isEditMode?: boolean;
   isFullscreen?: boolean;
   isShapeEditorOpen?: boolean;
@@ -51,6 +52,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   scene,
   isPlaying,
   currentLayoutId,
+  customLayout,
   isEditMode = false,
   isFullscreen = false,
   isShapeEditorOpen = false,
@@ -270,7 +272,9 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             >
               <Layers className="w-3.5 h-3.5 text-slate-400" />
               <span className="hidden xl:inline capitalize">
-                {currentLayoutId.replace('-', ' ')}
+                {currentLayoutId === 'custom' || currentLayoutId.startsWith('custom')
+                  ? 'Custom'
+                  : currentLayoutId.replace('-', ' ')}
               </span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
@@ -297,6 +301,34 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                     {currentLayoutId === preset.id && <Check className="w-3.5 h-3.5 text-purple-400" />}
                   </button>
                 ))}
+
+                {customLayout && (
+                  <>
+                    <div className="pt-1.5 mt-1 border-t border-slate-800 px-2 py-0.5 text-[9px] uppercase font-bold text-purple-400 flex items-center justify-between">
+                      <span>Custom Workspace</span>
+                    </div>
+                    <button
+                      key="custom-layout"
+                      onClick={() => {
+                        onSelectLayout(customLayout);
+                        setShowLayoutMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-left transition cursor-pointer ${
+                        currentLayoutId === 'custom' || currentLayoutId.startsWith('custom')
+                          ? 'bg-purple-950/70 text-purple-200 font-semibold ring-1 ring-purple-500/40'
+                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
+                        <span className="truncate">{customLayout.name || 'Custom Layout'}</span>
+                      </div>
+                      {(currentLayoutId === 'custom' || currentLayoutId.startsWith('custom')) && (
+                        <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
