@@ -169,6 +169,8 @@ export const App: React.FC = () => {
       onTogglePlay: handleTogglePlay,
       onToggleShapeEditor: () => setIsShapeEditorOpen((prev) => !prev),
       onToggleQuickSearch: () => setIsQuickSearchOpen((prev) => !prev),
+      onToggleBookmarks: () => setIsBookmarksOpen((prev) => !prev),
+      onToggleCapture: () => setIsCaptureOpen((prev) => !prev),
       onToggleOscillate: toggleOscillating,
       onToggleFilterEditMode: toggleFilterEditMode,
       onToggleFilter: toggleFilter,

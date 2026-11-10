@@ -42,10 +42,8 @@ export function useTransport({
     (shapeId?: string) => {
       audioEngine.noteOn(shapeId, sceneRef.current);
       coordinator.triggerNoteStrike();
-      const { cx, cy } = getViewportCenter();
-      coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
     },
-    [audioEngine, coordinator, getViewportCenter, sceneRef]
+    [audioEngine, coordinator, sceneRef]
   );
 
   const handleNoteOff = useCallback(
@@ -59,23 +57,19 @@ export function useTransport({
     (shapeId?: string) => {
       audioEngine.triggerNote(shapeId, sceneRef.current);
       coordinator.triggerNoteStrike();
-      const { cx, cy } = getViewportCenter();
-      coordinator.cosmeticsEngine.spawnNoteSparks(cx, cy, '#f59e0b', 1.0, 16);
     },
-    [audioEngine, coordinator, getViewportCenter, sceneRef]
+    [audioEngine, coordinator, sceneRef]
   );
 
   const handleTogglePlay = useCallback(async () => {
     if (!audioEngine.getIsPlaying()) {
       setIsPlaying(true);
-      const { cx, cy } = getViewportCenter();
-      coordinator.cosmeticsEngine.triggerShockwave(cx, cy, '#E13610', 100);
       await audioEngine.play();
     } else {
       audioEngine.pause();
       setIsPlaying(false);
     }
-  }, [audioEngine, coordinator, getViewportCenter]);
+  }, [audioEngine]);
 
   return {
     isPlaying,

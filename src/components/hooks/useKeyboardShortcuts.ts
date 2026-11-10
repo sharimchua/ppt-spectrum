@@ -21,6 +21,8 @@ export interface KeyboardActions {
   onTogglePlay: () => void;
   onToggleShapeEditor: () => void;
   onToggleQuickSearch: () => void;
+  onToggleBookmarks?: () => void;
+  onToggleCapture?: () => void;
   onToggleOscillate: () => void;
   onToggleFilterEditMode: () => void;
   onToggleFilter: () => void;
@@ -108,7 +110,13 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      if (e.key === 's' || e.key === 'S') {
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        actionsRef.current.onToggleBookmarks?.();
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        actionsRef.current.onToggleCapture?.();
+      } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
         actionsRef.current.onToggleOscillate();
       } else if (e.key === 'e' || e.key === 'E') {
