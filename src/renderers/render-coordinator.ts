@@ -58,6 +58,11 @@ export class RenderCoordinator {
   private throttledProfile: PerformanceProfile | null = null;
   private isFocused: boolean = true;
 
+  // Cached DOM Rects to eliminate per-frame layout reflow
+  private cachedPpRect: CachedRect | null = null;
+  private cachedLensRects: Map<string, CachedRect> = new Map();
+  private lastRectUpdateTime: number = 0;
+
   // Audio Sync Telemetry
   private audioPhaseProvider: ((shapeId: string) => number) | null = null;
   private isAudioActiveProvider: (() => boolean) | null = null;
@@ -93,10 +98,16 @@ export class RenderCoordinator {
   public registerPostProcessingCanvas(canvas: HTMLCanvasElement): void {
     this.postProcessingCanvas = canvas;
     this.webglPipeline = new WebGLPostProcessingPipeline(canvas);
+    this.invalidateRectCaches();
   }
 
   public getPostProcessingCanvas(): HTMLCanvasElement | null {
     return this.postProcessingCanvas;
+  }
+
+  public invalidateRectCaches(): void {
+    this.cachedPpRect = null;
+    this.cachedLensRects.clear();
   }
 
   public registerLens(
@@ -109,11 +120,13 @@ export class RenderCoordinator {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       this.registeredLenses.set(id, { canvas, ctx, renderer, labelMode, configOverrides });
+      this.invalidateRectCaches();
     }
   }
 
   public unregisterLens(id: string): void {
     this.registeredLenses.delete(id);
+    this.invalidateRectCaches();
   }
 
   public setAudioPhaseProvider(provider: ((shapeId: string) => number) | null): void {
@@ -167,11 +180,27 @@ export class RenderCoordinator {
   private loop = (): void => {
     if (!this.isRunning) return;
     const now = performance.now();
-    const dtMs = Math.min(100, now - this.lastFrameTime);
+    const elapsedMs = now - this.lastFrameTime;
+
+    // Detect mobile touch devices to cap frame rate at 60 FPS (preventing 120Hz ProMotion battery/thermal strain)
+    const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    const minFrameInterval = isMobile ? 15.5 : 7.5; // ~60 FPS mobile, ~120 FPS desktop
+
+    // When audio is paused and no shockwaves are active, throttle to ~30 FPS to keep device cool
+    const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
+    const hasActiveShockwaves = this.cosmeticsEngine.getActiveShockwaves().length > 0;
+    const targetInterval = (!isAudioActive && !hasActiveShockwaves) ? 31.0 : minFrameInterval;
+
+    if (elapsedMs < targetInterval) {
+      this.animId = requestAnimationFrame(this.loop);
+      return;
+    }
+
+    const dtMs = Math.min(100, elapsedMs);
     this.lastFrameTime = now;
 
     // Frame-time governor (runtime throttle; never permanently mutates scene config)
-    if (dtMs > 20.0) {
+    if (dtMs > 22.0) {
       this.consecutiveSlowFrames++;
       if (this.consecutiveSlowFrames > 45 && this.getEffectivePerformanceProfile() === 'max') {
         this.throttledProfile = 'balanced';
@@ -203,8 +232,22 @@ export class RenderCoordinator {
     this.internalNoteAge += dtMs / 1000;
     const noteAge = (primaryShapeId && this.noteAgeProvider) ? this.noteAgeProvider(primaryShapeId) : this.internalNoteAge;
 
+    const now = performance.now();
+    // Refresh cached bounding rects at most once every 600ms or when invalidated, eliminating synchronous layout reflows
+    const shouldRefreshRects = !this.cachedPpRect || (now - this.lastRectUpdateTime > 600);
+    if (shouldRefreshRects) {
+      if (this.postProcessingCanvas) {
+        const r = this.postProcessingCanvas.getBoundingClientRect();
+        this.cachedPpRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+      } else {
+        this.cachedPpRect = { left: 0, top: 0, width: 0, height: 0 };
+      }
+      this.lastRectUpdateTime = now;
+      this.cachedLensRects.clear();
+    }
+
     // Render each lens cell
-    for (const { canvas, ctx, renderer, labelMode, configOverrides } of this.registeredLenses.values()) {
+    for (const [cellId, { canvas, ctx, renderer, labelMode, configOverrides }] of this.registeredLenses.entries()) {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
@@ -218,13 +261,17 @@ export class RenderCoordinator {
       if (renderer.getDynamicLights) {
         const rawLights = renderer.getDynamicLights();
         if (rawLights.length > 0) {
-          // Translate cell-local canvas coordinates to viewport post-processing space
-          const cellRect = canvas.getBoundingClientRect();
-          const ppRect = this.postProcessingCanvas
-            ? this.postProcessingCanvas.getBoundingClientRect()
-            : { left: 0, top: 0 };
-          const offsetX = cellRect.left - ppRect.left;
-          const offsetY = cellRect.top - ppRect.top;
+          let cellRect = this.cachedLensRects.get(cellId);
+          if (!cellRect) {
+            const r = canvas.getBoundingClientRect();
+            cellRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+            this.cachedLensRects.set(cellId, cellRect);
+          }
+
+          const ppLeft = this.cachedPpRect ? this.cachedPpRect.left : 0;
+          const ppTop = this.cachedPpRect ? this.cachedPpRect.top : 0;
+          const offsetX = cellRect.left - ppLeft;
+          const offsetY = cellRect.top - ppTop;
 
           for (const l of rawLights) {
             dynamicLights.push({

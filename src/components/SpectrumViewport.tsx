@@ -54,26 +54,44 @@ export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
     coordinator.setScene(scene);
   }, [coordinator, scene]);
 
-  // High-DPI canvas resizing
+  // High-DPI canvas resizing with mobile thermal safeguards
   useEffect(() => {
     const handleResize = () => {
       const container = containerRef.current;
       if (!container) return;
 
-      const dpr = window.devicePixelRatio || 1;
-      const rect = container.getBoundingClientRect();
-      const w = Math.round(rect.width * dpr);
-      const h = Math.round(rect.height * dpr);
+      const rawDpr = window.devicePixelRatio || 1;
+      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      // Cap WebGL post-processing DPR to 1.25 on mobile to eliminate GPU overheating while maintaining crisp glow
+      const ppDpr = isMobile ? Math.min(rawDpr, 1.25) : Math.min(rawDpr, 1.5);
+      const bgDpr = Math.min(rawDpr, 1.5);
 
-      const canvases = [bgCanvasRef.current, effectsCanvasRef.current, postProcessingCanvasRef.current];
-      for (const c of canvases) {
-        if (c) {
-          c.width = w;
-          c.height = h;
-          c.style.width = `${rect.width}px`;
-          c.style.height = `${rect.height}px`;
-        }
+      const rect = container.getBoundingClientRect();
+      const wPp = Math.round(rect.width * ppDpr);
+      const hPp = Math.round(rect.height * ppDpr);
+      const wBg = Math.round(rect.width * bgDpr);
+      const hBg = Math.round(rect.height * bgDpr);
+
+      if (bgCanvasRef.current) {
+        bgCanvasRef.current.width = wBg;
+        bgCanvasRef.current.height = hBg;
+        bgCanvasRef.current.style.width = `${rect.width}px`;
+        bgCanvasRef.current.style.height = `${rect.height}px`;
       }
+      if (effectsCanvasRef.current) {
+        effectsCanvasRef.current.width = wBg;
+        effectsCanvasRef.current.height = hBg;
+        effectsCanvasRef.current.style.width = `${rect.width}px`;
+        effectsCanvasRef.current.style.height = `${rect.height}px`;
+      }
+      if (postProcessingCanvasRef.current) {
+        postProcessingCanvasRef.current.width = wPp;
+        postProcessingCanvasRef.current.height = hPp;
+        postProcessingCanvasRef.current.style.width = `${rect.width}px`;
+        postProcessingCanvasRef.current.style.height = `${rect.height}px`;
+      }
+
+      coordinator.invalidateRectCaches();
       coordinator.renderBackground();
     };
 

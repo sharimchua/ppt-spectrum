@@ -17,6 +17,8 @@ interface FlexLayoutRendererProps {
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
+  onTogglePlay?: () => void;
+  onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
   canDelete?: boolean;
@@ -33,6 +35,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   onUpdateFilterCentreD,
   onUpdateFilterParams,
   onUpdateCell,
+  onTogglePlay,
+  onOpenRadialMenuAt,
   isEditMode = false,
   canDelete = false,
   onSplitCell,
@@ -55,6 +59,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateFilterParams={onUpdateFilterParams}
           onUpdateCell={onUpdateCell}
+          onTogglePlay={onTogglePlay}
+          onOpenRadialMenuAt={onOpenRadialMenuAt}
           isEditMode={isEditMode}
           canDelete={canDelete}
           onSplitCell={onSplitCell}
@@ -87,6 +93,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateFilterParams={onUpdateFilterParams}
           onUpdateCell={onUpdateCell}
+          onTogglePlay={onTogglePlay}
+          onOpenRadialMenuAt={onOpenRadialMenuAt}
           isEditMode={isEditMode}
           canDelete={canDelete}
           onSplitCell={onSplitCell}

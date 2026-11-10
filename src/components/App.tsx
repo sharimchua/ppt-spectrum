@@ -9,6 +9,7 @@ import {
   LayoutFlexDirection,
   SpectrumLensType,
   PRESET_SOLO,
+  PRESET_DUO_HORIZONTAL,
   PRESET_LAYOUTS,
   splitCellInTree,
   removeCellFromTree,
@@ -28,6 +29,7 @@ import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
 import { MusicalBookmarksModal, loadSavedBookmarks, saveBookmarks, createBookmarkPointFromD, BookmarkSettings } from './MusicalBookmarksModal';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
+import { RadialMenuOverlay } from './RadialMenuOverlay';
 
 const STORAGE_KEY_LAYOUT = 'ppt_spectrum_last_layout_v1';
 const STORAGE_KEY_CUSTOM_LAYOUT = 'ppt_spectrum_custom_layout_v1';
@@ -93,7 +95,13 @@ function loadInitialLayout(): LayoutDefinition {
     }
   }
 
-  return PRESET_SOLO;
+  // Small portrait screens default to a stacked Duo Split layout for optimal lens visibility
+  const isMobilePortrait =
+    typeof window !== 'undefined' &&
+    window.innerWidth < 768 &&
+    window.innerHeight > window.innerWidth;
+
+  return isMobilePortrait ? PRESET_DUO_HORIZONTAL : PRESET_SOLO;
 }
 
 export const App: React.FC = () => {
@@ -107,6 +115,8 @@ export const App: React.FC = () => {
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
   const [isOscillating, setIsOscillating] = useState<boolean>(false);
   const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
+  const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
+  const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
   // Session-only history of selected shapes for quick Up/Down arrow navigation
   const [, setShapeHistory] = useState<{ stack: string[]; index: number }>(() => {
@@ -569,6 +579,60 @@ export const App: React.FC = () => {
     }));
   }, [updateScene]);
 
+  const handleOpenRadialMenu = useCallback(() => {
+    setRadialMenuAnchor(null);
+    setIsRadialMenuOpen(true);
+  }, []);
+
+  const handleOpenRadialMenuAt = useCallback((pos: { x: number; y: number }) => {
+    setRadialMenuAnchor(pos);
+    setIsRadialMenuOpen(true);
+  }, []);
+
+  const handleJumpBookmarkA = useCallback(() => {
+    handleUpdatePlacementD(bookmarks.a.d);
+  }, [bookmarks.a.d]);
+
+  const handleJumpBookmarkB = useCallback(() => {
+    handleUpdatePlacementD(bookmarks.b.d);
+  }, [bookmarks.b.d]);
+
+  const handleSetBookmarkA = useCallback(() => {
+    const curD = scene.placements[0]?.d ?? 0;
+    const pt = createBookmarkPointFromD(curD);
+    setBookmarks((prev) => {
+      const next = { ...prev, a: pt };
+      saveBookmarks(next);
+      return next;
+    });
+  }, [scene.placements]);
+
+  const handleSetBookmarkB = useCallback(() => {
+    const curD = scene.placements[0]?.d ?? 0;
+    const pt = createBookmarkPointFromD(curD);
+    setBookmarks((prev) => {
+      const next = { ...prev, b: pt };
+      saveBookmarks(next);
+      return next;
+    });
+  }, [scene.placements]);
+
+  const handleCycleFilterMode = useCallback(() => {
+    updateScene((prev) => {
+      const f = prev.filter;
+      if (!f || !f.enabled) {
+        return { ...prev, filter: { ...f, enabled: true, mode: 'band-pass' } };
+      }
+      if (f.mode === 'band-pass') {
+        return { ...prev, filter: { ...f, enabled: true, mode: 'low-pass' } };
+      }
+      if (f.mode === 'low-pass') {
+        return { ...prev, filter: { ...f, enabled: true, mode: 'high-pass' } };
+      }
+      return { ...prev, filter: { ...f, enabled: false, mode: 'band-pass' } };
+    });
+  }, [updateScene]);
+
   const handleSelectPreset = useCallback((shapeId: string) => {
     pushShapeHistory(shapeId);
     updateScene((prev) => {
@@ -839,6 +903,7 @@ export const App: React.FC = () => {
         onToggleFilter={() => updateScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
+        onOpenRadialMenu={handleOpenRadialMenu}
       />
 
       <SpectrumViewport
@@ -860,6 +925,8 @@ export const App: React.FC = () => {
             onUpdateFilterCentreD={handleUpdateFilterCentreD}
             onUpdateFilterParams={handleUpdateFilterParams}
             onUpdateCell={handleUpdateCell}
+            onTogglePlay={handleTogglePlay}
+            onOpenRadialMenuAt={handleOpenRadialMenuAt}
             isEditMode={isEditMode}
             canDelete={canDelete}
             onSplitCell={handleSplitCell}
@@ -928,6 +995,29 @@ export const App: React.FC = () => {
         shapes={scene.shapes}
         activeShapeId={activeShape?.id}
         onSelectShape={handleSelectPreset}
+      />
+
+      <RadialMenuOverlay
+        isOpen={isRadialMenuOpen}
+        onClose={() => setIsRadialMenuOpen(false)}
+        scene={scene}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
+        onUpdatePlacementD={handleUpdatePlacementD}
+        onUpdateFilterParams={handleUpdateFilterParams}
+        onToggleFilter={() => updateScene((prev) => ({ ...prev, filter: { ...prev.filter, enabled: !prev.filter.enabled } }))}
+        onCycleFilterMode={handleCycleFilterMode}
+        onOpenLibrary={() => setIsShapeEditorOpen(true)}
+        onOpenCapture={() => setIsCaptureOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        isOscillating={isOscillating}
+        onToggleOscillate={() => setIsOscillating((prev) => !prev)}
+        bookmarks={bookmarks}
+        onSetBookmarkA={handleSetBookmarkA}
+        onSetBookmarkB={handleSetBookmarkB}
+        onJumpBookmarkA={handleJumpBookmarkA}
+        onJumpBookmarkB={handleJumpBookmarkB}
+        anchorPos={radialMenuAnchor}
       />
     </div>
   );

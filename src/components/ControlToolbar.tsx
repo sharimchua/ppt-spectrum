@@ -20,6 +20,7 @@ import {
   Settings,
   SlidersHorizontal,
   Filter,
+  Compass,
 } from 'lucide-react';
 
 interface ControlToolbarProps {
@@ -46,6 +47,7 @@ interface ControlToolbarProps {
   onToggleFilter?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
+  onOpenRadialMenu?: () => void;
 }
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
@@ -71,6 +73,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleFilter,
   onOpenCapture,
   onOpenInfo,
+  onOpenRadialMenu,
 }) => {
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -94,7 +97,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   return (
     <header className="flex flex-col border-b border-slate-800 bg-[#080b12]/95 backdrop-blur-md z-40 select-none">
       {/* Primary Top Bar */}
-      <div className="flex h-14 w-full items-center justify-between px-3 sm:px-4 gap-2">
+      <div className="flex h-12 sm:h-14 w-full items-center justify-between px-2.5 sm:px-4 gap-2">
         {/* Left Group: Branding, App Name, Playback & Shape Library */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Unified Branding Icon & Title */}
@@ -115,19 +118,19 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </div>
           </div>
 
-          {/* Help Button */}
+          {/* Help / Tutorial Button (Desktop) */}
           <button
             onClick={onOpenInfo}
-            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
+            className="hidden md:flex p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
             title="Theory Primer & Walkthrough"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
 
-          {/* Audio Play/Pause Button */}
+          {/* Audio Play/Pause Button (Desktop) */}
           <button
             onClick={onTogglePlay}
-            className={`flex h-8 sm:h-9 px-2.5 sm:px-3 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
+            className={`hidden md:flex h-8 sm:h-9 px-2.5 sm:px-3 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
               isPlaying
                 ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
                 : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
@@ -138,11 +141,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
 
-          {/* Continuum Sweep / Oscillation Toggle Button */}
+          {/* Continuum Sweep / Oscillation Toggle Button (Desktop) */}
           {onToggleOscillate && (
             <button
               onClick={onToggleOscillate}
-              className={`flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap ${
+              className={`hidden md:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap ${
                 isOscillating
                   ? 'border-red-500 bg-red-600/30 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-700'
@@ -154,23 +157,23 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Musical Bookmarks Anchor Modal Button */}
+          {/* Musical Bookmarks Anchor Modal Button (Desktop) */}
           {onOpenBookmarks && (
             <button
               onClick={onOpenBookmarks}
-              className="flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap"
+              className="hidden lg:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap"
               title="Configure Musical Bookmarks (BPM & Piano Keyboard)"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden lg:inline">Bookmarks</span>
+              <span>Bookmarks</span>
             </button>
           )}
 
-          {/* Shape Library & Synthesiser Button (Prominent, High Priority) */}
+          {/* Shape Library & Synthesiser Button */}
           {onToggleShapeEditor && (
             <button
               onClick={onToggleShapeEditor}
-              className={`flex items-center gap-1.5 h-8 sm:h-9 px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
+              className={`flex items-center gap-1.5 h-7 sm:h-9 px-2 sm:px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
                 isShapeEditorOpen
                   ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
@@ -178,9 +181,9 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Open Shape Synthesiser & User Library (L)"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do" />
-              <span>Library</span>
+              <span className="hidden xs:inline">Library</span>
               {activeShape && (
-                <span className="hidden xl:inline text-[10px] text-slate-400 font-mono font-normal truncate max-w-[150px] pl-1.5 border-l border-slate-700/80">
+                <span className="text-[10px] text-slate-400 font-mono font-normal truncate max-w-[90px] sm:max-w-[150px] pl-1 sm:pl-1.5 border-l border-slate-700/80">
                   {activeShape.name}
                 </span>
               )}
@@ -188,7 +191,19 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           )}
         </div>
 
-        {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop scrubber: >= 768px; mobile uses rotary touch scrubber) */}
+        {/* Mobile Center Trigger: Radial Menu Button (Visible only on mobile < md) */}
+        {onOpenRadialMenu && (
+          <button
+            onClick={onOpenRadialMenu}
+            className="flex md:hidden items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-red-600/30 via-purple-600/30 to-cyan-600/30 border border-slate-600 hover:border-red-400 text-white font-semibold text-xs shadow-md active:scale-95 cursor-pointer"
+            title="Open Radial Control Menu"
+          >
+            <Compass className="w-3.5 h-3.5 text-ppt-do" />
+            <span>Menu</span>
+          </button>
+        )}
+
+        {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop: >= 768px) */}
         <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
           <div className="flex-1 space-y-1">
             <div className="flex justify-between items-center text-[10px] font-mono leading-none select-none">
@@ -253,14 +268,36 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
         {/* Right Tools Group: Capture, Layout Tools, Filter, Settings, Fullscreen */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Mobile Tutorial / Info Button */}
+          <button
+            onClick={onOpenInfo}
+            className="flex md:hidden p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
+            title="Theory Primer & Tutorial"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
           {/* Capture Pad / Mic Pitch Modal */}
           <button
             onClick={onOpenCapture}
-            className="hidden sm:flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
-            title="Capture Multi-Voice Rhythm or Harmonic Pitch Spectrum"
+            className="flex items-center gap-1 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
+            title="Capture / Mic Sampling"
           >
             <Radio className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Capture</span>
+            <span className="hidden sm:inline">Sample</span>
+          </button>
+
+          {/* Audio Play/Pause Button (Mobile) */}
+          <button
+            onClick={onTogglePlay}
+            className={`flex md:hidden h-7 px-2 items-center justify-center gap-1 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
+              isPlaying
+                ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
+                : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
+            }`}
+            title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
+          >
+            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
           </button>
 
           {/* Layout Presets Dropdown */}
@@ -402,6 +439,55 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Row 2: Mobile Continuum Slider Bar (Always visible on mobile < md) */}
+      <div className="block md:hidden px-3 py-1.5 border-t border-slate-800/80 bg-[#06080e]/95">
+        <div className="flex justify-between items-center text-[10px] font-mono leading-none mb-1">
+          <span className="text-slate-300 font-semibold">
+            {dVal > 0 ? `${bpm.toFixed(0)} BPM` : pitchInfo.formatted}
+            <span className="text-slate-500 font-normal ml-1">
+              ({dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)}ms` : `${freqHz.toFixed(1)}Hz`})
+            </span>
+          </span>
+          <span className="text-ppt-mi font-bold">{addr.formatted}</span>
+          <span className="text-cyan-400 font-mono text-[9px] font-semibold">d: {dVal.toFixed(2)}</span>
+        </div>
+        <div className="relative flex items-center h-4">
+          {/* TPL tick */}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-3 bg-slate-600/80 pointer-events-none z-0 rounded-full"
+            title="TPL (25.8 Hz)"
+          />
+          {bookmarks && (
+            <>
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm"
+                style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }}
+                title={`Bookmark A (d: ${bookmarks.a.d.toFixed(2)})`}
+              >
+                <span className="text-[7px] font-black text-slate-950 font-mono leading-none">A</span>
+              </div>
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm"
+                style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }}
+                title={`Bookmark B (d: ${bookmarks.b.d.toFixed(2)})`}
+              >
+                <span className="text-[7px] font-black text-slate-950 font-mono leading-none">B</span>
+              </div>
+            </>
+          )}
+          <input
+            type="range"
+            min={-7}
+            max={7}
+            step={0.001}
+            value={-dVal}
+            onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500 relative z-0 focus:outline-none"
+            title="Continuous DuPeriod continuum navigation"
+          />
         </div>
       </div>
     </header>

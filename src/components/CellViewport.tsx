@@ -17,7 +17,7 @@ import { WaveformPhasorLensRenderer } from '../renderers/waveform-phasor-lens';
 import { PrimeProfileLensRenderer } from '../renderers/prime-profile-lens';
 import { EventLanesLensRenderer } from '../renderers/event-lanes-lens';
 import { AlignmentMeterLensRenderer } from '../renderers/alignment-meter-lens';
-import { Columns, Rows, Copy, Trash2, Tag, Disc } from 'lucide-react';
+import { Columns, Rows, Copy, Trash2, Tag, Disc, Play, Pause } from 'lucide-react';
 
 interface CellViewportProps {
   cell: LayoutCellNode;
@@ -27,6 +27,8 @@ interface CellViewportProps {
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
+  onTogglePlay?: () => void;
+  onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
   // Layout Edit Mode Props
   isEditMode?: boolean;
   canDelete?: boolean;
@@ -43,6 +45,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onUpdateFilterCentreD,
   onUpdateFilterParams,
   onUpdateCell,
+  onTogglePlay,
+  onOpenRadialMenuAt,
   isEditMode = false,
   canDelete = false,
   onSplitCell,
@@ -51,6 +55,11 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Double-tap to play/pause state
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const [doubleTapRipple, setDoubleTapRipple] = useState<{ x: number; y: number } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
 
   // Drag scrubbing & mobile rotary jog wheel states
   type FilterGestureMode = 'none' | 'width' | 'skirt' | 'centre';
@@ -142,7 +151,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const container = containerRef.current;
       if (!canvas || !container) return;
 
-      const dpr = window.devicePixelRatio || 1;
+      // Cap DPR to 2.0 on 2D lens canvases to keep retina-crisp rendering without burning GPU fill-rate on 3x screens
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
       const rect = container.getBoundingClientRect();
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
@@ -320,30 +330,40 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     onUpdatePlacementD(Math.max(-7, Math.min(7, currentD + delta)));
   };
 
-  // Touch rotary scrub on mobile (Dynamic iPod Click-Wheel)
+  // Touch rotary scrub on mobile (Dynamic iPod Click-Wheel centered under thumb)
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1 || isEditMode) return;
     const touch = e.touches[0];
     const container = containerRef.current;
     if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    // Desired wheel radius = 76px (152px diameter)
-    const radius = 76;
-    const padding = 12;
+    // 1. Double-tap to Play/Pause
+    const now = performance.now();
+    const prevTap = lastTapRef.current;
+    if (prevTap && now - prevTap.time < 300) {
+      const dist = Math.hypot(touch.clientX - prevTap.x, touch.clientY - prevTap.y);
+      if (dist < 35 && onTogglePlay) {
+        onTogglePlay();
+        const rect = container.getBoundingClientRect();
+        setDoubleTapRipple({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
+        setTimeout(() => setDoubleTapRipple(null), 450);
+        lastTapRef.current = null;
+        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+        return;
+      }
+    }
+    lastTapRef.current = { time: now, x: touch.clientX, y: touch.clientY };
 
-    // Clamp center of wheel so it never clips outside cell container
-    const cx = Math.max(rect.left + radius + padding, Math.min(rect.right - radius - padding, touch.clientX));
-    const cy = Math.max(rect.top + radius + padding, Math.min(rect.bottom - radius - padding, touch.clientY));
+    const rect = container.getBoundingClientRect();
+    // Center of wheel spawns directly under thumb
+    const cx = touch.clientX;
+    const cy = touch.clientY;
 
     jogCenterRef.current = { cx, cy };
     setWheelPos({ x: cx - rect.left, y: cy - rect.top });
 
-    const dx = touch.clientX - cx;
-    const dy = touch.clientY - cy;
-    const initialAngle = Math.atan2(dy, dx);
-    lastAngleRef.current = initialAngle;
-    setJogAngle(initialAngle);
+    lastAngleRef.current = 0;
+    setJogAngle(0);
 
     setDragStartPos({
       x: touch.clientX,
@@ -354,19 +374,36 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       filterSoftness: scene.filter?.softnessD ?? 1.0,
     });
     setIsTouchScrubbing(true);
+
+    // 2. Long-press to open the full Radial Menu centered under thumb
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = window.setTimeout(() => {
+      if (onOpenRadialMenuAt) {
+        setIsTouchScrubbing(false);
+        onOpenRadialMenuAt({ x: touch.clientX, y: touch.clientY });
+      }
+    }, 420);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isTouchScrubbing || !onUpdatePlacementD || e.touches.length !== 1) return;
+    if (e.touches.length !== 1) return;
     const touch = e.touches[0];
-    const dx = touch.clientX - jogCenterRef.current.cx;
-    const dy = touch.clientY - jogCenterRef.current.cy;
-    const dist = Math.hypot(dx, dy);
+    const dx = touch.clientX - dragStartPos.x;
+    const dy = touch.clientY - dragStartPos.y;
+    if (Math.hypot(dx, dy) > 12 && longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
 
-    // Rotary circular scrubbing around wheel center (when touch is outside the inner deadzone > 16px)
+    if (!isTouchScrubbing || !onUpdatePlacementD) return;
+    const jx = touch.clientX - jogCenterRef.current.cx;
+    const jy = touch.clientY - jogCenterRef.current.cy;
+    const dist = Math.hypot(jx, jy);
+
+    // Rotary circular scrubbing around wheel center (when touch has moved outside inner deadzone > 16px)
     if (dist > 16) {
-      const currentAngle = Math.atan2(dy, dx);
-      if (lastAngleRef.current !== null) {
+      const currentAngle = Math.atan2(jy, jx);
+      if (lastAngleRef.current !== null && lastAngleRef.current !== 0) {
         let deltaAngle = currentAngle - lastAngleRef.current;
         if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
         if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
@@ -389,6 +426,10 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   };
 
   const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
     setIsTouchScrubbing(false);
     lastAngleRef.current = null;
   };
@@ -521,8 +562,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
             )}
           </div>
 
-          {/* Right: In Edit Mode, display action tools */}
-          <div className="pointer-events-auto flex items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">
+          {/* Right: In Edit Mode, display action tools (Desktop only; on mobile portrait we preserve clean cell views) */}
+          <div className="hidden sm:flex pointer-events-auto items-center gap-1 bg-[#0b0e17]/90 backdrop-blur-md p-1 rounded-md border border-purple-500/40 shadow-lg">
             {onSplitCell && (
               <button
                 onClick={() => onSplitCell(cell.id, 'row', 'cycle-wheel')}
@@ -614,6 +655,18 @@ export const CellViewport: React.FC<CellViewportProps> = ({
                 {addr.formatted}
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Double Tap Play/Pause Ripple Indicator */}
+      {doubleTapRipple && (
+        <div
+          className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center animate-ping duration-300"
+          style={{ left: `${doubleTapRipple.x}px`, top: `${doubleTapRipple.y}px` }}
+        >
+          <div className="w-16 h-16 rounded-full bg-red-500/40 border-2 border-red-400 flex items-center justify-center">
+            {scene.placements[0]?.gain ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white" />}
           </div>
         </div>
       )}
