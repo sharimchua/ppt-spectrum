@@ -302,8 +302,8 @@ export function calculateRealignmentAnalysis(
   const effectiveWindowCycles =
     windowCycles !== undefined
       ? windowCycles
-      : !isAperiodic && coincidenceStride <= 4
-      ? Math.max(2.5, coincidenceStride <= 2 ? 2.5 : coincidenceStride * 1.08)
+      : !isAperiodic
+      ? Math.max(1, Math.min(12, coincidenceStride))
       : 3.5;
 
   const tracks: VoiceCoincidenceTrack[] = [];
@@ -402,14 +402,28 @@ export function calculateRealignmentAnalysis(
   const allComponents: FlattenedComponent[] = [];
   let totalAmp = 0;
 
-  for (const track of tracks) {
-    for (const p of track.partials) {
+  if (shape.anchors && shape.anchors.length > 1) {
+    for (const track of tracks) {
+      for (const p of track.partials) {
+        allComponents.push({
+          ratio: p.ratioValue,
+          amp: p.amp,
+          phase: p.phase,
+        });
+        totalAmp += p.amp;
+      }
+    }
+  } else {
+    const rawPartials = getEffectivePartials(shape).filter((p) => p.amp > 0.001);
+    for (const p of rawPartials) {
+      const pRatio = ratioToValue(p.ratio);
+      const effectiveAmp = p.amp * placementGain;
       allComponents.push({
-        ratio: p.ratioValue,
-        amp: p.amp,
+        ratio: pRatio,
+        amp: effectiveAmp,
         phase: p.phase,
       });
-      totalAmp += p.amp;
+      totalAmp += effectiveAmp;
     }
   }
 
@@ -458,6 +472,11 @@ export function calculateRealignmentAnalysis(
         }
       }
     }
+  }
+
+  // Right boundary downbeat marker for complete periodic supercycles
+  if (!isAperiodic && samplePoints[numSamples - 1] > 0.6) {
+    peaks.push({ tau: effectiveWindowCycles, value: samplePoints[numSamples - 1], isDownbeat: true });
   }
 
   let coherenceScore = 0;

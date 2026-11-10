@@ -96,7 +96,7 @@ export function createPianoPartials(count: number = 12, B: number = 0.0004) {
       id: `p_piano_${k}`,
       ratio: { kind: 'real' as const, value: ratioVal },
       amp: Math.round(amp * 1000) / 1000,
-      phase: (k * 0.13) % 1.0,
+      phase: 0,
       voice: voiceList[(k - 1) % voiceList.length],
       label: k === 1 ? '1 (Fund)' : `${k}`,
     });

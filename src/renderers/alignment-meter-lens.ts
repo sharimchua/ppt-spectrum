@@ -18,6 +18,26 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     return this.dynamicLights;
   }
 
+  private evaluateCoincidence(analysis: RealignmentAnalysis, tau: number): number {
+    let cosSum = 0;
+    let pulseSum = 0;
+    let tAmp = 0;
+    const sigma = 0.038;
+    const twoSigmaSq = 2 * sigma * sigma;
+
+    for (const tr of analysis.tracks) {
+      for (const pr of tr.partials) {
+        const cp = pr.ratioValue * tau + pr.phase;
+        cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
+        const sv = Math.sin(Math.PI * cp);
+        pulseSum += pr.amp * Math.exp(-(sv * sv) / twoSigmaSq);
+        tAmp += pr.amp;
+      }
+    }
+    if (tAmp <= 0) return 0;
+    return Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / tAmp) + 0.55 * (pulseSum / tAmp)));
+  }
+
   public render(
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -138,7 +158,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 12px JetBrains Mono, monospace';
     const strideText = analysis.isAperiodic
       ? '∞ Aperiodic'
-      : `${analysis.coincidenceStride.toFixed(1)}x Turn`;
+      : analysis.coincidenceStride === 1
+      ? '1 Root Turn'
+      : `${analysis.coincidenceStride} Root Turns`;
     ctx.fillText(strideText, padX + boxW + gapX + 6, boxY + (isShort ? 26 : 30));
 
     // Metric 3: Active Architecture
@@ -172,6 +194,15 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     const waveBottom = mainBottom - (isShort ? 12 : 16);
     const waveH = Math.max(30, waveBottom - waveTop);
 
+    // Aperiodic dual-window geometry
+    const isAperiodic = analysis.isAperiodic;
+    const pickupW = isAperiodic ? Math.max(30, Math.min(48, Math.floor(plotW * 0.11))) : 0;
+    const ongoingLeft = isAperiodic ? plotLeft + pickupW + 10 : plotLeft;
+    const ongoingW = isAperiodic ? Math.max(30, plotRight - ongoingLeft) : plotW;
+    const ongoingSpan = 3.0;
+    const ongoingStartTurn = Math.floor(Math.max(0, unwrappedRootTurns) / ongoingSpan) * ongoingSpan;
+    const ongoingProgress = (Math.max(0, unwrappedRootTurns) - ongoingStartTurn) / ongoingSpan;
+
     // 2. Cascade of Voice Tracks (Individual Pulse Crossings)
     if (trackCount > 0) {
       const trackRowH = trackAreaH / trackCount;
@@ -190,33 +221,81 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
           : track.name;
         ctx.fillText(labelText, padX, rowCenterY + 3);
 
-        // Track timeline wire
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(plotLeft, rowCenterY);
-        ctx.lineTo(plotRight, rowCenterY);
-        ctx.stroke();
+        if (isAperiodic) {
+          // Aperiodic: Pickup wire + Ongoing wire
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(plotLeft, rowCenterY);
+          ctx.lineTo(plotLeft + pickupW, rowCenterY);
+          ctx.moveTo(ongoingLeft, rowCenterY);
+          ctx.lineTo(plotRight, rowCenterY);
+          ctx.stroke();
 
-        // Draw individual pulse hit markers along timeline
-        for (const p of track.partials) {
-          for (const hitTau of p.hits) {
-            if (hitTau < 0 || hitTau > windowCycles) continue;
-            const hx = plotLeft + (hitTau / windowCycles) * plotW;
+          // Hits in pickup bar (tau in [0, 0.35])
+          for (const p of track.partials) {
+            for (const hitTau of p.hits) {
+              if (hitTau >= 0 && hitTau <= 0.35) {
+                const hx = plotLeft + (hitTau / 0.35) * pickupW;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(hx, rowCenterY - 4);
+                ctx.lineTo(hx, rowCenterY + 4);
+                ctx.stroke();
 
-            // Vertical tick needle
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.moveTo(hx, rowCenterY - 4);
-            ctx.lineTo(hx, rowCenterY + 4);
-            ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
 
-            // Luminous pulse head
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
-            ctx.fill();
+            // Hits in ongoing window (tau in [ongoingStartTurn, ongoingStartTurn + ongoingSpan])
+            const minK = Math.ceil(p.ratioValue * ongoingStartTurn + p.phase);
+            const maxK = Math.floor(p.ratioValue * (ongoingStartTurn + ongoingSpan) + p.phase);
+            for (let k = minK; k <= maxK; k++) {
+              const hitTau = (k - p.phase) / p.ratioValue;
+              const hx = ongoingLeft + ((hitTau - ongoingStartTurn) / ongoingSpan) * ongoingW;
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.moveTo(hx, rowCenterY - 4);
+              ctx.lineTo(hx, rowCenterY + 4);
+              ctx.stroke();
+
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        } else {
+          // Periodic: Single timeline wire across supercycle window
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(plotLeft, rowCenterY);
+          ctx.lineTo(plotRight, rowCenterY);
+          ctx.stroke();
+
+          for (const p of track.partials) {
+            for (const hitTau of p.hits) {
+              if (hitTau < 0 || hitTau > windowCycles) continue;
+              const hx = plotLeft + (hitTau / windowCycles) * plotW;
+
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.moveTo(hx, rowCenterY - 4);
+              ctx.lineTo(hx, rowCenterY + 4);
+              ctx.stroke();
+
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(hx, rowCenterY, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
         }
       }
@@ -226,14 +305,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     if (analysis.isAperiodic) {
       // ─────────────────────────────────────────────────────────────
       // APERIODIC / INHARMONIC DUAL WINDOW:
-      // Left: Initial Onset / Pickup Bar (showing pristine strike at tau = 0)
-      // Right: Ongoing Inharmonic Horizon (streaming live rolling wave to show non-realignment)
+      // Left: Compact Initial Onset / Pickup Bar (showing pristine strike at tau = 0)
+      // Right: Ongoing Inharmonic Horizon (block-advancing wave showing non-realignment)
       // ─────────────────────────────────────────────────────────────
-      const pickupW = Math.max(45, Math.floor(plotW * 0.22));
-      const ongoingLeft = plotLeft + pickupW + 12;
-      const ongoingW = Math.max(30, plotRight - ongoingLeft);
-
-      // Section A: Initial Onset (Pickup Bar)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -246,10 +320,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(plotLeft + pickupW + 4, waveTop);
-      ctx.lineTo(plotLeft + pickupW + 4, waveBottom);
-      ctx.moveTo(plotLeft + pickupW + 7, waveTop);
-      ctx.lineTo(plotLeft + pickupW + 7, waveBottom);
+      ctx.moveTo(plotLeft + pickupW + 3, mainTop);
+      ctx.lineTo(plotLeft + pickupW + 3, waveBottom);
+      ctx.moveTo(plotLeft + pickupW + 6, mainTop);
+      ctx.lineTo(plotLeft + pickupW + 6, waveBottom);
       ctx.stroke();
       ctx.restore();
 
@@ -258,27 +332,14 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.fillText('ONSET 𝄀𝄀', plotLeft + pickupW - (isCompact ? 28 : 36), waveTop + 8);
       ctx.fillText('τ=0 (Strike)', plotLeft, waveBottom + 10);
 
-      // Render pickup curve from tau = 0 to tau = 0.5
-      const pickupSamples = 32;
+      // Render pickup curve from tau = 0 to tau = 0.35
+      const pickupSamples = 24;
       ctx.beginPath();
       ctx.moveTo(plotLeft, waveBottom);
       for (let i = 0; i <= pickupSamples; i++) {
-        const tau = (i / pickupSamples) * 0.5;
+        const tau = (i / pickupSamples) * 0.35;
         const x = plotLeft + (i / pickupSamples) * pickupW;
-        // Constructive interference at tau
-        let cosSum = 0;
-        let pulseSum = 0;
-        let tAmp = 0;
-        for (const tr of analysis.tracks) {
-          for (const pr of tr.partials) {
-            const cp = pr.ratioValue * tau + pr.phase;
-            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
-            const sv = Math.sin(Math.PI * cp);
-            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
-            tAmp += pr.amp;
-          }
-        }
-        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const val = this.evaluateCoincidence(analysis, tau);
         const y = waveBottom - val * waveH;
         ctx.lineTo(x, y);
       }
@@ -291,6 +352,20 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = pickupGrad;
       ctx.fill();
 
+      // Stroke pickup curve
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let i = 0; i <= pickupSamples; i++) {
+        const tau = (i / pickupSamples) * 0.35;
+        const x = plotLeft + (i / pickupSamples) * pickupW;
+        const val = this.evaluateCoincidence(analysis, tau);
+        const y = waveBottom - val * waveH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
       // Strike indicator diamond at tau = 0
       ctx.fillStyle = '#fbbf24';
       ctx.beginPath();
@@ -301,12 +376,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.closePath();
       ctx.fill();
       ctx.font = 'bold 7px JetBrains Mono, monospace';
-      ctx.fillText('100% STRIKE', plotLeft + 5, waveBottom - waveH + 3);
+      ctx.fillText(isCompact ? '100%' : '100% STRIKE', plotLeft + 5, waveBottom - waveH + 3);
 
-      // Section B: Ongoing Inharmonic Horizon (Rolling Window)
-      const rollingTurnsSpan = 3.5;
-      const rollingStartTurn = isAudioActive ? Math.max(0.5, unwrappedRootTurns) : 1.0;
-
+      // Section B: Ongoing Inharmonic Horizon (Block-advancing Window)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -324,30 +396,22 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.stroke();
       ctx.fillStyle = '#f87171';
       ctx.font = '7px JetBrains Mono, monospace';
-      ctx.fillText('100% REALIGNMENT THRESHOLD (UNREACHED IN APERIODIC SPACE)', ongoingLeft + 6, waveTop + 8);
+      ctx.fillText(
+        isCompact ? '100% UNREACHED' : '100% REALIGNMENT THRESHOLD (UNREACHED IN APERIODIC SPACE)',
+        ongoingLeft + 6,
+        waveTop + 8
+      );
       ctx.restore();
 
-      // Sample and draw the rolling ongoing window
+      // Sample and draw the ongoing window
       const ongoingSamples = Math.min(180, Math.floor(ongoingW / 2));
       ctx.beginPath();
       ctx.moveTo(ongoingLeft, waveBottom);
 
       for (let i = 0; i <= ongoingSamples; i++) {
-        const tau = rollingStartTurn + (i / ongoingSamples) * rollingTurnsSpan;
+        const tau = ongoingStartTurn + (i / ongoingSamples) * ongoingSpan;
         const x = ongoingLeft + (i / ongoingSamples) * ongoingW;
-        let cosSum = 0;
-        let pulseSum = 0;
-        let tAmp = 0;
-        for (const tr of analysis.tracks) {
-          for (const pr of tr.partials) {
-            const cp = pr.ratioValue * tau + pr.phase;
-            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
-            const sv = Math.sin(Math.PI * cp);
-            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
-            tAmp += pr.amp;
-          }
-        }
-        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const val = this.evaluateCoincidence(analysis, tau);
         const y = waveBottom - val * waveH;
         ctx.lineTo(x, y);
       }
@@ -365,21 +429,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.lineWidth = 1.8;
       ctx.beginPath();
       for (let i = 0; i <= ongoingSamples; i++) {
-        const tau = rollingStartTurn + (i / ongoingSamples) * rollingTurnsSpan;
+        const tau = ongoingStartTurn + (i / ongoingSamples) * ongoingSpan;
         const x = ongoingLeft + (i / ongoingSamples) * ongoingW;
-        let cosSum = 0;
-        let pulseSum = 0;
-        let tAmp = 0;
-        for (const tr of analysis.tracks) {
-          for (const pr of tr.partials) {
-            const cp = pr.ratioValue * tau + pr.phase;
-            cosSum += pr.amp * Math.cos(2 * Math.PI * cp);
-            const sv = Math.sin(Math.PI * cp);
-            pulseSum += pr.amp * Math.exp(-(sv * sv) / (2 * 0.038 * 0.038));
-            tAmp += pr.amp;
-          }
-        }
-        const val = Math.max(0, Math.min(1.0, 0.45 * (Math.abs(cosSum) / (tAmp || 1)) + 0.55 * (pulseSum / (tAmp || 1))));
+        const val = this.evaluateCoincidence(analysis, tau);
         const y = waveBottom - val * waveH;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -391,11 +443,28 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.font = '7.5px JetBrains Mono, monospace';
       ctx.fillText(
         isAudioActive
-          ? `Ongoing Horizon: τ=${rollingStartTurn.toFixed(1)} to ${(rollingStartTurn + rollingTurnsSpan).toFixed(1)}`
-          : `Ongoing Horizon: τ=1.0 to ${(1.0 + rollingTurnsSpan).toFixed(1)}`,
+          ? `Ongoing Horizon: τ=${ongoingStartTurn.toFixed(0)} to ${(ongoingStartTurn + ongoingSpan).toFixed(0)}`
+          : `Ongoing Horizon: τ=0 to ${ongoingSpan.toFixed(0)}`,
         ongoingLeft,
         waveBottom + 10
       );
+
+      // Playhead scan line for Aperiodic Ongoing Window
+      if (isAudioActive || unwrappedRootTurns > 0) {
+        const playheadX = ongoingLeft + ongoingProgress * ongoingW;
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(playheadX, mainTop);
+        ctx.lineTo(playheadX, waveBottom);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.arc(playheadX, waveBottom, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       // ─────────────────────────────────────────────────────────────
       // PERIODIC / HARMONIC HARMONY WINDOW:
@@ -412,16 +481,20 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.setLineDash([2, 3]);
       for (let c = 0; c <= Math.floor(windowCycles); c++) {
         const cx = plotLeft + (c / windowCycles) * plotW;
-        ctx.strokeStyle = c === 0 ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
+        ctx.strokeStyle = c === 0 || c === windowCycles ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
         ctx.beginPath();
         ctx.moveTo(cx, waveTop - 4);
         ctx.lineTo(cx, waveBottom);
         ctx.stroke();
 
-        ctx.fillStyle = c === 0 ? '#fbbf24' : '#64748b';
+        ctx.fillStyle = c === 0 || c === windowCycles ? '#fbbf24' : '#64748b';
         ctx.font = '7.5px JetBrains Mono, monospace';
-        const cycleLabel = c === 0 ? 'τ=0 (Downbeat)' : `τ=${c} (${c}x Cycle)`;
-        ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : 18), waveBottom + (isShort ? 10 : 12));
+        const cycleLabel = c === 0
+          ? 'τ=0 (Downbeat)'
+          : c === windowCycles
+          ? `τ=${c} (Realign)`
+          : `τ=${c}`;
+        ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : (c === windowCycles ? 32 : 12)), waveBottom + (isShort ? 10 : 12));
       }
       ctx.restore();
 
