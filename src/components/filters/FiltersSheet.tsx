@@ -73,7 +73,7 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
       <aside
         role="dialog"
         aria-label="Acoustic Aperture and Sieve Filters"
-        className="fixed inset-x-0 bottom-0 z-50 flex flex-col max-h-[92vh] sm:max-h-none sm:top-0 sm:bottom-0 sm:right-0 sm:left-auto sm:w-[460px] bg-slate-900 border-t sm:border-t-0 sm:border-l border-slate-700 shadow-2xl rounded-t-2xl sm:rounded-none transition-transform duration-300 pb-[env(safe-area-inset-bottom)] animate-slide-up"
+        className="fixed inset-x-0 bottom-0 z-50 flex flex-col max-h-[92vh] sm:max-h-none sm:top-0 sm:bottom-0 sm:right-0 sm:left-auto sm:w-[520px] md:w-[560px] max-w-full bg-slate-900 border-t sm:border-t-0 sm:border-l border-slate-700 shadow-2xl rounded-t-2xl sm:rounded-none transition-transform duration-300 pb-[env(safe-area-inset-bottom)] animate-slide-up"
       >
         {/* Mobile Drag Indicator */}
         <div className="flex justify-center pt-2 pb-1 sm:hidden">
