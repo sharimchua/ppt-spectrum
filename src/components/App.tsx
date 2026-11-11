@@ -182,14 +182,21 @@ export const App: React.FC = () => {
   const keyboardActions = useMemo<KeyboardActions>(
     () => ({
       onTogglePlay: handleTogglePlay,
-      onToggleShapeEditor: () => setIsShapeEditorOpen((prev) => !prev),
+      onToggleShapeEditor: () => {
+        closeFilters();
+        setIsShapeEditorOpen((prev) => !prev);
+      },
       onToggleQuickSearch: () => setIsQuickSearchOpen((prev) => !prev),
       onToggleBookmarks: () => setIsBookmarksOpen((prev) => !prev),
       onToggleCapture: () => setIsCaptureOpen((prev) => !prev),
       onToggleOscillate: toggleOscillating,
       onToggleFilterEditMode: toggleFilterEditMode,
       onToggleFilter: toggleFilter,
-      onToggleFiltersOpen: toggleFiltersOpen,
+      onToggleFiltersOpen: () => {
+        setIsShapeEditorOpen(false);
+        setIsBookmarksOpen(false);
+        toggleFiltersOpen();
+      },
       onNoteOn: () => handleNoteOn(),
       onNoteOff: () => handleNoteOff(),
       onJumpBookmarkA: handleJumpBookmarkA,
@@ -201,6 +208,7 @@ export const App: React.FC = () => {
     }),
     [
       handleTogglePlay,
+      closeFilters,
       toggleOscillating,
       toggleFilterEditMode,
       toggleFilter,
@@ -325,6 +333,10 @@ export const App: React.FC = () => {
         onTriggerNote={() => handleTriggerNote()}
         onNoteOn={() => handleNoteOn()}
         onNoteOff={() => handleNoteOff()}
+        onOpenFilters={() => {
+          setIsShapeEditorOpen(false);
+          openFilters();
+        }}
       />
 
       <MusicalBookmarksModal

@@ -21,6 +21,7 @@ export interface ShapeEditorProps {
   onTriggerNote?: () => void;
   onNoteOn?: () => void;
   onNoteOff?: () => void;
+  onOpenFilters?: () => void;
 }
 
 export const ShapeEditor: React.FC<ShapeEditorProps> = ({
@@ -34,6 +35,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   onTriggerNote,
   onNoteOn,
   onNoteOff,
+  onOpenFilters,
 }) => {
   const [activeTab, setActiveTab] = useState<'partials' | 'envelope'>('partials');
 
@@ -78,6 +80,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         onDuplicateShape={handleDuplicateCurrentShape}
         onDeleteShape={onDeleteShape}
         onCreateNewShape={handleCreateNewShape}
+        onOpenFilters={onOpenFilters}
       />
 
       {activeTab === 'partials' && (

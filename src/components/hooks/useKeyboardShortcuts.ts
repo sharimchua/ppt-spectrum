@@ -123,10 +123,10 @@ export function useKeyboardShortcuts({
       } else if (e.key === 'e' || e.key === 'E') {
         e.preventDefault();
         actionsRef.current.onToggleFilterEditMode();
-      } else if (e.key === 'f' || e.key === 'F') {
+      } else if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        if (e.shiftKey && actionsRef.current.onToggleFiltersOpen) {
-          actionsRef.current.onToggleFiltersOpen();
+        if (e.shiftKey) {
+          actionsRef.current.onToggleFiltersOpen?.();
         } else {
           actionsRef.current.onToggleFilter();
         }

@@ -69,9 +69,21 @@ export interface DuPeriodAddress {
  * Left-to-right (-d, frequency ascending) orientation by default:
  * In pitch (d < 0): band -1, -2...
  * In rhythm (d > 0): band +1, +2...
- * (There is no band 0; d = 0 is the limen).
+ * At the Limen / TPM (d = 0): pure anchor 'Do'.
  */
 export function resolveDuPeriodAddress(d: number): DuPeriodAddress {
+  // At the Limen / TPM (d = 0), the continuum is anchored to pure Do
+  if (Math.abs(d) < 0.0001) {
+    return {
+      band: 0,
+      semitoneIndex: 0,
+      semitoneOffset: 0,
+      cents: 0,
+      syllable: 'Do',
+      formatted: 'Do',
+    };
+  }
+
   let band: number;
   let fraction: number;
 
@@ -79,13 +91,13 @@ export function resolveDuPeriodAddress(d: number): DuPeriodAddress {
     // Pitch region: d in [-1, 0) is band -1, d in [-2, -1) is band -2
     band = Math.floor(d);
     // fraction from 0.0 (floor) to 1.0 (ceiling) as frequency ascends (toward more negative d)
-    fraction = (band - d);
+    fraction = band - d;
     if (fraction < 0) fraction = (fraction % 1) + 1;
   } else {
     // Rhythm region: d in (0, 1] is band +1, d in (1, 2] is band +2
-    band = Math.floor(d) + 1;
+    band = Math.ceil(d);
     // fraction ascending with frequency (left-to-right, decreasing d toward 0)
-    fraction = 1 - (d - Math.floor(d));
+    fraction = band - d;
     if (fraction >= 1) fraction -= 1;
   }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, FilterCondition, MAX_CONDITIONS } from '../../core/filter-types';
 import { FilterSummaryBar } from './FilterSummaryBar';
 import { ConditionCard } from './ConditionCard';
@@ -32,6 +32,18 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
   onFocusCondition,
 }) => {
   const [isPresetPickerOpen, setIsPresetPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

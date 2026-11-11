@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Lock, User, Layers, Activity } from 'lucide-react';
+import { Lock, User, Layers, Activity, Filter } from 'lucide-react';
 import { Shape } from '../../core/types';
 import { ShapePicker } from './ShapePicker';
 import { ShapeActionsMenu } from './ShapeActionsMenu';
@@ -24,6 +24,7 @@ export interface ShapeLibraryHeaderProps {
   onDuplicateShape: () => void;
   onDeleteShape?: (shapeId: string) => void;
   onCreateNewShape: () => void;
+  onOpenFilters?: () => void;
 }
 
 export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
@@ -40,6 +41,7 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
   onDuplicateShape,
   onDeleteShape,
   onCreateNewShape,
+  onOpenFilters,
 }) => {
   return (
     <div className="flex flex-col gap-2.5 pb-2.5 border-b border-slate-800">
@@ -81,7 +83,7 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
       </div>
 
       {/* ROW 3: Responsive Navigation Tabs */}
-      <div className="grid grid-cols-2 gap-1.5 bg-slate-900/90 p-1 rounded-lg border border-slate-800">
+      <div className={`grid ${onOpenFilters ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 bg-slate-900/90 p-1 rounded-lg border border-slate-800`}>
         <button
           type="button"
           onClick={() => onSelectTab('partials')}
@@ -93,7 +95,7 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
           title="Hierarchical Voice Anchors & Nested Harmonic Partials"
         >
           <Layers className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Anchors ({anchorsCount}) & Partials ({partialsCount})</span>
+          <span className="truncate">Anchors ({anchorsCount} · {partialsCount}p)</span>
         </button>
         <button
           type="button"
@@ -106,8 +108,19 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
           title="Acoustic ADSR Envelope & Harmonic Damping"
         >
           <Activity className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Envelope (ADSR)</span>
+          <span className="truncate">Envelope</span>
         </button>
+        {onOpenFilters && (
+          <button
+            type="button"
+            onClick={onOpenFilters}
+            className="py-1.5 px-2 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 truncate text-slate-400 hover:text-sky-300 hover:bg-slate-800/50 border border-transparent hover:border-sky-500/30"
+            title="Acoustic Aperture & Sieve Filters (Shift+F to open, F to toggle)"
+          >
+            <Filter className="w-3.5 h-3.5 shrink-0 text-sky-400" />
+            <span className="truncate">Filters</span>
+          </button>
+        )}
       </div>
     </div>
   );

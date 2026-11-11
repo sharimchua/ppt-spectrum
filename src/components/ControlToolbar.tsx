@@ -208,7 +208,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop: >= 768px) */}
         <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
           <div className="flex-1 space-y-1">
-            <div className="flex justify-between items-center text-[10px] font-mono leading-none select-none">
+            <div className="relative flex justify-between items-center text-[10px] font-mono leading-none select-none">
               <span className="text-slate-300">
                 {dVal > 0 ? (
                   <>Tempo: <strong className="text-white">{bpm.toFixed(0)} BPM</strong> <span className="text-slate-500">({dToPeriodMs(dVal).toFixed(0)} ms)</span></>
@@ -216,7 +216,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   <>Pitch: <strong className="text-white">{pitchInfo.formatted}</strong> <span className="text-slate-500">({freqHz.toFixed(1)} Hz)</span></>
                 )}
               </span>
-              <span className="text-ppt-mi font-semibold">{addr.formatted}</span>
+              <span className="absolute left-1/2 -translate-x-1/2 text-ppt-mi font-semibold text-center pointer-events-none">{addr.formatted}</span>
               <span className="text-cyan-400 font-mono text-[9px]">d: {dVal.toFixed(2)}</span>
             </div>
 
@@ -260,9 +260,9 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               />
             </div>
 
-            <div className="flex justify-between items-center text-[8px] sm:text-[9px] text-slate-500 font-mono leading-none select-none">
+            <div className="relative flex justify-between items-center text-[8px] sm:text-[9px] text-slate-500 font-mono leading-none select-none">
               <span>◄ Slower (Rhythm)</span>
-              <span className="text-slate-400 font-medium">TPL (25.8 Hz)</span>
+              <span className="absolute left-1/2 -translate-x-1/2 text-slate-400 font-medium text-center pointer-events-none">TPL (25.8 Hz)</span>
               <span>Faster (Pitch) ►</span>
             </div>
           </div>
@@ -466,14 +466,14 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
       {/* Row 2: Mobile Continuum Slider Bar (Always visible on mobile < md) */}
       <div className="block md:hidden px-3 py-1.5 border-t border-slate-800/80 bg-[#06080e]/95">
-        <div className="flex justify-between items-center text-[10px] font-mono leading-none mb-1">
+        <div className="relative flex justify-between items-center text-[10px] font-mono leading-none mb-1">
           <span className="text-slate-300 font-semibold">
             {dVal > 0 ? `${bpm.toFixed(0)} BPM` : pitchInfo.formatted}
             <span className="text-slate-500 font-normal ml-1">
               ({dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)}ms` : `${freqHz.toFixed(1)}Hz`})
             </span>
           </span>
-          <span className="text-ppt-mi font-bold">{addr.formatted}</span>
+          <span className="absolute left-1/2 -translate-x-1/2 text-ppt-mi font-bold text-center pointer-events-none">{addr.formatted}</span>
           <span className="text-cyan-400 font-mono text-[9px] font-semibold">d: {dVal.toFixed(2)}</span>
         </div>
         <div className="relative flex items-center h-4">

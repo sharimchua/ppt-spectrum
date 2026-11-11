@@ -16,6 +16,7 @@ interface TraySheetProps {
   onTriggerNote?: () => void;
   onNoteOn?: () => void;
   onNoteOff?: () => void;
+  onOpenFilters?: () => void;
 }
 
 export const TraySheet: React.FC<TraySheetProps> = ({
@@ -31,6 +32,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
   onTriggerNote,
   onNoteOn,
   onNoteOff,
+  onOpenFilters,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 30, y: 70 });
@@ -139,6 +141,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
               onTriggerNote={onTriggerNote}
               onNoteOn={onNoteOn}
               onNoteOff={onNoteOff}
+              onOpenFilters={onOpenFilters}
             />
           </div>
         )}
@@ -179,6 +182,7 @@ export const TraySheet: React.FC<TraySheetProps> = ({
             onTriggerNote={onTriggerNote}
             onNoteOn={onNoteOn}
             onNoteOff={onNoteOff}
+            onOpenFilters={onOpenFilters}
           />
         </div>
       </div>

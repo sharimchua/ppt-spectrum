@@ -37,6 +37,27 @@ describe('Axis Mathematics', () => {
   it('resolves DuPeriod addresses correctly', () => {
     const addrTpl = resolveDuPeriodAddress(0.0);
     expect(addrTpl.syllable).toBe('Do');
+    expect(addrTpl.formatted).toBe('Do');
+    expect(addrTpl.band).toBe(0);
+
+    // Symmetric integer octaves around the TPM anchor
+    const addrDMinus1 = resolveDuPeriodAddress(-1.0);
+    expect(addrDMinus1.syllable).toBe('Do');
+    expect(addrDMinus1.formatted).toBe('Do-1');
+    expect(addrDMinus1.band).toBe(-1);
+
+    const addrDPlus1 = resolveDuPeriodAddress(1.0);
+    expect(addrDPlus1.syllable).toBe('Do');
+    expect(addrDPlus1.formatted).toBe('Do+1');
+    expect(addrDPlus1.band).toBe(1);
+
+    const addrDMinus2 = resolveDuPeriodAddress(-2.0);
+    expect(addrDMinus2.formatted).toBe('Do-2');
+    expect(addrDMinus2.band).toBe(-2);
+
+    const addrDPlus2 = resolveDuPeriodAddress(2.0);
+    expect(addrDPlus2.formatted).toBe('Do+2');
+    expect(addrDPlus2.band).toBe(2);
 
     // 440 Hz is d ≈ -4.09 => Band -5, Ra
     const addrA440 = resolveDuPeriodAddress(freqToD(440));
