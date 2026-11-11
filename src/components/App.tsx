@@ -3,7 +3,7 @@
  * Composes viewport, toolbar, layout renderer, modals, and custom hooks.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
@@ -49,9 +49,16 @@ export const App: React.FC = () => {
   // Core scene engine (RenderCoordinator, AudioEngine, debounced save)
   const { scene, sceneRef, updateScene, coordinator, audioEngine } = useSceneEngine(isOscillatingInit);
 
-  // Primary placement coordinate updates
+  // Ref tracking active sweep oscillation to allow synchronous pause and scrub cancellation
+  const isOscillatingRef = useRef<boolean>(false);
+  const setIsOscillatingRef = useRef<((val: boolean | ((prev: boolean) => boolean)) => void) | null>(null);
+
+  // Primary placement coordinate updates (user scrub turns off sweep while keeping audio running)
   const handleUpdatePlacementD = useCallback(
     (d: number) => {
+      if (isOscillatingRef.current && setIsOscillatingRef.current) {
+        setIsOscillatingRef.current(false);
+      }
       updateScene((prev) => setPrimaryPlacementD(prev, d));
     },
     [updateScene]
@@ -59,6 +66,9 @@ export const App: React.FC = () => {
 
   const handleStepPrimaryD = useCallback(
     (step: number) => {
+      if (isOscillatingRef.current && setIsOscillatingRef.current) {
+        setIsOscillatingRef.current(false);
+      }
       updateScene((prev) => stepPrimaryPlacementD(prev, step));
     },
     [updateScene]
@@ -71,7 +81,7 @@ export const App: React.FC = () => {
     handleNoteOn,
     handleNoteOff,
     handleTriggerNote,
-    handleTogglePlay,
+    handleTogglePlay: rawHandleTogglePlay,
   } = useTransport({ coordinator, audioEngine, sceneRef });
 
   // Musical bookmarks and continuum sweep oscillation
@@ -79,6 +89,7 @@ export const App: React.FC = () => {
     bookmarks,
     setBookmarks,
     isOscillating,
+    setIsOscillating,
     toggleOscillating,
     handleJumpBookmarkA,
     handleJumpBookmarkB,
@@ -91,6 +102,17 @@ export const App: React.FC = () => {
     coordinator,
     setPrimaryD: handleUpdatePlacementD,
   });
+
+  isOscillatingRef.current = isOscillating;
+  setIsOscillatingRef.current = setIsOscillating;
+
+  // Pausing transport turns off sweep oscillation if active
+  const handleTogglePlay = useCallback(async () => {
+    if (isPlaying && isOscillatingRef.current && setIsOscillatingRef.current) {
+      setIsOscillatingRef.current(false);
+    }
+    await rawHandleTogglePlay();
+  }, [isPlaying, rawHandleTogglePlay]);
 
   // Keep useSceneEngine oscillating state gate synced with useBookmarks
   if (isOscillating !== isOscillatingInit) {
