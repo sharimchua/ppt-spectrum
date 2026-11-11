@@ -228,7 +228,6 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
         activeFillRgba: 'rgba(34, 211, 238, 0.4)',
         onSelect: () => {
           onJumpBookmarkA();
-          onClose();
         },
       },
       {
@@ -243,7 +242,6 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
         activeFillRgba: 'rgba(245, 158, 11, 0.4)',
         onSelect: () => {
           onJumpBookmarkB();
-          onClose();
         },
       },
       {

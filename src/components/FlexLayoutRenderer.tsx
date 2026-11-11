@@ -17,6 +17,7 @@ interface FlexLayoutRendererProps {
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
+  isPlaying?: boolean;
   onTogglePlay?: () => void;
   onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
   // Layout Edit Mode Props
@@ -43,6 +44,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   onUpdateFilterCentreD,
   onUpdateFilterParams,
   onUpdateCell,
+  isPlaying,
   onTogglePlay,
   onOpenRadialMenuAt,
   isEditMode = false,
@@ -74,6 +76,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateFilterParams={onUpdateFilterParams}
           onUpdateCell={onUpdateCell}
+          isPlaying={isPlaying}
           onTogglePlay={onTogglePlay}
           onOpenRadialMenuAt={onOpenRadialMenuAt}
           isEditMode={isEditMode}
@@ -100,7 +103,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   return (
     <div
       className={`relative w-full h-full flex min-w-0 min-h-0 ${
-        isRow ? 'flex-col sm:flex-row' : 'flex-col'
+        isRow ? (node.children.length <= 2 ? 'flex-row' : 'flex-col sm:flex-row') : 'flex-col'
       } ${
         isEditMode
           ? 'p-1 rounded-2xl border border-dashed border-purple-500/25 bg-purple-950/10'
@@ -124,6 +127,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
             onUpdateFilterCentreD={onUpdateFilterCentreD}
             onUpdateFilterParams={onUpdateFilterParams}
             onUpdateCell={onUpdateCell}
+            isPlaying={isPlaying}
             onTogglePlay={onTogglePlay}
             onOpenRadialMenuAt={onOpenRadialMenuAt}
             isEditMode={isEditMode}

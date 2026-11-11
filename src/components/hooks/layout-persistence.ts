@@ -5,7 +5,7 @@
 
 import {
   LayoutDefinition,
-  PRESET_SOLO,
+  PRESET_TRIO,
   PRESET_DUO_HORIZONTAL,
   PRESET_LAYOUTS,
   decodeLayoutFromSlug,
@@ -93,5 +93,5 @@ export function loadInitialLayout(): LayoutDefinition {
     }
   }
 
-  return isMobilePortrait ? PRESET_DUO_HORIZONTAL : PRESET_SOLO;
+  return isMobilePortrait ? PRESET_DUO_HORIZONTAL : PRESET_TRIO;
 }

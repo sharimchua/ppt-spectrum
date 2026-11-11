@@ -92,18 +92,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     const isCompact = width < 480;
     const isShort = height < 300;
 
-    // 1. Header & Metric Cards
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText(
-      isCompact ? 'REALIGNMENT & COINCIDENCE METER' : 'REALIGNMENT & COINCIDENCE METER â€¢ UNIFIED CONSONANCE',
-      isCompact ? 14 : 20,
-      isShort ? 16 : 20
-    );
-
+    // 1. Metric Cards
     const padX = isCompact ? 12 : 20;
     const gapX = isCompact ? 6 : 10;
-    const boxY = isShort ? 24 : 32;
+    const boxY = isShort ? 8 : 12;
     const boxH = isShort ? 36 : 44;
     const boxW = (width - padX * 2 - gapX * 2) / 3;
 

@@ -8,16 +8,10 @@ import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
-import { CaptureModal } from './CaptureModal';
-import { InfoModal, STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
-import { SettingsDrawer } from './SettingsDrawer';
-import { TraySheet } from './TraySheet';
-import { MusicalBookmarksModal } from './MusicalBookmarksModal';
-import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
-import { FilterQuickSearchModal } from './FilterQuickSearchModal';
-import { RadialMenuOverlay } from './RadialMenuOverlay';
+import { STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
 import { FilterEditHud } from './FilterEditHud';
-import { FiltersSheet } from './filters/FiltersSheet';
+import { AppModals } from './AppModals';
+import { useTeachingDemo } from './hooks/useTeachingDemo';
 import { useSceneEngine } from './hooks/useSceneEngine';
 import { useLayoutState } from './hooks/useLayoutState';
 import { useTransport } from './hooks/useTransport';
@@ -240,6 +234,21 @@ export const App: React.FC = () => {
     actions: keyboardActions,
   });
 
+  const handlePlayDemo = useTeachingDemo({
+    handleSelectPreset,
+    setBookmarks,
+    handleUpdatePlacementD,
+    layout,
+    setLayout,
+    scene,
+    toggleFilter,
+    isOscillating,
+    toggleOscillating,
+    isPlaying,
+    handleTogglePlay,
+    setIsInfoOpen,
+  });
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0d13] text-slate-100 font-sans">
       <ControlToolbar
@@ -302,6 +311,7 @@ export const App: React.FC = () => {
             onUpdateFilterCentreD={handleUpdateFilterCentreD}
             onUpdateFilterParams={handleUpdateFilterParams}
             onUpdateCell={handleUpdateCell}
+            isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}
             onOpenRadialMenuAt={handleOpenRadialMenuAt}
             isEditMode={isEditMode}
@@ -317,38 +327,26 @@ export const App: React.FC = () => {
         </div>
       </SpectrumViewport>
 
-      <CaptureModal
-        isOpen={isCaptureOpen}
-        onClose={() => setIsCaptureOpen(false)}
+      <AppModals
+        isCaptureOpen={isCaptureOpen}
+        onCloseCapture={() => setIsCaptureOpen(false)}
         onCaptureShape={handleCaptureShape}
-        tplHz={scene.anchors.tplFrequencyHz}
-      />
-
-      <InfoModal
-        isOpen={isInfoOpen}
-        onClose={() => setIsInfoOpen(false)}
-        onPlayDemo={handleTogglePlay}
-      />
-
-      <TraySheet
-        isOpen={isShapeEditorOpen}
-        onClose={() => setIsShapeEditorOpen(false)}
+        isInfoOpen={isInfoOpen}
+        onCloseInfo={() => setIsInfoOpen(false)}
+        onPlayDemo={handlePlayDemo}
+        isShapeEditorOpen={isShapeEditorOpen}
+        onCloseShapeEditor={() => setIsShapeEditorOpen(false)}
         activeShape={activeShape}
-        onUpdateShape={handleUpdateActiveShape}
-        allShapes={scene.shapes}
+        onUpdateActiveShape={handleUpdateActiveShape}
         onSelectShape={handleSelectPreset}
         onDuplicateShape={handleDuplicateShape}
         onDeleteShape={handleDeleteUserShape}
         onCreateShape={handleCreateShape}
-        onTriggerNote={() => handleTriggerNote()}
-        onNoteOn={() => handleNoteOn()}
-        onNoteOff={() => handleNoteOff()}
-      />
-
-      <MusicalBookmarksModal
-        isOpen={isBookmarksOpen}
-        onClose={() => setIsBookmarksOpen(false)}
-        currentD={scene.placements[0]?.d ?? 0}
+        onTriggerNote={handleTriggerNote}
+        onNoteOn={handleNoteOn}
+        onNoteOff={handleNoteOff}
+        isBookmarksOpen={isBookmarksOpen}
+        onCloseBookmarks={() => setIsBookmarksOpen(false)}
         bookmarks={bookmarks}
         onUpdateBookmarks={setBookmarks}
         onJumpToD={(targetD) => {
@@ -357,80 +355,52 @@ export const App: React.FC = () => {
         }}
         isOscillating={isOscillating}
         onToggleOscillate={toggleOscillating}
-        onTriggerNote={() => handleTriggerNote()}
-      />
-
-      <SettingsDrawer
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        isSettingsOpen={isSettingsOpen}
+        onCloseSettings={() => setIsSettingsOpen(false)}
         scene={scene}
         onUpdateScene={updateScene}
         onOpenInfoModal={() => setIsInfoOpen(true)}
-      />
-
-      <ShapeQuickSearchModal
-        isOpen={isQuickSearchOpen}
-        onClose={() => setIsQuickSearchOpen(false)}
-        shapes={scene.shapes}
-        activeShapeId={activeShape?.id}
-        onSelectShape={handleSelectPreset}
-      />
-
-      <FilterQuickSearchModal
-        isOpen={isFilterQuickSearchOpen}
-        onClose={() => setIsFilterQuickSearchOpen(false)}
-        filters={allFilters}
-        activeFilterId={scene.filter.id || scene.filter.presetId}
+        isQuickSearchOpen={isQuickSearchOpen}
+        onCloseQuickSearch={() => setIsQuickSearchOpen(false)}
+        isFilterQuickSearchOpen={isFilterQuickSearchOpen}
+        onCloseFilterQuickSearch={() => setIsFilterQuickSearchOpen(false)}
+        allFilters={allFilters}
         onSelectFilter={handleSelectFilter}
         onOpenFilterPanel={() => {
           setIsFilterQuickSearchOpen(false);
           openFilters();
         }}
-      />
-
-      <RadialMenuOverlay
-        isOpen={isRadialMenuOpen}
-        onClose={() => setIsRadialMenuOpen(false)}
-        scene={scene}
+        isRadialMenuOpen={isRadialMenuOpen}
+        onCloseRadialMenu={() => setIsRadialMenuOpen(false)}
+        radialMenuAnchor={radialMenuAnchor}
         isPlaying={isPlaying}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
         onUpdateFilterParams={handleUpdateFilterParams}
-        onToggleFilter={toggleFilter}
+        toggleFilter={toggleFilter}
         onCycleFilterMode={handleCycleFilterMode}
         onOpenLibrary={() => setIsShapeEditorOpen(true)}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenFilters={openFilters}
-        isOscillating={isOscillating}
-        onToggleOscillate={toggleOscillating}
-        bookmarks={bookmarks}
         onSetBookmarkA={handleSetBookmarkA}
         onSetBookmarkB={handleSetBookmarkB}
         onJumpBookmarkA={handleJumpBookmarkA}
         onJumpBookmarkB={handleJumpBookmarkB}
-        anchorPos={radialMenuAnchor}
         onEnterFilterEditMode={handleEnterFilterEditMode}
-      />
-
-      <FiltersSheet
-        isOpen={isFiltersOpen}
-        filter={scene.filter}
-        allFilters={allFilters}
-        onSelectFilter={handleSelectFilter}
+        isFiltersOpen={isFiltersOpen}
+        onCloseFilters={closeFilters}
         onForkFilter={handleForkFilter}
         onDuplicateFilter={handleDuplicateFilter}
         onDeleteFilter={handleDeleteFilter}
         onCreateNewFilter={handleCreateNewFilter}
         onRenameFilter={handleRenameFilter}
-        onClose={closeFilters}
-        onToggleEnabled={toggleFilter}
-        onUpdateFilter={updateFilterState}
-        onAddCondition={addFilterCondition}
-        onUpdateCondition={updateFilterCondition}
-        onRemoveCondition={removeFilterCondition}
-        onMoveCondition={moveFilterCondition}
-        onFocusCondition={focusCondition}
+        updateFilterState={updateFilterState}
+        addFilterCondition={addFilterCondition}
+        updateFilterCondition={updateFilterCondition}
+        removeFilterCondition={removeFilterCondition}
+        moveFilterCondition={moveFilterCondition}
+        focusCondition={focusCondition}
       />
     </div>
   );

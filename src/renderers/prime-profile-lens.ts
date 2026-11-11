@@ -44,21 +44,12 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
 
     const barStartX = isCompact ? 16 : (width - width * 0.75) / 2;
     const labelColW = isCompact ? 96 : 160;
-    const startY = isShort ? 48 : 80;
-    const barSpacing = Math.max(18, (height - startY - (isShort ? 16 : 40)) / families.length);
+    const startY = isShort ? 14 : 24;
+    const barSpacing = Math.max(18, (height - startY - (isShort ? 12 : 20)) / families.length);
     const barH = Math.min(16, Math.max(10, barSpacing - 6));
     const maxBarW = Math.max(60, width - barStartX * 2 - labelColW - 52);
 
     ctx.save();
-    ctx.fillStyle = '#a855f7';
-    ctx.font = isCompact ? 'bold 9.5px JetBrains Mono, monospace' : 'bold 11px JetBrains Mono, monospace';
-    ctx.fillText(`PRIME PROFILE — ${shape.name.toUpperCase()}`, barStartX, isShort ? 22 : 45);
-
-    if (!isShort) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = '9px Inter, sans-serif';
-      ctx.fillText('Amplitude-weighted energy distribution across prime factor families', barStartX, 60);
-    }
 
     for (let i = 0; i < families.length; i++) {
       const fam = families[i];

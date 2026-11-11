@@ -4,8 +4,8 @@
  * Australian English spelling conventions maintained.
  */
 
-import React from 'react';
-import { Check, SlidersHorizontal } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, SlidersHorizontal, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { SpanView, Filter } from '../core/types';
 import { FilterControlParam } from './hooks/useFilters';
 
@@ -28,6 +28,8 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
   onOpenFilters,
   onDone,
 }) => {
+  const [dockPosition, setDockPosition] = useState<'top' | 'bottom'>('top');
+
   const isRelative = filter?.trackingMode === 'relative' || filter?.conditions.some(
     (c) => c.kind === 'range' && c.reference !== 'absolute'
   );
@@ -45,7 +47,13 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
   const modeLabel = filter?.action === 'remove' ? 'REJECT' : (filter?.mode ?? 'band-pass');
 
   return (
-    <div className="absolute top-14 sm:top-16 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-40 flex flex-wrap items-center justify-between sm:justify-center gap-2 px-3 py-1.5 rounded-xl bg-[#080d1a]/95 border border-sky-500/60 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md animate-in slide-in-from-top-2 duration-150 text-xs font-mono select-none">
+    <div
+      className={`absolute ${
+        dockPosition === 'top'
+          ? 'top-24 sm:top-16 animate-in slide-in-from-top-2'
+          : 'bottom-4 sm:bottom-6 animate-in slide-in-from-bottom-2'
+      } left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-40 flex flex-wrap items-center justify-between sm:justify-center gap-2 px-3 py-1.5 rounded-xl bg-[#080d1a]/95 border border-sky-500/60 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md transition-all duration-200 text-xs font-mono select-none`}
+    >
       {/* Badge & Mode */}
       <div className="flex items-center gap-1.5 shrink-0">
         <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
@@ -104,8 +112,28 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
 
       <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
 
-      {/* Open Sheet & Done Buttons */}
+      {/* Open Sheet, Bump/Dock, and Done Buttons */}
       <div className="flex items-center gap-1.5 shrink-0">
+        {/* Dock position toggle button */}
+        <button
+          type="button"
+          onClick={() => setDockPosition((prev) => (prev === 'top' ? 'bottom' : 'top'))}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700 hover:border-sky-500/50 text-slate-300 hover:text-white transition cursor-pointer text-[10px]"
+          title={dockPosition === 'top' ? 'Dock HUD to bottom of screen' : 'Dock HUD to top of screen'}
+        >
+          {dockPosition === 'top' ? (
+            <>
+              <ChevronsDown className="w-3 h-3 text-sky-400" />
+              <span className="hidden xs:inline">Down</span>
+            </>
+          ) : (
+            <>
+              <ChevronsUp className="w-3 h-3 text-sky-400" />
+              <span className="hidden xs:inline">Up</span>
+            </>
+          )}
+        </button>
+
         {onOpenFilters && (
           <button
             type="button"

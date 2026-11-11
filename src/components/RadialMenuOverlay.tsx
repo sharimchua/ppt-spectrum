@@ -210,6 +210,8 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   const beadX = Math.cos(jogAngle) * rRimTrack;
   const beadY = Math.sin(jogAngle) * rRimTrack;
 
+  const wasOpenedFromTopBar = anchorPos === null;
+
   return createPortal(
     <div
       className="fixed inset-0 z-[100] overflow-hidden select-none animate-in fade-in duration-150 touch-none pointer-events-auto"
@@ -218,13 +220,16 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* Top Status Bar & Close Button */}
-      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-50 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/95 border border-slate-700/80 shadow-lg text-xs font-mono">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="font-bold text-white uppercase">
+      {/* Top Header Bar: Cleanly replaces the navbar with contextual radial menu title */}
+      <header
+        className="absolute top-0 left-0 right-0 h-12 sm:h-14 bg-[#080b12] border-b border-slate-800 flex items-center justify-between px-3 sm:px-4 z-50 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <span className="font-bold text-white uppercase tracking-wider text-[11px] sm:text-xs">
             {activeSubMenu === 'none'
-              ? 'Radial Continuum Menu'
+              ? 'Radial Menu'
               : activeSubMenu === 'north'
               ? 'Library & Mic Sampling'
               : activeSubMenu === 'east'
@@ -234,12 +239,39 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="pointer-events-auto p-2 rounded-full bg-slate-900/95 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition cursor-pointer shadow-lg"
+          className="p-1.5 sm:p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white transition cursor-pointer shadow-md"
           title="Close Radial Menu"
         >
           <X className="w-4 h-4" />
         </button>
-      </div>
+      </header>
+
+      {/* Educational Gesture Tip: Displayed when opened via top-bar Menu button */}
+      {wasOpenedFromTopBar && (
+        <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/95 border border-red-500/40 text-[11px] font-sans text-slate-200 shadow-xl backdrop-blur-md">
+            <span className="text-ppt-do font-bold">💡 Tip:</span>
+            <span>Press & hold on screen to open under your thumb</span>
+          </div>
+        </div>
+      )}
+
+      {/* Selective localized radial blur & subtle vignette around the wheel only */}
+      <div
+        className="absolute rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-all duration-200"
+        style={{
+          left: `${cx}px`,
+          top: `${cy}px`,
+          width: `${menuRadius * 2 + 56}px`,
+          height: `${menuRadius * 2 + 56}px`,
+          background:
+            'radial-gradient(circle, rgba(11, 15, 25, 0.85) 0%, rgba(11, 15, 25, 0.65) 60%, rgba(11, 15, 25, 0) 100%)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          maskImage: 'radial-gradient(circle, black 65%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(circle, black 65%, transparent 100%)',
+        }}
+      />
 
       {/* Main Radial Wheel Container (Top-Layer Fixed Coordinates) */}
       <div

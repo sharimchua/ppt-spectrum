@@ -46,7 +46,6 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     const shape = scene.shapes.find((s) => s.id === placement.shapeId);
     if (!shape) return;
 
-    const isCompact = width < 520;
     const partials = evaluatePlacedShape(shape, placement, scene.filter, placement.d, scene.anchors.tplFrequencyHz);
     const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
@@ -271,9 +270,6 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
       });
     }
 
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'WAVEFORM' : 'COMPOSITE WAVEFORM', 16, 22);
     ctx.restore();
   }
 }

@@ -103,53 +103,69 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
       {/* Primary Top Bar */}
       <div className="flex h-12 sm:h-14 w-full items-center justify-between px-2.5 sm:px-4 gap-2">
         {/* Left Group: Branding, App Name, Playback & Shape Library */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Unified Branding Icon & Title */}
-          <div className="flex items-center gap-1.5 sm:gap-2 mr-0.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink min-w-0">
+          {/* Unified Branding Icon & Title (Clickable to open Help & Tutorial Modal) */}
+          <button
+            onClick={onOpenInfo}
+            className="flex items-center gap-1.5 sm:gap-2 mr-0.5 shrink-0 group text-left hover:opacity-90 transition-opacity cursor-pointer focus:outline-none"
+            title="Prime Period Theory — Spectrum Guide & Tutorial"
+          >
             <img
               src="/logo.svg"
               alt="PPT Logo"
-              className="w-6 h-6 sm:w-8 sm:h-8 object-contain shrink-0 drop-shadow-[0_0_8px_rgba(225,54,16,0.3)]"
+              className="w-6 h-6 sm:w-8 sm:h-8 object-contain shrink-0 drop-shadow-[0_0_8px_rgba(225,54,16,0.3)] group-hover:scale-105 transition-transform"
             />
-            <div className="flex flex-col">
-              <span className="text-xs sm:text-sm font-bold tracking-wider text-slate-100 flex items-center gap-1">
+            <div className="hidden sm:flex flex-col">
+              <span className="text-xs sm:text-sm font-bold tracking-wider text-slate-100 flex items-center gap-1 group-hover:text-amber-300 transition-colors">
                 <span className="text-ppt-do">PPT</span>
-                <span className="hidden sm:inline">SPECTRUM</span>
+                <span>SPECTRUM</span>
               </span>
-              <span className="text-[9px] font-mono text-slate-400 hidden md:inline">
+              <span className="text-[9px] font-mono text-slate-400 hidden md:inline group-hover:text-slate-300 transition-colors">
                 Prime Period Theory
               </span>
             </div>
-          </div>
-
-          {/* Help / Tutorial Button (Desktop) */}
-          <button
-            onClick={onOpenInfo}
-            className="hidden md:flex p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
-            title="Theory Primer & Walkthrough"
-          >
-            <HelpCircle className="w-4 h-4" />
           </button>
 
-          {/* Audio Play/Pause Button (Desktop) */}
+          {/* Audio Play/Pause Button (First control after logo) */}
           <button
             onClick={onTogglePlay}
-            className={`hidden md:flex h-8 sm:h-9 px-2.5 sm:px-3 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
+            className={`flex h-7 sm:h-9 px-2 sm:px-3 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs shrink-0 ${
               isPlaying
                 ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
                 : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
             }`}
             title={isPlaying ? 'Pause Audio (Space)' : 'Start Audio Synthesis (Space)'}
           >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5 fill-current" />}
+            {isPlaying ? <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-0.5 fill-current" />}
             <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
+
+          {/* Shape Library & Active Shape Pill (Visible on Mobile & Desktop) */}
+          {onToggleShapeEditor && (
+            <button
+              onClick={onToggleShapeEditor}
+              className={`flex items-center gap-1.5 h-7 sm:h-9 px-2 sm:px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink min-w-0 ${
+                isShapeEditorOpen
+                  ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
+                  : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
+              }`}
+              title="Open Shape Synthesiser & User Library (L)"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do shrink-0" />
+              <span className="hidden sm:inline">Library</span>
+              {activeShape && (
+                <span className="text-[10px] sm:text-[11px] text-slate-200 sm:text-slate-300 font-mono font-medium truncate max-w-[80px] xs:max-w-[105px] sm:max-w-[150px] sm:pl-1.5 sm:border-l sm:border-slate-700/80">
+                  {activeShape.name}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Continuum Sweep / Oscillation Toggle Button (Desktop) */}
           {onToggleOscillate && (
             <button
               onClick={onToggleOscillate}
-              className={`hidden md:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap ${
+              className={`hidden md:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap shrink-0 ${
                 isOscillating
                   ? 'border-red-500 bg-red-600/30 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-700'
@@ -165,47 +181,53 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           {onOpenBookmarks && (
             <button
               onClick={onOpenBookmarks}
-              className="hidden lg:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap"
+              className="hidden lg:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink-0"
               title="Configure Musical Bookmarks (BPM & Piano Keyboard)"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
               <span>Bookmarks</span>
             </button>
           )}
-
-          {/* Shape Library & Active Shape Pill (Always visible on Mobile & Desktop) */}
-          {onToggleShapeEditor && (
-            <button
-              onClick={onToggleShapeEditor}
-              className={`flex items-center gap-1.5 h-7 sm:h-9 px-2 sm:px-2.5 rounded-lg border transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap ${
-                isShapeEditorOpen
-                  ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
-                  : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
-              }`}
-              title="Open Shape Synthesiser & User Library (L)"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do shrink-0" />
-              <span className="hidden sm:inline">Library</span>
-              {activeShape && (
-                <span className="text-[10px] sm:text-[11px] text-slate-200 sm:text-slate-300 font-mono font-medium truncate max-w-[105px] sm:max-w-[150px] sm:pl-1.5 sm:border-l sm:border-slate-700/80">
-                  {activeShape.name}
-                </span>
-              )}
-            </button>
-          )}
         </div>
 
-        {/* Mobile Center Trigger: Radial Menu Button (Visible only on mobile < md) */}
-        {onOpenRadialMenu && (
+        {/* Mobile Middle & Right Group (< md): Menu -> Layout -> Help */}
+        <div className="flex md:hidden items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Radial Menu Trigger Button */}
+          {onOpenRadialMenu && (
+            <button
+              onClick={onOpenRadialMenu}
+              className="flex items-center gap-1 h-7 px-2.5 rounded-full bg-gradient-to-r from-red-600/30 via-purple-600/30 to-cyan-600/30 border border-slate-600 hover:border-red-400 text-white font-semibold text-xs shadow-md active:scale-95 cursor-pointer shrink-0"
+              title="Open Radial Control Menu"
+            >
+              <Compass className="w-3.5 h-3.5 text-ppt-do shrink-0" />
+              <span>Menu</span>
+            </button>
+          )}
+
+          {/* Layout Edit Mode Toggle */}
+          {onToggleEditMode && (
+            <button
+              onClick={onToggleEditMode}
+              className={`flex items-center justify-center h-7 w-7 rounded-md border text-xs font-medium transition cursor-pointer shrink-0 ${
+                isEditMode
+                  ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)] ring-1 ring-purple-400'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title={isEditMode ? 'Exit Layout Editor' : 'Edit Layout & Cell Lenses'}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Help / Primer */}
           <button
-            onClick={onOpenRadialMenu}
-            className="flex md:hidden items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-red-600/30 via-purple-600/30 to-cyan-600/30 border border-slate-600 hover:border-red-400 text-white font-semibold text-xs shadow-md active:scale-95 cursor-pointer"
-            title="Open Radial Control Menu"
+            onClick={onOpenInfo}
+            className="flex items-center justify-center h-7 w-7 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer shrink-0"
+            title="Theory Primer & Walkthrough"
           >
-            <Compass className="w-3.5 h-3.5 text-ppt-do" />
-            <span>Menu</span>
+            <HelpCircle className="w-4 h-4" />
           </button>
-        )}
+        </div>
 
         {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop: >= 768px) */}
         <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
@@ -275,47 +297,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Mobile Right Tools Group (< md): Tutorial, Edit Layout, Play/Pause */}
-        <div className="flex md:hidden items-center gap-1 shrink-0">
-          {/* Tutorial / Info */}
-          <button
-            onClick={onOpenInfo}
-            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
-            title="Theory Primer & Walkthrough"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-
-          {/* Layout Edit Mode Toggle */}
-          {onToggleEditMode && (
-            <button
-              onClick={onToggleEditMode}
-              className={`p-1.5 rounded-md border text-xs font-medium transition cursor-pointer ${
-                isEditMode
-                  ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)] ring-1 ring-purple-400'
-                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white'
-              }`}
-              title={isEditMode ? 'Exit Layout Editor' : 'Edit Layout & Cell Lenses'}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Audio Play/Pause Button */}
-          <button
-            onClick={onTogglePlay}
-            className={`h-7 px-2 flex items-center justify-center gap-1 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs ${
-              isPlaying
-                ? 'border-red-500 bg-red-600/30 text-red-300 shadow-[0_0_12px_rgba(238,54,16,0.4)]'
-                : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:bg-slate-700'
-            }`}
-            title={isPlaying ? 'Pause Audio' : 'Start Audio Synthesis'}
-          >
-            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-          </button>
-        </div>
-
-        {/* Desktop Right Tools Group (>= md): Capture, Layout Tools, Filter, Settings, Fullscreen */}
+        {/* Desktop Right Tools Group (>= md): Capture, Layout Tools, Filter, Settings, Help, Fullscreen */}
         <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Capture Pad / Mic Pitch Modal */}
           <button
@@ -446,6 +428,15 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               </span>
             </button>
           )}
+
+          {/* Help / Primer (Desktop) */}
+          <button
+            onClick={onOpenInfo}
+            className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+            title="Theory Primer & Walkthrough"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
 
           {/* Settings Drawer Button */}
           {onToggleSettings && (

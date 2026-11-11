@@ -87,8 +87,8 @@ export class PhasorLensRenderer implements RegisteredLensRenderer {
 
     ctx.save();
     const phasorCenterX = width / 2;
-    const phasorCenterY = height * (isShort ? 0.54 : 0.52);
-    const maxPhasorR = Math.min(width / 2 - 24, (height - (isShort ? 36 : 48)) / 2) * 0.84;
+    const phasorCenterY = height * 0.5;
+    const maxPhasorR = Math.min(width / 2 - 20, (height - (isShort ? 24 : 32)) / 2) * 0.88;
 
     if (maxPhasorR <= 5) {
       ctx.restore();
@@ -359,14 +359,10 @@ export class PhasorLensRenderer implements RegisteredLensRenderer {
       }
     }
 
-    // 6. Header Title & Super-Cycle Status Subtitle
-    ctx.fillStyle = '#E13610';
-    ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 9.5px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(isCompact ? 'ROTATING PHASORS' : 'ROTATING PHASORS (EPICYCLIC HARMONICS)', phasorCenterX, 20);
-
+    // 6. Super-Cycle Status Footer
     ctx.fillStyle = coincidence.isAperiodic ? '#f59e0b' : '#94a3b8';
     ctx.font = isCompact ? '7.5px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
     const currentTurnInSuper = !coincidence.isAperiodic
       ? (Math.floor(Math.max(0, rotationTurns)) % coincidence.rootTurnsToAlign) + 1
       : Math.floor(Math.max(0, rotationTurns)) + 1;
@@ -377,7 +373,7 @@ export class PhasorLensRenderer implements RegisteredLensRenderer {
       : isAudioActive
       ? (isCompact ? `TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}` : `SUPER-CYCLE: TURN ${currentTurnInSuper}/${coincidence.rootTurnsToAlign}`)
       : (isCompact ? `${coincidence.rootTurnsToAlign}x TURNS` : `ALIGN: EVERY ${coincidence.rootTurnsToAlign} ROOT TURNS`);
-    ctx.fillText(phasorSubLabel, phasorCenterX, 31);
+    ctx.fillText(phasorSubLabel, phasorCenterX, height - 8);
 
     ctx.restore();
   }

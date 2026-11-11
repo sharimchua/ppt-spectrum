@@ -46,6 +46,7 @@ interface CellViewportProps {
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<SpanView>) => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
+  isPlaying?: boolean;
   onTogglePlay?: () => void;
   onOpenRadialMenuAt?: (pos: { x: number; y: number }) => void;
   // Layout Edit Mode Props
@@ -71,6 +72,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onUpdateFilterCentreD,
   onUpdateFilterParams,
   onUpdateCell,
+  isPlaying = false,
   onTogglePlay,
   onOpenRadialMenuAt,
   isEditMode = false,
@@ -91,7 +93,11 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 
   // Double-tap to play/pause state
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
-  const [doubleTapRipple, setDoubleTapRipple] = useState<{ x: number; y: number } | null>(null);
+  const [doubleTapRipple, setDoubleTapRipple] = useState<{
+    x: number;
+    y: number;
+    action: 'play' | 'pause';
+  } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
 
   // Drag scrubbing & mobile rotary jog wheel states
@@ -312,8 +318,9 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const dist = Math.hypot(touch.clientX - prevTap.x, touch.clientY - prevTap.y);
       if (dist < 45 && onTogglePlay) {
         if (e.cancelable) e.preventDefault();
+        const nextAction = isPlaying ? 'pause' : 'play';
         onTogglePlay();
-        setDoubleTapRipple({ x: touch.clientX, y: touch.clientY });
+        setDoubleTapRipple({ x: touch.clientX, y: touch.clientY, action: nextAction });
         setTimeout(() => setDoubleTapRipple(null), 450);
         lastTapRef.current = null;
         if (longPressTimerRef.current) {
@@ -729,11 +736,15 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[96] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center animate-ping duration-300"
+            className="pointer-events-none fixed z-[96] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
             style={{ left: `${doubleTapRipple.x}px`, top: `${doubleTapRipple.y}px` }}
           >
-            <div className="w-16 h-16 rounded-full bg-red-500/40 border-2 border-red-400 flex items-center justify-center">
-              {scene.placements[0]?.gain ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white" />}
+            <div className="w-16 h-16 rounded-full bg-red-500/40 border-2 border-red-400 flex items-center justify-center animate-ping duration-300">
+              {doubleTapRipple.action === 'play' ? (
+                <Play className="w-6 h-6 text-white ml-0.5 fill-white" />
+              ) : (
+                <Pause className="w-6 h-6 text-white fill-white" />
+              )}
             </div>
           </div>,
           document.body

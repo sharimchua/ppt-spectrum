@@ -11,11 +11,12 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/FlexLayoutRenderer.tsx` — Recursive multi-cell Flexbox layout renderer supporting nested containers and live cell splitting/reordering.
 - `src/components/CellViewport.tsx` — Modular lens cell wrapper providing canvas high-DPI binding and in-place layout editor controls (lens switcher, split row/col, duplicate, remove).
 - `src/components/CaptureModal.tsx` — Rhythm tap pad with 11-limit DuPeriod rationaliser and microphone pitch detector.
-- `src/components/InfoModal.tsx` — Interactive 4-step theory walkthrough and primer for Prime Period Theory.
+- `src/components/InfoModal.tsx` — Comprehensive 4-tab interactive theory documentation and tutorial modal with scroll-spy navigation.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
 - `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
 - `src/components/shape-editor/ShapeEditor.tsx` — Modular shape inspector container and tab orchestrator.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
+- `src/components/AppModals.tsx` — Unified modal orchestration component housing all overlay dialogs, bottom sheets, search modals, and radial menu overlays.
 - `src/components/RadialMenuOverlay.tsx` — Mobile annular pie-wedge radial menu (thumb spawn point, top-layer portal) with a dedicated Filters sub-menu.
 - `src/components/radial-menu-segments.tsx` — Annular radial pie wedge segment definitions and sub-menu builders.
 - `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor.
@@ -23,6 +24,17 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
+
+### Tutorial & Theory Documentation (`src/components/info-modal/`)
+
+- `OverviewSection.tsx` — Hero card with Sawtooth Sweep Demo launcher, 8 analytical lens overview cards, and quick interaction tips.
+- `ConceptsSection.tsx` — 7 numbered theoretical foundation cards with embedded interactive SVG exploration diagrams.
+- `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
+- `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, and lesson archives.
+- `TplContinuumDiagram.tsx` — Interactive continuum ruler with clickable landmarks, DuPeriod vs Physical Hz scale switch, and TPL transition zone.
+- `OvertoneTimbreDiagram.tsx` — Interactive waveform and timbre micro-polyphony explorer with waveform presets, live summed oscilloscope, and dual Rhythm/Pitch perception cards.
+- `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove overlays (Hemiola, Tresillo).
+- `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
 
 ### Filters & Rhythm Sieves (`src/components/filters/`)
 
@@ -69,6 +81,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useCanvasFilterGestures.ts` — Canvas gesture interactions for filter aperture scrubbing (drag, wheel, touch).
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
+- `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting Sawtooth shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
 
 ### Tests (`src/components/__tests__/`)
 

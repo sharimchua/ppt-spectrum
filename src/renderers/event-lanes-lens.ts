@@ -81,22 +81,10 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
 
     const isCompact = width < 480;
 
-    // Header label
     ctx.save();
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
-    const filterTag = filterSuperLength > 1 ? ` • ${filterSuperLength}-BAR FILTER` : '';
-    const headerText = coincidence.isAperiodic
-      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (APERIODIC${filterTag})` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (APERIODIC${filterTag})`)
-      : !isCompactSuperCycle
-      ? (isCompact ? `EVENT LANES • ${windowTurns}-TURN (${coincidence.rootTurnsToAlign}x${filterTag})` : `EVENT LANES • ROLLING ${windowTurns}-TURN WINDOW (${coincidence.rootTurnsToAlign}x SUPER-CYCLE${filterTag})`)
-      : windowTurns === 1
-      ? (isCompact ? 'EVENT LANES (1 ROOT TURN)' : 'EVENT LANES & COMPOSITE RIPPLE (1 ROOT TURN)')
-      : `EVENT LANES • SUPER-CYCLE (${windowTurns} TURNS${filterTag})`;
-    ctx.fillText(headerText, isCompact ? 12 : 20, 22);
 
-    const topMargin = 36;
-    const bottomMargin = 36;
+    const topMargin = 18;
+    const bottomMargin = 32;
     const availableHeight = height - topMargin - bottomMargin;
     const numLanes = activePartials.length;
     const laneHeight = Math.max(14, availableHeight / Math.max(1, numLanes));
