@@ -277,6 +277,22 @@ describe('Presets & Piano Inharmonicity', () => {
     expect(harmonyPresets.some((s) => s.id === 'dominant-7th-4-5-6-7')).toBe(true);
     // Piano exists in timbral
     expect(timbrePresets.some((s) => s.id === 'piano')).toBe(true);
+    // Inharmonic percussion instruments exist in timbral
+    expect(timbrePresets.some((s) => s.id === 'timpani-membrane')).toBe(true);
+    expect(timbrePresets.some((s) => s.id === 'tibetan-singing-bowl')).toBe(true);
+    expect(timbrePresets.some((s) => s.id === 'gamelan-gong')).toBe(true);
+    expect(timbrePresets.some((s) => s.id === 'marimba-bar')).toBe(true);
+    expect(timbrePresets.some((s) => s.id === 'anvil-chladni-plate')).toBe(true);
+
+    // Tuning comparison dyads and dissonant chords exist in harmonies
+    expect(harmonyPresets.some((s) => s.id === 'dyad-tritone-dutri')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'dyad-M3-just-5-4')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'dyad-M3-12tet')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'diminished-triad-5-6-7')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'augmented-triad-16-20-25')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'half-diminished-7th-5-6-7-9')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'fully-diminished-7th')).toBe(true);
+    expect(harmonyPresets.some((s) => s.id === 'ppt-dutri-closure-chord')).toBe(true);
 
     // Harmony presets have Root on fundamental frequency (ratio 1/1), equal anchor gains (1.0), and do NOT create a displaced Ghost Sam
     for (const h of harmonyPresets) {
@@ -302,6 +318,8 @@ describe('Presets & Piano Inharmonicity', () => {
     const rhythmIds = rhythmPresets.map((s) => s.id);
     expect(rhythmIds[0]).toBe('duple-1-2');
     expect(rhythmIds[1]).toBe('duple-1-4');
+    expect(rhythmIds[2]).toBe('duple-1-8');
+    expect(rhythmIds[3]).toBe('duple-1-16');
     expect(rhythmIds[rhythmIds.length - 1]).toBe('four-on-the-floor');
 
     // Tresillo syncopation has distinct (ratio, phase) DuMetric anchor combinations (Do, DoLa, La, 8th grid)

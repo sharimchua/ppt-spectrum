@@ -2,6 +2,7 @@ import React from 'react';
 import { RangeCondition, RangeSpan, MAX_SPANS, FilterReference } from '../../core/filter-types';
 import { convertEndpointForReference } from '../../core/endpoint-parse';
 import { SpanRow } from './SpanRow';
+import { SupercycleStrip } from './SupercycleStrip';
 
 interface RangeConditionEditorProps {
   condition: RangeCondition;
@@ -279,6 +280,12 @@ export const RangeConditionEditor: React.FC<RangeConditionEditorProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Supercycle / Bar Sequencer Modulation */}
+      <SupercycleStrip
+        supercycle={condition.supercycle || null}
+        onChange={(supercycle) => onChange({ ...condition, supercycle })}
+      />
     </div>
   );
 };

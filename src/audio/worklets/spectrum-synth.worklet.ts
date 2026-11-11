@@ -162,16 +162,26 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
   evalOnsetGain(staticMatch, sceneTurns) {
     const f = this.filter;
     if (!f || !f.enabled) return 1.0;
+
+    let effectiveStatic = staticMatch;
+    if (staticMatch !== undefined && f.rangeSuperLength > 0 && f.rangeSuperWeights && f.rangeSuperWeights.length > 0) {
+      const L = f.rangeSuperLength;
+      const c = Math.floor(sceneTurns);
+      const superIdx = ((c % L) + L) % L;
+      const superWeight = f.rangeSuperWeights[superIdx] !== undefined ? f.rangeSuperWeights[superIdx] : 1.0;
+      effectiveStatic = staticMatch * superWeight;
+    }
+
     if (!f.hasCycle) {
-      if (staticMatch !== undefined) {
-        return f.action === 1 ? 1.0 - staticMatch * f.depth : 1.0 - (1.0 - staticMatch) * f.depth;
+      if (effectiveStatic !== undefined) {
+        return f.action === 1 ? 1.0 - effectiveStatic * f.depth : 1.0 - (1.0 - effectiveStatic) * f.depth;
       }
       return 1.0;
     }
 
     const matches = [];
-    if (staticMatch !== undefined) {
-      matches.push(staticMatch);
+    if (effectiveStatic !== undefined) {
+      matches.push(effectiveStatic);
     }
 
     if (f.cycles && f.cycles.length > 0) {

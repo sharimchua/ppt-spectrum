@@ -116,6 +116,49 @@ describe('worklet-filter-parity', () => {
     }
   });
 
+  it('matches evaluateOnsetGain on Range condition with supercycle', () => {
+    const filter: Filter = {
+      name: 'Range Supercycle Test',
+      enabled: true,
+      action: 'keep',
+      combine: 'all',
+      depth: 1.0,
+      conditions: [
+        {
+          kind: 'range',
+          id: 'cond-range-super',
+          reference: 'scene',
+          reductionPeriod: null,
+          spans: [{ lo: { unit: 'd', value: 1.0 }, hi: { unit: 'd', value: -1.0 } }],
+          softness: { value: 0.1, unit: 'd' },
+          supercycle: { length: 2, cycleWeights: [1.0, 0.0] },
+        },
+      ],
+      focus: null,
+      centreD: 0,
+      widthD: 2,
+      softnessD: 0.1,
+      mode: 'band-pass',
+      trackingMode: 'fixed',
+    };
+
+    const compiled = compileFilterForWorklet(filter);
+    const proc = instantiateWorklet();
+    proc.filter = compiled;
+
+    for (let bar = 0; bar < 6; bar++) {
+      const sceneTurns = bar + 0.25;
+      const coreGain = evaluateOnsetGain(
+        filter,
+        { partialD: 0, sceneD: 0 },
+        sceneTurns
+      );
+      const workletGain = proc.evalOnsetGain(1.0, sceneTurns);
+      expect(workletGain).toBeCloseTo(coreGain, 4);
+      expect(coreGain).toBe(bar % 2 === 0 ? 1.0 : 0.0);
+    }
+  });
+
   it('matches evaluateOnsetGain on triple-grid subtractive sieve', () => {
     const filter: Filter = {
       name: 'Triple Grid Test',

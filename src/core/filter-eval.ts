@@ -308,7 +308,12 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
   const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
       const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
-      return evaluateRangeMatch(x, cond, ctx.tplHz);
+      let match = evaluateRangeMatch(x, cond, ctx.tplHz);
+      if (cond.supercycle && cond.supercycle.length > 0) {
+        const avg = cond.supercycle.cycleWeights.reduce((a, b) => a + b, 0) / cond.supercycle.length;
+        match *= avg;
+      }
+      return match;
     }
     return meanCycleMatch(cond, ratioVal, phase, ratioToScene);
   });
@@ -337,7 +342,15 @@ export function evaluateOnsetGain(
   const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
       const x = rangeCoordinate(ctx.partialD, cond.reference, ctx.sceneD, anchorD);
-      return evaluateRangeMatch(x, cond, ctx.tplHz);
+      let match = evaluateRangeMatch(x, cond, ctx.tplHz);
+      if (cond.supercycle && cond.supercycle.length > 0) {
+        const L = cond.supercycle.length;
+        const c = Math.floor(onsetSceneTurns);
+        const superIdx = ((c % L) + L) % L;
+        const superMatch = cond.supercycle.cycleWeights[superIdx] ?? 1.0;
+        match *= superMatch;
+      }
+      return match;
     }
     return evaluateCycleMatch(onsetSceneTurns, cond);
   });
@@ -361,6 +374,8 @@ export interface CompiledWorkletFilter {
     superLength: number;
     superWeights: number[];
   }>;
+  rangeSuperLength?: number;
+  rangeSuperWeights?: number[];
 }
 
 /**
@@ -393,6 +408,9 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
   const cycleConds = activeConds.filter(
     (c): c is CycleCondition => c.kind === 'cycle'
   );
+  const rangeWithSuper = activeConds.find(
+    (c): c is RangeCondition => c.kind === 'range' && !!c.supercycle && c.supercycle.length > 0
+  );
 
   return {
     enabled: true,
@@ -400,6 +418,8 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
     combine: filter.combine === 'any' ? 1 : 0,
     depth: Math.max(0.0, Math.min(1.0, filter.depth)),
     hasCycle: cycleConds.length > 0,
+    rangeSuperLength: rangeWithSuper?.supercycle ? rangeWithSuper.supercycle.length : 0,
+    rangeSuperWeights: rangeWithSuper?.supercycle ? [...rangeWithSuper.supercycle.cycleWeights] : [],
     cycles: cycleConds.map((c) => ({
       divisions: c.divisions,
       slotWeights: [...c.slotWeights],

@@ -40,6 +40,8 @@ export interface RangeCondition {
   spans: RangeSpan[];
   /** Raised-cosine transition skirt width outside every span boundary. */
   softness: { value: number; unit: 'd' | 'cents' };
+  /** Optional supercycle modulation across repeated scene cycles. */
+  supercycle?: { length: number; cycleWeights: number[] } | null;
 }
 
 export interface CycleCondition {

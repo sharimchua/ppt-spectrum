@@ -124,7 +124,7 @@ describe('filter-presets', () => {
 
   describe('PRESET_FILTERS', () => {
     it('initialises all preset filters with proper category and preset origin', () => {
-      expect(PRESET_FILTERS.length).toBeGreaterThanOrEqual(8);
+      expect(PRESET_FILTERS.length).toBeGreaterThanOrEqual(18);
       for (const filter of PRESET_FILTERS) {
         expect(filter.enabled).toBe(true);
         expect(filter.conditions.length).toBeGreaterThan(0);
@@ -132,6 +132,25 @@ describe('filter-presets', () => {
         expect(filter.origin).toBe('preset');
         expect(['aperture', 'rhythm', 'interval', 'harmonic']).toContain(filter.category);
       }
+
+      // Check key presets across all 4 categories
+      const rhythmIds = PRESET_FILTERS.filter((f) => f.category === 'rhythm').map((f) => f.id);
+      expect(rhythmIds).toContain('filter-tresillo');
+      expect(rhythmIds).toContain('filter-cinquillo');
+      expect(rhythmIds).toContain('filter-son-clave');
+      expect(rhythmIds).toContain('filter-bossa-clave');
+      expect(rhythmIds).toContain('filter-bembe-bell');
+      expect(rhythmIds).toContain('filter-backbeat');
+      expect(rhythmIds).toContain('filter-reggae-skank');
+
+      const apertureIds = PRESET_FILTERS.filter((f) => f.category === 'aperture').map((f) => f.id);
+      expect(apertureIds).toContain('filter-band-pass');
+      expect(apertureIds).toContain('filter-high-shimmer');
+      expect(apertureIds).toContain('filter-vocal-formant');
+
+      const intervalIds = PRESET_FILTERS.filter((f) => f.category === 'interval').map((f) => f.id);
+      expect(intervalIds).toContain('filter-tritone-window');
+      expect(intervalIds).toContain('filter-consonant-fifth');
     });
   });
 

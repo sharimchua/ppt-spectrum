@@ -339,10 +339,6 @@ export const App: React.FC = () => {
         onTriggerNote={() => handleTriggerNote()}
         onNoteOn={() => handleNoteOn()}
         onNoteOff={() => handleNoteOff()}
-        onOpenFilters={() => {
-          setIsShapeEditorOpen(false);
-          openFilters();
-        }}
       />
 
       <MusicalBookmarksModal

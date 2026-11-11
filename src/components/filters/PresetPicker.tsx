@@ -10,6 +10,7 @@ import {
   createEuclideanCycleCondition,
   createGridCycleCondition,
 } from '../../core/filter-presets';
+import { CycleConditionTab, CycleTemplateType } from './CycleConditionTab';
 
 interface PresetPickerProps {
   isOpen: boolean;
@@ -59,33 +60,72 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
     onClose();
   };
 
-  const handleCreateCycle = (type: 'tresillo' | 'cinquillo' | 'backbeat' | 'downbeat' | 'grid3' | 'grid5') => {
+  const handleCreateCycle = (type: CycleTemplateType) => {
     const id = `cond-cycle-${type}-${Date.now()}`;
     let cond: FilterCondition;
-    if (type === 'tresillo') cond = createEuclideanCycleCondition(3, 8, 0, id);
-    else if (type === 'cinquillo') cond = createEuclideanCycleCondition(5, 8, 0, id);
-    else if (type === 'backbeat') cond = {
-      kind: 'cycle',
-      id,
-      divisions: 4,
-      slotWeights: [0, 1, 0, 1],
-      rotation: 0,
-      tolerance: 0.15,
-      offGridMatch: 0.0,
-      supercycle: null,
-    };
-    else if (type === 'downbeat') cond = {
-      kind: 'cycle',
-      id,
-      divisions: 1,
-      slotWeights: [1],
-      rotation: 0,
-      tolerance: 0.25,
-      offGridMatch: 0.0,
-      supercycle: null,
-    };
-    else if (type === 'grid3') cond = createGridCycleCondition(3, 0.0, id);
-    else cond = createGridCycleCondition(5, 0.0, id);
+    if (type === 'grid4') cond = createGridCycleCondition(4, 0.0, id);
+    else if (type === 'grid8') cond = createGridCycleCondition(8, 0.0, id);
+    else if (type === 'grid16') cond = createGridCycleCondition(16, 0.0, id);
+    else if (type === 'triplet3') cond = createGridCycleCondition(3, 0.0, id);
+    else if (type === 'downbeat')
+      cond = {
+        kind: 'cycle',
+        id,
+        divisions: 4,
+        slotWeights: [1, 0, 0, 0],
+        rotation: 0,
+        tolerance: 0.2,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
+    else if (type === 'backbeat')
+      cond = {
+        kind: 'cycle',
+        id,
+        divisions: 4,
+        slotWeights: [0, 1, 0, 1],
+        rotation: 0,
+        tolerance: 0.15,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
+    else if (type === 'offbeat')
+      cond = {
+        kind: 'cycle',
+        id,
+        divisions: 8,
+        slotWeights: [0, 1, 0, 1, 0, 1, 0, 1],
+        rotation: 0,
+        tolerance: 0.15,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
+    else if (type === 'euclid3_8') cond = createEuclideanCycleCondition(3, 8, 0, id);
+    else if (type === 'euclid5_8') cond = createEuclideanCycleCondition(5, 8, 0, id);
+    else if (type === 'euclid5_16') cond = createEuclideanCycleCondition(5, 16, 0, id);
+    else if (type === 'euclid7_12') cond = createEuclideanCycleCondition(7, 12, 0, id);
+    else if (type === 'blank8')
+      cond = {
+        kind: 'cycle',
+        id,
+        divisions: 8,
+        slotWeights: [0, 0, 0, 0, 0, 0, 0, 0],
+        rotation: 0,
+        tolerance: 0.2,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
+    else
+      cond = {
+        kind: 'cycle',
+        id,
+        divisions: 16,
+        slotWeights: new Array(16).fill(0),
+        rotation: 0,
+        tolerance: 0.2,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
 
     onAddCondition(cond);
     onClose();
@@ -248,40 +288,7 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
           )}
 
           {activeTab === 'cycle' && (
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => handleCreateCycle('tresillo')}
-                className="flex flex-col p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 text-left transition-all"
-              >
-                <span className="text-xs font-bold text-cyan-300 font-mono">Tresillo 3:8 (Cuban 3+3+2)</span>
-                <span className="text-[11px] text-slate-400 mt-0.5">Euclidean rhythm [1, 0, 0, 1, 0, 0, 1, 0]</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCreateCycle('cinquillo')}
-                className="flex flex-col p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 text-left transition-all"
-              >
-                <span className="text-xs font-bold text-cyan-300 font-mono">Cinquillo 5:8</span>
-                <span className="text-[11px] text-slate-400 mt-0.5">Euclidean rhythm [1, 0, 1, 1, 0, 1, 1, 0]</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCreateCycle('backbeat')}
-                className="flex flex-col p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 text-left transition-all"
-              >
-                <span className="text-xs font-bold text-cyan-300 font-mono">Backbeat 4-Grid [0, 1, 0, 1]</span>
-                <span className="text-[11px] text-slate-400 mt-0.5">Hits on beats 2 and 4</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCreateCycle('grid3')}
-                className="flex flex-col p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 text-left transition-all"
-              >
-                <span className="text-xs font-bold text-cyan-300 font-mono">Triple Grid (Triplet Sieve)</span>
-                <span className="text-[11px] text-slate-400 mt-0.5">Subtractive sieve taming cross-rhythm clicks</span>
-              </button>
-            </div>
+            <CycleConditionTab onSelect={handleCreateCycle} />
           )}
         </div>
       </div>
