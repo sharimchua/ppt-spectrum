@@ -4,7 +4,7 @@
  * Australian English spelling maintained.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Shape } from '../../core/types';
 import { getShapeAnchors } from '../../core/shape';
@@ -23,6 +23,12 @@ export const ShapePicker: React.FC<ShapePickerProps> = ({
   onSelectShape,
 }) => {
   const [filter, setFilter] = useState<CategoryFilter>('all');
+  const [selectedId, setSelectedId] = useState<string>(currentShape.id);
+
+  // Synchronise selectedId whenever active shape changes externally
+  useEffect(() => {
+    setSelectedId(currentShape.id);
+  }, [currentShape.id]);
 
   const counts = useMemo(() => {
     return {
@@ -36,6 +42,13 @@ export const ShapePicker: React.FC<ShapePickerProps> = ({
     };
   }, [allShapes]);
 
+  // If user presets become empty while on the user tab, reset to 'all'
+  useEffect(() => {
+    if (filter === 'user' && counts.user === 0) {
+      setFilter('all');
+    }
+  }, [filter, counts.user]);
+
   const filteredShapes = useMemo(() => {
     if (filter === 'all') return allShapes;
     if (filter === 'rhythm') return allShapes.filter((s) => s.origin === 'preset' && s.category === 'rhythm');
@@ -47,6 +60,13 @@ export const ShapePicker: React.FC<ShapePickerProps> = ({
     }
     return allShapes.filter((s) => s.origin !== 'preset');
   }, [allShapes, filter]);
+
+  // Keep selectedId within the active category list
+  useEffect(() => {
+    if (filteredShapes.length > 0 && !filteredShapes.some((s) => s.id === selectedId)) {
+      setSelectedId(filteredShapes[0].id);
+    }
+  }, [filteredShapes, selectedId]);
 
   if (!onSelectShape || allShapes.length === 0) {
     return <span className="font-bold text-sm text-white truncate block">{currentShape.name}</span>;
@@ -115,27 +135,49 @@ export const ShapePicker: React.FC<ShapePickerProps> = ({
         )}
       </div>
 
-      {/* Select Dropdown */}
-      <div className="relative w-full min-w-0">
-        <select
-          value={currentShape.id}
-          onChange={(e) => onSelectShape(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500 cursor-pointer pr-7 appearance-none truncate"
+      {/* Select Dropdown & Explicit Load Button */}
+      <div className="flex items-center gap-2 w-full min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onSelectShape(selectedId);
+              }
+            }}
+            className="w-full bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500 cursor-pointer pr-7 appearance-none truncate"
+          >
+            {filteredShapes.map((s) => {
+              const anchorsLen = getShapeAnchors(s).length;
+              const partialsLen = s.partials.length;
+              const subtitle = `${anchorsLen} ${anchorsLen === 1 ? 'anchor' : 'anchors'} · ${partialsLen} ${
+                partialsLen === 1 ? 'partial' : 'partials'
+              }`;
+              return (
+                <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
+                  {s.name} ({subtitle})
+                </option>
+              );
+            })}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onSelectShape(selectedId)}
+          disabled={selectedId === currentShape.id}
+          className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+            selectedId === currentShape.id
+              ? 'bg-slate-800 text-slate-500 cursor-default'
+              : 'bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-sm active:scale-95'
+          }`}
+          title={selectedId === currentShape.id ? 'Preset already loaded' : 'Load selected preset into synthesiser'}
         >
-          {filteredShapes.map((s) => {
-            const anchorsLen = getShapeAnchors(s).length;
-            const partialsLen = s.partials.length;
-            const subtitle = `${anchorsLen} ${anchorsLen === 1 ? 'anchor' : 'anchors'} · ${partialsLen} ${
-              partialsLen === 1 ? 'partial' : 'partials'
-            }`;
-            return (
-              <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200 font-normal">
-                {s.name} ({subtitle})
-              </option>
-            );
-          })}
-        </select>
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          {selectedId === currentShape.id ? 'Loaded' : 'Load'}
+        </button>
       </div>
     </div>
   );

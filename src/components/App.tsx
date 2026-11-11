@@ -14,6 +14,7 @@ import { SettingsDrawer } from './SettingsDrawer';
 import { TraySheet } from './TraySheet';
 import { MusicalBookmarksModal } from './MusicalBookmarksModal';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
+import { FilterQuickSearchModal } from './FilterQuickSearchModal';
 import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FilterEditHud } from './FilterEditHud';
 import { FiltersSheet } from './filters/FiltersSheet';
@@ -33,6 +34,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShapeEditorOpen, setIsShapeEditorOpen] = useState<boolean>(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState<boolean>(false);
+  const [isFilterQuickSearchOpen, setIsFilterQuickSearchOpen] = useState<boolean>(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
@@ -203,6 +205,7 @@ export const App: React.FC = () => {
         setIsBookmarksOpen(false);
         toggleFiltersOpen();
       },
+      onToggleFilterQuickSearch: () => setIsFilterQuickSearchOpen((prev) => !prev),
       onNoteOn: () => handleNoteOn(),
       onNoteOff: () => handleNoteOff(),
       onJumpBookmarkA: handleJumpBookmarkA,
@@ -233,6 +236,7 @@ export const App: React.FC = () => {
   useKeyboardShortcuts({
     isCaptureOpen,
     isQuickSearchOpen,
+    isFilterQuickSearchOpen,
     actions: keyboardActions,
   });
 
@@ -370,6 +374,18 @@ export const App: React.FC = () => {
         shapes={scene.shapes}
         activeShapeId={activeShape?.id}
         onSelectShape={handleSelectPreset}
+      />
+
+      <FilterQuickSearchModal
+        isOpen={isFilterQuickSearchOpen}
+        onClose={() => setIsFilterQuickSearchOpen(false)}
+        filters={allFilters}
+        activeFilterId={scene.filter.id || scene.filter.presetId}
+        onSelectFilter={handleSelectFilter}
+        onOpenFilterPanel={() => {
+          setIsFilterQuickSearchOpen(false);
+          openFilters();
+        }}
       />
 
       <RadialMenuOverlay

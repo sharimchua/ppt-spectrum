@@ -4,7 +4,7 @@
  * Australian English spelling maintained.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ChevronDown, Filter as FilterIcon, Layers, Radio, Music, User } from 'lucide-react';
 import { Filter } from '../../core/types';
 
@@ -22,6 +22,13 @@ export const FilterPicker: React.FC<FilterPickerProps> = ({
   onSelectFilter,
 }) => {
   const [filterCategory, setFilterCategory] = useState<FilterCategoryChip>('all');
+  const activeCurrentId = currentFilter.id || currentFilter.presetId || '';
+  const [selectedId, setSelectedId] = useState<string>(activeCurrentId);
+
+  // Synchronise selectedId when active filter changes externally
+  useEffect(() => {
+    setSelectedId(activeCurrentId);
+  }, [activeCurrentId]);
 
   const counts = useMemo(() => {
     return {
@@ -34,11 +41,28 @@ export const FilterPicker: React.FC<FilterPickerProps> = ({
     };
   }, [allFilters]);
 
+  // If user presets become empty while on the user tab, reset to 'all'
+  useEffect(() => {
+    if (filterCategory === 'user' && counts.user === 0) {
+      setFilterCategory('all');
+    }
+  }, [filterCategory, counts.user]);
+
   const filteredList = useMemo(() => {
     if (filterCategory === 'all') return allFilters;
     if (filterCategory === 'user') return allFilters.filter((f) => f.origin !== 'preset');
     return allFilters.filter((f) => f.origin === 'preset' && f.category === filterCategory);
   }, [allFilters, filterCategory]);
+
+  // Keep selectedId within the active category list
+  useEffect(() => {
+    if (
+      filteredList.length > 0 &&
+      !filteredList.some((f) => (f.id || f.presetId) === selectedId)
+    ) {
+      setSelectedId(filteredList[0].id || filteredList[0].presetId || '');
+    }
+  }, [filteredList, selectedId]);
 
   const getCategoryIcon = (category?: string, origin?: string) => {
     if (origin === 'user') return <User className="w-3.5 h-3.5 text-cyan-400" />;
@@ -55,8 +79,6 @@ export const FilterPicker: React.FC<FilterPickerProps> = ({
         return <FilterIcon className="w-3.5 h-3.5 text-slate-400" />;
     }
   };
-
-  const activeId = currentFilter.id || currentFilter.presetId || '';
 
   return (
     <div className="flex flex-col gap-1.5 w-full min-w-0">
@@ -117,41 +139,65 @@ export const FilterPicker: React.FC<FilterPickerProps> = ({
         >
           Harmonic ({counts.harmonic})
         </button>
-        <button
-          type="button"
-          onClick={() => setFilterCategory('user')}
-          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition shrink-0 cursor-pointer ${
-            filterCategory === 'user'
-              ? 'bg-cyan-600/90 text-white shadow-sm'
-              : 'bg-slate-900 text-cyan-400/80 hover:text-cyan-300'
-          }`}
-        >
-          User ({counts.user})
-        </button>
+        {counts.user > 0 && (
+          <button
+            type="button"
+            onClick={() => setFilterCategory('user')}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition shrink-0 cursor-pointer ${
+              filterCategory === 'user'
+                ? 'bg-cyan-600/90 text-white shadow-sm'
+                : 'bg-slate-900 text-cyan-400/80 hover:text-cyan-300'
+            }`}
+          >
+            User ({counts.user})
+          </button>
+        )}
       </div>
 
-      {/* Structured Dropdown Selector */}
-      <div className="relative">
-        <select
-          value={activeId}
-          onChange={(e) => onSelectFilter(e.target.value)}
-          className="w-full appearance-none bg-slate-900/90 border border-slate-700 hover:border-slate-600 focus:border-sky-500 rounded-lg pl-8 pr-8 py-2 text-xs font-semibold text-white focus:outline-none transition cursor-pointer shadow-sm truncate"
-        >
-          {filteredList.map((f) => {
-            const fId = f.id || f.presetId || '';
-            const cCount = f.conditions.length;
-            const categoryLabel = f.origin === 'user' ? 'User' : (f.category || 'Preset');
-            return (
-              <option key={fId} value={fId} className="bg-slate-900 text-white py-1">
-                {f.name} [{categoryLabel}] — {cCount} {cCount === 1 ? 'condition' : 'conditions'}
-              </option>
-            );
-          })}
-        </select>
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          {getCategoryIcon(currentFilter.category, currentFilter.origin)}
+      {/* Structured Dropdown Selector & Explicit Load Button */}
+      <div className="flex items-center gap-2 w-full min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onSelectFilter(selectedId);
+              }
+            }}
+            className="w-full appearance-none bg-slate-900/90 border border-slate-700 hover:border-slate-600 focus:border-sky-500 rounded-lg pl-8 pr-8 py-2 text-xs font-semibold text-white focus:outline-none transition cursor-pointer shadow-sm truncate"
+          >
+            {filteredList.map((f) => {
+              const fId = f.id || f.presetId || '';
+              const cCount = f.conditions.length;
+              const categoryLabel = f.origin === 'user' ? 'User' : (f.category || 'Preset');
+              return (
+                <option key={fId} value={fId} className="bg-slate-900 text-white py-1">
+                  {f.name} [{categoryLabel}] — {cCount} {cCount === 1 ? 'condition' : 'conditions'}
+                </option>
+              );
+            })}
+          </select>
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            {getCategoryIcon(currentFilter.category, currentFilter.origin)}
+          </div>
+          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
-        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+
+        <button
+          type="button"
+          onClick={() => onSelectFilter(selectedId)}
+          disabled={selectedId === activeCurrentId}
+          className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+            selectedId === activeCurrentId
+              ? 'bg-slate-800 text-slate-500 cursor-default'
+              : 'bg-sky-600 hover:bg-sky-500 text-white cursor-pointer shadow-sm active:scale-95'
+          }`}
+          title={selectedId === activeCurrentId ? 'Filter already loaded' : 'Load selected filter'}
+        >
+          {selectedId === activeCurrentId ? 'Loaded' : 'Load'}
+        </button>
       </div>
     </div>
   );

@@ -437,7 +437,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-sky-500 bg-sky-950/70 text-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Acoustic Aperture & Sieve Filters (Shift+F to open, F to toggle)"
+              title="Acoustic Aperture & Sieve Filters (Shift+F to quick search, F to toggle)"
             >
               <Filter className="w-3.5 h-3.5 text-sky-400" />
               <span className="hidden md:inline">Filters</span>

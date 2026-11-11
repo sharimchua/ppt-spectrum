@@ -7,7 +7,7 @@
  * - Shift + 'L': opens Quick Shape Search Modal with autocomplete
  * - 's' / 'S': toggles continuum sweep oscillation
  * - 'e' / 'E': toggles band filter interactive edit mode HUD (and enables filter if disabled)
- * - 'f' / 'F': toggles filter bypass (Shift + 'F' opens Filters & Rhythm Sieves sheet)
+ * - 'f' / 'F': toggles filter bypass (Shift + 'F' opens Quick Filter Search Modal)
  * - 't' / 'T': triggers/strikes acoustic ADSR note (keydown on, keyup off)
  * - 'a' / 'A': jump fundamental to Bookmark A (Shift + A sets Bookmark A to current d with sparks)
  * - 'b' / 'B': jump fundamental to Bookmark B (Shift + B sets Bookmark B to current d with sparks)
@@ -27,6 +27,7 @@ export interface KeyboardActions {
   onToggleFilterEditMode: () => void;
   onToggleFilter: () => void;
   onToggleFiltersOpen?: () => void;
+  onToggleFilterQuickSearch?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
   onJumpBookmarkA: () => void;
@@ -40,12 +41,14 @@ export interface KeyboardActions {
 export interface UseKeyboardShortcutsOptions {
   isCaptureOpen: boolean;
   isQuickSearchOpen: boolean;
+  isFilterQuickSearchOpen?: boolean;
   actions: KeyboardActions;
 }
 
 export function useKeyboardShortcuts({
   isCaptureOpen,
   isQuickSearchOpen,
+  isFilterQuickSearchOpen,
   actions,
 }: UseKeyboardShortcutsOptions): void {
   const actionsRef = useRef<KeyboardActions>(actions);
@@ -53,8 +56,8 @@ export function useKeyboardShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // If Quick Shape Search Modal is open, let it handle its own keyboard navigation
-      if (isQuickSearchOpen) {
+      // If Quick Search Modals are open, let them handle their own keyboard navigation
+      if (isQuickSearchOpen || isFilterQuickSearchOpen) {
         return;
       }
 
@@ -126,7 +129,11 @@ export function useKeyboardShortcuts({
       } else if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         if (e.shiftKey) {
-          actionsRef.current.onToggleFiltersOpen?.();
+          if (actionsRef.current.onToggleFilterQuickSearch) {
+            actionsRef.current.onToggleFilterQuickSearch();
+          } else {
+            actionsRef.current.onToggleFiltersOpen?.();
+          }
         } else {
           actionsRef.current.onToggleFilter();
         }
@@ -194,5 +201,5 @@ export function useKeyboardShortcuts({
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
       window.removeEventListener('keyup', handleKeyUp, { capture: true });
     };
-  }, [isCaptureOpen, isQuickSearchOpen]);
+  }, [isCaptureOpen, isQuickSearchOpen, isFilterQuickSearchOpen]);
 }

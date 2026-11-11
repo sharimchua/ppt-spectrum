@@ -341,8 +341,8 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                   Shift+F
                 </kbd>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-200 font-medium">Filters Sheet</span>
-                  <span className="text-[9px] text-slate-400">Open compound Range &amp; Cycle filter editor</span>
+                  <span className="text-[11px] text-slate-200 font-medium">Quick Filter Search</span>
+                  <span className="text-[9px] text-slate-400">Search &amp; load filters (Shift+Enter opens panel)</span>
                 </div>
               </div>
             </div>

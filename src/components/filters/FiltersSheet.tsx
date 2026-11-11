@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Lock, User } from 'lucide-react';
 import { Filter, FilterCondition, MAX_CONDITIONS } from '../../core/filter-types';
 import { FilterSummaryBar } from './FilterSummaryBar';
 import { ConditionCard } from './ConditionCard';
@@ -127,13 +128,35 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           {/* Filter Preset / Library Header Bar */}
           {allFilters && onSelectFilter && (
-            <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <FilterPicker
-                  currentFilter={filter}
-                  allFilters={allFilters}
-                  onSelectFilter={onSelectFilter}
-                />
+            <div className="flex flex-col gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              {/* ROW 1: Filter picker with category chips, dropdown, and Load button */}
+              <FilterPicker
+                currentFilter={filter}
+                allFilters={allFilters}
+                onSelectFilter={onSelectFilter}
+              />
+
+              {/* ROW 2: Origin status & action toolbar */}
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {filter.origin === 'user' ? (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 shrink-0">
+                      <User className="w-3 h-3" />
+                      <span>User Filter</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-800/60 shrink-0">
+                      <Lock className="w-3 h-3" />
+                      <span>Preset</span>
+                    </span>
+                  )}
+                  {filter.description && (
+                    <span className="text-[10px] text-slate-400 font-mono italic truncate hidden sm:inline">
+                      {filter.description}
+                    </span>
+                  )}
+                </div>
+
                 <FilterActionsMenu
                   filter={filter}
                   isPreset={filter.origin === 'preset' || !filter.origin}
@@ -144,11 +167,6 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
                   onCreateNewFilter={onCreateNewFilter || (() => {})}
                 />
               </div>
-              {filter.description && (
-                <span className="text-[11px] text-slate-400 font-mono italic">
-                  {filter.description}
-                </span>
-              )}
             </div>
           )}
 

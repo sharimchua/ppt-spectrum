@@ -22,6 +22,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/bookmarks-storage.ts` — Bookmark data contracts, defaults, and localStorage persistence (`loadSavedBookmarks`, `saveBookmarks`).
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
+- `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
 
 ### Filters & Rhythm Sieves (`src/components/filters/`)
 
