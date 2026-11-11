@@ -11,6 +11,7 @@ import {
   createEuclideanCycleCondition,
   createGridCycleCondition,
   createSupercycleCondition,
+  PRESET_FILTERS,
   STARTER_FILTERS,
 } from '../filter-presets';
 import { resolveEndpoint } from '../filter-eval';
@@ -118,6 +119,19 @@ describe('filter-presets', () => {
       const supercycle = createSupercycleCondition(4, [0, 1, 2]);
       expect(supercycle.supercycle?.length).toBe(4);
       expect(supercycle.supercycle?.cycleWeights).toEqual([1, 1, 1, 0]);
+    });
+  });
+
+  describe('PRESET_FILTERS', () => {
+    it('initialises all preset filters with proper category and preset origin', () => {
+      expect(PRESET_FILTERS.length).toBeGreaterThanOrEqual(8);
+      for (const filter of PRESET_FILTERS) {
+        expect(filter.enabled).toBe(true);
+        expect(filter.conditions.length).toBeGreaterThan(0);
+        expect(filter.id).toBeTruthy();
+        expect(filter.origin).toBe('preset');
+        expect(['aperture', 'rhythm', 'interval', 'harmonic']).toContain(filter.category);
+      }
     });
   });
 

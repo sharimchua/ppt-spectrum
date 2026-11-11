@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { FilterCondition, FilterReference } from '../../core/filter-types';
 import {
-  STARTER_FILTERS,
   createBandPassCondition,
   createLowPassCondition,
   createHighPassCondition,
@@ -11,24 +10,21 @@ import {
   createEuclideanCycleCondition,
   createGridCycleCondition,
 } from '../../core/filter-presets';
-import { Filter } from '../../core/types';
 
 interface PresetPickerProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectStarter: (filter: Filter) => void;
   onAddCondition: (condition: FilterCondition) => void;
 }
 
-type TabType = 'starters' | 'spectral' | 'interval' | 'harmonic' | 'cycle';
+type TabType = 'spectral' | 'interval' | 'harmonic' | 'cycle';
 
 export const PresetPicker: React.FC<PresetPickerProps> = ({
   isOpen,
   onClose,
-  onSelectStarter,
   onAddCondition,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('starters');
+  const [activeTab, setActiveTab] = useState<TabType>('spectral');
   const [selectedReference, setSelectedReference] = useState<FilterReference>('scene');
 
   if (!isOpen) return null;
@@ -104,7 +100,7 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
             <svg className="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            <h2 className="text-sm font-bold text-slate-100">Filter Presets & Conditions</h2>
+            <h2 className="text-sm font-bold text-slate-100">Add Filter Condition</h2>
           </div>
           <button
             type="button"
@@ -117,7 +113,7 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
 
         {/* Tab Navigation */}
         <div className="flex items-center px-4 pt-2 border-b border-slate-800/80 gap-1 bg-slate-950/20 overflow-x-auto">
-          {(['starters', 'spectral', 'interval', 'harmonic', 'cycle'] as TabType[]).map((tab) => (
+          {(['spectral', 'interval', 'harmonic', 'cycle'] as TabType[]).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -128,7 +124,7 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
-              {tab === 'starters' ? '★ Starters' : tab}
+              {tab}
             </button>
           ))}
         </div>
@@ -158,27 +154,6 @@ export const PresetPicker: React.FC<PresetPickerProps> = ({
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
-          {activeTab === 'starters' && (
-            <div className="flex flex-col gap-2">
-              <span className="text-[11px] text-slate-400 font-mono">
-                Replaces entire active filter with a ready-to-use reductive configuration:
-              </span>
-              {STARTER_FILTERS.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => {
-                    onSelectStarter(s.build());
-                    onClose();
-                  }}
-                  className="flex flex-col p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-sky-500/50 hover:bg-slate-800/40 cursor-pointer transition-all"
-                >
-                  <span className="text-xs font-bold text-sky-300 font-mono">{s.name}</span>
-                  <span className="text-[11px] text-slate-400 mt-0.5">{s.description}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
           {activeTab === 'spectral' && (
             <div className="flex flex-col gap-2">
               <button

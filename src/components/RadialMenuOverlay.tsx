@@ -4,6 +4,7 @@ import { X, ArrowLeft } from 'lucide-react';
 import { Scene, SpanView } from '../core/types';
 import { BookmarkSettings } from './bookmarks-storage';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
+import { SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { buildRadialSegments, RadialWedgeSegment } from './radial-menu-segments';
 import { FilterControlParam } from './hooks/useFilters';
 
@@ -392,7 +393,10 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
               <span className="text-[8px] text-slate-400 font-mono mt-0.5 leading-none">
                 {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
               </span>
-              <span className="text-[9px] text-cyan-400 font-mono font-bold mt-0.5 leading-none">
+              <span
+                className="text-[9px] font-mono font-bold mt-0.5 leading-none"
+                style={{ color: SOLFEGE_NEON_COLORS[addr.semitoneIndex] || '#38bdf8' }}
+              >
                 {addr.formatted}
               </span>
             </>

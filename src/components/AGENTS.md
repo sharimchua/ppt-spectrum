@@ -26,9 +26,11 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 ### Filters & Rhythm Sieves (`src/components/filters/`)
 
 - `FiltersSheet.tsx` — Mobile bottom sheet and desktop side drawer for compound filters.
+- `FilterPicker.tsx` — Mobile-first filter preset picker with category filter chips and structured dropdown.
+- `FilterActionsMenu.tsx` — Filter actions toolbar supporting fork, rename, duplicate, delete, and new filter creation.
 - `FilterSummaryBar.tsx` — Action (keep/remove), Combine (all/any), depth slider, and plain-language summary.
 - `ConditionCard.tsx` — Collapsible condition chip with match preview, reordering, and editor expansion.
-- `PresetPicker.tsx` — Grouped modal list of starter filters and condition presets.
+- `PresetPicker.tsx` — Grouped modal list of condition presets (Spectral, Interval, Harmonic, Cycle).
 - `RangeConditionEditor.tsx` — Range condition editor with spans list and skirt softness.
 - `SpanRow.tsx` — Lower and upper endpoint inputs with open-ended toggles.
 - `EndpointInput.tsx` — Validated text field for endpoints (`5/4`, `400¢`, `440hz`, `d:1.5`).

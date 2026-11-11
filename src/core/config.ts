@@ -1,5 +1,6 @@
-import { Scene, CosmeticsConfig, Shape } from './types';
+import { Scene, CosmeticsConfig, Shape, Filter } from './types';
 import { PRESET_SHAPES } from './presets';
+import { PRESET_FILTERS } from './filter-presets';
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
 import { DEFAULT_FILTER, sanitiseFilter } from './filter-migration';
 
@@ -50,7 +51,8 @@ export const DEFAULT_SCENE: Scene = {
       solo: false,
     }
   ],
-  filter: DEFAULT_FILTER,
+  filter: PRESET_FILTERS[0] || DEFAULT_FILTER,
+  filters: PRESET_FILTERS,
   anchors: {
     tplFrequencyHz: TPL_FREQUENCY_HZ,
     tuningA4Hz: 440.0,
@@ -111,6 +113,11 @@ export function loadSavedScene(): Scene {
       : [];
     const mergedShapes = [...PRESET_SHAPES, ...userShapes];
 
+    const userFilters = Array.isArray(parsed.filters)
+      ? parsed.filters.filter((f: Filter) => f && f.origin !== 'preset').map(sanitiseFilter)
+      : [];
+    const mergedFilters = [...PRESET_FILTERS, ...userFilters];
+
     const rawProfile = dedicatedProfile || parsed?.cosmetics?.performanceProfile;
     const finalProfile = (rawProfile === 'max' || rawProfile === 'balanced' || rawProfile === 'eco' || rawProfile === 'none')
       ? rawProfile
@@ -120,7 +127,8 @@ export function loadSavedScene(): Scene {
       ...DEFAULT_SCENE,
       ...parsed,
       shapes: mergedShapes,
-      filter: sanitiseFilter(parsed.filter),
+      filters: mergedFilters,
+      filter: sanitiseFilter(parsed.filter || PRESET_FILTERS[0]),
       audio: {
         ...DEFAULT_SCENE.audio,
         ...(parsed.audio || {}),

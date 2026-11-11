@@ -81,9 +81,15 @@ export interface SpanView {
   edge?: 'both' | 'lo' | 'hi';
 }
 
+export type FilterCategory = 'aperture' | 'rhythm' | 'interval' | 'harmonic' | 'user';
+
 export interface Filter {
+  id?: string;
   enabled: boolean;
   name: string;
+  origin?: 'preset' | 'user';
+  category?: FilterCategory;
+  description?: string;
   action: 'keep' | 'remove';
   combine: 'all' | 'any';
   /** Depth of attenuation (0.0 to 1.0). 1.0 = total suppression, < 1.0 = accent shaping. */

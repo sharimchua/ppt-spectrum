@@ -152,9 +152,15 @@ export const App: React.FC = () => {
     updateFilterCondition,
     removeFilterCondition,
     moveFilterCondition,
-    applyStarter,
     focusCondition,
-  } = useFilters({ updateScene });
+    allFilters,
+    handleSelectFilter,
+    handleForkFilter,
+    handleDuplicateFilter,
+    handleDeleteFilter,
+    handleCreateNewFilter,
+    handleRenameFilter,
+  } = useFilters({ scene, updateScene });
 
   // Audio mode toggle
   const handleToggleAudioMode = useCallback(() => {
@@ -398,6 +404,13 @@ export const App: React.FC = () => {
       <FiltersSheet
         isOpen={isFiltersOpen}
         filter={scene.filter}
+        allFilters={allFilters}
+        onSelectFilter={handleSelectFilter}
+        onForkFilter={handleForkFilter}
+        onDuplicateFilter={handleDuplicateFilter}
+        onDeleteFilter={handleDeleteFilter}
+        onCreateNewFilter={handleCreateNewFilter}
+        onRenameFilter={handleRenameFilter}
         onClose={closeFilters}
         onToggleEnabled={toggleFilter}
         onUpdateFilter={updateFilterState}
@@ -405,7 +418,6 @@ export const App: React.FC = () => {
         onUpdateCondition={updateFilterCondition}
         onRemoveCondition={removeFilterCondition}
         onMoveCondition={moveFilterCondition}
-        onApplyStarter={applyStarter}
         onFocusCondition={focusCondition}
       />
     </div>

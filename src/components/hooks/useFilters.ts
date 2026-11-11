@@ -4,8 +4,9 @@
  * Follows Australian English spelling conventions.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Scene, SpanView, Filter, FilterCondition } from '../../core/types';
+import { PRESET_FILTERS } from '../../core/filter-presets';
 import {
   setFilterEnabled,
   updateFilter,
@@ -16,11 +17,18 @@ import {
   applyStarterPreset,
   patchFocusedSpan,
   cycleSpectralPreset,
+  setPrimaryFilter,
+  forkFilter,
+  duplicateFilter,
+  deleteUserFilter,
+  createUserFilter,
+  renameActiveFilter,
 } from '../../core/scene-ops';
 
 export type FilterControlParam = 'centre' | 'width' | 'skirt';
 
 export interface UseFiltersOptions {
+  scene: Scene;
   updateScene: (updater: Scene | ((prev: Scene) => Scene)) => void;
 }
 
@@ -46,9 +54,17 @@ export interface UseFiltersResult {
   moveFilterCondition: (id: string, direction: 'up' | 'down') => void;
   applyStarter: (starter: Filter) => void;
   focusCondition: (conditionId: string) => void;
+  // Filter Library
+  allFilters: Filter[];
+  handleSelectFilter: (filterId: string) => void;
+  handleForkFilter: () => void;
+  handleDuplicateFilter: () => void;
+  handleDeleteFilter: (filterId: string) => void;
+  handleCreateNewFilter: () => void;
+  handleRenameFilter: (name: string) => void;
 }
 
-export function useFilters({ updateScene }: UseFiltersOptions): UseFiltersResult {
+export function useFilters({ scene, updateScene }: UseFiltersOptions): UseFiltersResult {
   const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
   const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
   const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
@@ -159,6 +175,44 @@ export function useFilters({ updateScene }: UseFiltersOptions): UseFiltersResult
     [updateScene]
   );
 
+  const allFilters = useMemo(
+    () => (scene.filters && scene.filters.length > 0 ? scene.filters : PRESET_FILTERS),
+    [scene.filters]
+  );
+
+  const handleSelectFilter = useCallback(
+    (filterId: string) => {
+      updateScene((prev) => setPrimaryFilter(prev, filterId));
+    },
+    [updateScene]
+  );
+
+  const handleForkFilter = useCallback(() => {
+    updateScene((prev) => forkFilter(prev, prev.filter));
+  }, [updateScene]);
+
+  const handleDuplicateFilter = useCallback(() => {
+    updateScene((prev) => duplicateFilter(prev, prev.filter));
+  }, [updateScene]);
+
+  const handleDeleteFilter = useCallback(
+    (filterId: string) => {
+      updateScene((prev) => deleteUserFilter(prev, filterId));
+    },
+    [updateScene]
+  );
+
+  const handleCreateNewFilter = useCallback(() => {
+    updateScene((prev) => createUserFilter(prev));
+  }, [updateScene]);
+
+  const handleRenameFilter = useCallback(
+    (name: string) => {
+      updateScene((prev) => renameActiveFilter(prev, name));
+    },
+    [updateScene]
+  );
+
   return {
     isFiltersOpen,
     openFilters,
@@ -181,5 +235,12 @@ export function useFilters({ updateScene }: UseFiltersOptions): UseFiltersResult
     moveFilterCondition,
     applyStarter,
     focusCondition,
+    allFilters,
+    handleSelectFilter,
+    handleForkFilter,
+    handleDuplicateFilter,
+    handleDeleteFilter,
+    handleCreateNewFilter,
+    handleRenameFilter,
   };
 }

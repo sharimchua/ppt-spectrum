@@ -3,10 +3,19 @@ import { Filter, FilterCondition, MAX_CONDITIONS } from '../../core/filter-types
 import { FilterSummaryBar } from './FilterSummaryBar';
 import { ConditionCard } from './ConditionCard';
 import { PresetPicker } from './PresetPicker';
+import { FilterPicker } from './FilterPicker';
+import { FilterActionsMenu } from './FilterActionsMenu';
 
 interface FiltersSheetProps {
   isOpen: boolean;
   filter: Filter;
+  allFilters?: Filter[];
+  onSelectFilter?: (filterId: string) => void;
+  onForkFilter?: () => void;
+  onDuplicateFilter?: () => void;
+  onDeleteFilter?: (filterId: string) => void;
+  onCreateNewFilter?: () => void;
+  onRenameFilter?: (name: string) => void;
   onClose: () => void;
   onToggleEnabled: () => void;
   onUpdateFilter: (patch: Partial<Omit<Filter, 'conditions'>>) => void;
@@ -14,13 +23,19 @@ interface FiltersSheetProps {
   onUpdateCondition: (id: string, condition: FilterCondition) => void;
   onRemoveCondition: (id: string) => void;
   onMoveCondition: (id: string, direction: 'up' | 'down') => void;
-  onApplyStarter: (filter: Filter) => void;
   onFocusCondition: (id: string) => void;
 }
 
 export const FiltersSheet: React.FC<FiltersSheetProps> = ({
   isOpen,
   filter,
+  allFilters,
+  onSelectFilter,
+  onForkFilter,
+  onDuplicateFilter,
+  onDeleteFilter,
+  onCreateNewFilter,
+  onRenameFilter,
   onClose,
   onToggleEnabled,
   onUpdateFilter,
@@ -28,7 +43,6 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
   onUpdateCondition,
   onRemoveCondition,
   onMoveCondition,
-  onApplyStarter,
   onFocusCondition,
 }) => {
   const [isPresetPickerOpen, setIsPresetPickerOpen] = useState(false);
@@ -111,6 +125,33 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          {/* Filter Preset / Library Header Bar */}
+          {allFilters && onSelectFilter && (
+            <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <FilterPicker
+                  currentFilter={filter}
+                  allFilters={allFilters}
+                  onSelectFilter={onSelectFilter}
+                />
+                <FilterActionsMenu
+                  filter={filter}
+                  isPreset={filter.origin === 'preset' || !filter.origin}
+                  onUpdateFilterName={onRenameFilter || (() => {})}
+                  onForkFilter={onForkFilter || (() => {})}
+                  onDuplicateFilter={onDuplicateFilter || (() => {})}
+                  onDeleteFilter={onDeleteFilter}
+                  onCreateNewFilter={onCreateNewFilter || (() => {})}
+                />
+              </div>
+              {filter.description && (
+                <span className="text-[11px] text-slate-400 font-mono italic">
+                  {filter.description}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Summary / Global Parameters Bar */}
           <FilterSummaryBar filter={filter} onChange={onUpdateFilter} />
 
@@ -168,7 +209,7 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
                   onClick={() => setIsPresetPickerOpen(true)}
                   className="mt-2 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-mono text-xs font-bold transition-all"
                 >
-                  Explore Presets & Conditions
+                  + Add Condition
                 </button>
               </div>
             )}
@@ -180,7 +221,6 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
       <PresetPicker
         isOpen={isPresetPickerOpen}
         onClose={() => setIsPresetPickerOpen(false)}
-        onSelectStarter={onApplyStarter}
         onAddCondition={onAddCondition}
       />
     </>

@@ -10,6 +10,7 @@ import {
 } from '../core/layout-models';
 import { Scene, SpanView } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
+import { SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { getFocusedSpanView } from '../core/scene-ops';
 import { useCanvasFilterGestures } from './hooks/useCanvasFilterGestures';
 import { RenderCoordinator, RegisteredLensRenderer } from '../renderers/render-coordinator';
@@ -711,7 +712,10 @@ export const CellViewport: React.FC<CellViewportProps> = ({
                 <span className="text-[7px] text-slate-400 font-mono mt-0.5">
                   {currentD > 0 ? `${dToPeriodMs(currentD).toFixed(0)}ms` : `${pitchInfo.cents >= 0 ? '+' : ''}${pitchInfo.cents}¢`}
                 </span>
-                <span className="text-[7px] text-cyan-400 font-mono font-semibold mt-0.5">
+                <span
+                  className="text-[7px] font-mono font-semibold mt-0.5"
+                  style={{ color: SOLFEGE_NEON_COLORS[addr.semitoneIndex] || '#38bdf8' }}
+                >
                   {addr.formatted}
                 </span>
               </div>

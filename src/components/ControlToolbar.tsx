@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Scene } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
+import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
 import { BookmarkSettings } from './bookmarks-storage';
 import {
@@ -86,6 +87,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   const freqHz = dToFreq(dVal, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(dVal, scene.anchors.tplFrequencyHz);
   const addr = resolveDuPeriodAddress(dVal);
+  const solfegeColor = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || SOLFEGE_COLORS[addr.semitoneIndex] || '#FF4D4D';
   const pitchInfo = freqToPitchRegister(freqHz, scene.anchors.tuningA4Hz);
 
   const handleShareClick = () => {
@@ -216,7 +218,12 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   <>Pitch: <strong className="text-white">{pitchInfo.formatted}</strong> <span className="text-slate-500">({freqHz.toFixed(1)} Hz)</span></>
                 )}
               </span>
-              <span className="absolute left-1/2 -translate-x-1/2 text-ppt-mi font-semibold text-center pointer-events-none">{addr.formatted}</span>
+              <span
+                className="absolute left-1/2 -translate-x-1/2 font-semibold text-center pointer-events-none transition-colors duration-150"
+                style={{ color: solfegeColor }}
+              >
+                {addr.formatted}
+              </span>
               <span className="text-cyan-400 font-mono text-[9px]">d: {dVal.toFixed(2)}</span>
             </div>
 
@@ -473,7 +480,12 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               ({dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)}ms` : `${freqHz.toFixed(1)}Hz`})
             </span>
           </span>
-          <span className="absolute left-1/2 -translate-x-1/2 text-ppt-mi font-bold text-center pointer-events-none">{addr.formatted}</span>
+          <span
+            className="absolute left-1/2 -translate-x-1/2 font-bold text-center pointer-events-none transition-colors duration-150"
+            style={{ color: solfegeColor }}
+          >
+            {addr.formatted}
+          </span>
           <span className="text-cyan-400 font-mono text-[9px] font-semibold">d: {dVal.toFixed(2)}</span>
         </div>
         <div className="relative flex items-center h-4">

@@ -193,6 +193,7 @@ export interface Scene {
   shapes: Shape[];
   placements: Placement[];
   filter: Filter;
+  filters?: Filter[];
   anchors: AnchorConfig;
   lenses: LensConfig[];
   audio: AudioConfig;

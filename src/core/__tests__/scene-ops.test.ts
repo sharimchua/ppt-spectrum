@@ -11,6 +11,12 @@ import {
   upsertActiveShape,
   deleteUserShape,
   duplicateShapeWithFreshIds,
+  setPrimaryFilter,
+  forkFilter,
+  duplicateFilter,
+  deleteUserFilter,
+  createUserFilter,
+  renameActiveFilter,
 } from '../scene-ops';
 import { Scene, Shape } from '../types';
 import { DEFAULT_SCENE } from '../config';
@@ -220,6 +226,49 @@ describe('scene-ops', () => {
       expect(duplicated.anchors?.[0]?.id).toBe('a-2');
       expect(duplicated.anchors?.[0]?.partials[0]?.id).toBe('p-3');
       expect(duplicated.partials[0]?.id).toBe('p-4');
+    });
+  });
+
+  describe('Filter Library Operations', () => {
+    it('sets primary filter by id from presets', () => {
+      const updated = setPrimaryFilter(baseScene, 'filter-tresillo');
+      expect(updated.filter.id).toBe('filter-tresillo');
+      expect(updated.filter.name).toContain('Tresillo');
+    });
+
+    it('forks a preset filter into user library', () => {
+      const updated = forkFilter(baseScene, baseScene.filter, (p) => `${p}-test`);
+      expect(updated.filter.origin).toBe('user');
+      expect(updated.filter.id).toBe('user-filter-test');
+      expect(updated.filters?.some((f) => f.id === 'user-filter-test')).toBe(true);
+    });
+
+    it('duplicates a filter into user library', () => {
+      const updated = duplicateFilter(baseScene, baseScene.filter, (p) => `${p}-dup`);
+      expect(updated.filter.origin).toBe('user');
+      expect(updated.filter.id).toBe('user-filter-dup');
+      expect(updated.filters?.some((f) => f.id === 'user-filter-dup')).toBe(true);
+    });
+
+    it('creates a new custom user filter', () => {
+      const updated = createUserFilter(baseScene, 'My Custom Formant', (p) => `${p}-123`);
+      expect(updated.filter.name).toBe('My Custom Formant');
+      expect(updated.filter.origin).toBe('user');
+      expect(updated.filters?.some((f) => f.name === 'My Custom Formant')).toBe(true);
+    });
+
+    it('renames active filter in both active filter and filters list', () => {
+      const created = createUserFilter(baseScene, 'Initial Name', (p) => `${p}-ren`);
+      const renamed = renameActiveFilter(created, 'Renamed Filter');
+      expect(renamed.filter.name).toBe('Renamed Filter');
+      expect(renamed.filters?.find((f) => f.id === 'user-filter-ren')?.name).toBe('Renamed Filter');
+    });
+
+    it('deletes user filter and falls back to preset', () => {
+      const created = createUserFilter(baseScene, 'To Delete', (p) => `${p}-del`);
+      const deleted = deleteUserFilter(created, 'user-filter-del');
+      expect(deleted.filters?.some((f) => f.id === 'user-filter-del')).toBe(false);
+      expect(deleted.filter.origin).toBe('preset');
     });
   });
 });

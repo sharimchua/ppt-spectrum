@@ -7,6 +7,7 @@ import { Scene, Shape, BandFilter, Filter, FilterCondition, RangeCondition, Span
 import { MAX_CONDITIONS } from './filter-types';
 import { resolveEndpoint } from './filter-eval';
 import { rationalise } from './rational';
+import { PRESET_FILTERS } from './filter-presets';
 
 /**
  * Updates the primary placement's DuPeriod coordinate d.
@@ -87,16 +88,26 @@ export function toggleFilterEnabled(scene: Scene): Scene {
 /**
  * Updates filter top-level parameters (name, action, combine, depth, focus).
  */
+function syncUserFilterInList(filters: Filter[] | undefined, updatedFilter: Filter): Filter[] | undefined {
+  if (!filters || !updatedFilter.id || updatedFilter.origin !== 'user') return filters;
+  return filters.map((f) => (f.id === updatedFilter.id ? updatedFilter : f));
+}
+
+/**
+ * Updates filter parameters (action, combine, depth, enabled, etc.).
+ */
 export function updateFilter(
   scene: Scene,
   patch: Partial<Omit<Filter, 'conditions'>>
 ): Scene {
+  const updatedFilter: Filter = {
+    ...scene.filter,
+    ...patch,
+  };
   return {
     ...scene,
-    filter: {
-      ...scene.filter,
-      ...patch,
-    },
+    filter: updatedFilter,
+    filters: syncUserFilterInList(scene.filters, updatedFilter),
   };
 }
 
@@ -110,13 +121,16 @@ export function addCondition(scene: Scene, cond: FilterCondition): Scene {
   const nextConditions = [...scene.filter.conditions, cond];
   const nextFocus = scene.filter.focus || (cond.kind === 'range' ? { conditionId: cond.id, spanIndex: 0 } : null);
 
+  const updatedFilter: Filter = {
+    ...scene.filter,
+    conditions: nextConditions,
+    focus: nextFocus,
+  };
+
   return {
     ...scene,
-    filter: {
-      ...scene.filter,
-      conditions: nextConditions,
-      focus: nextFocus,
-    },
+    filter: updatedFilter,
+    filters: syncUserFilterInList(scene.filters, updatedFilter),
   };
 }
 
@@ -136,13 +150,16 @@ export function updateCondition(
     nextTrackingMode = updated.reference === 'absolute' ? 'fixed' : 'relative';
   }
 
+  const updatedFilter: Filter = {
+    ...scene.filter,
+    conditions: nextConditions,
+    ...(nextTrackingMode !== undefined ? { trackingMode: nextTrackingMode } : {}),
+  };
+
   return {
     ...scene,
-    filter: {
-      ...scene.filter,
-      conditions: nextConditions,
-      ...(nextTrackingMode !== undefined ? { trackingMode: nextTrackingMode } : {}),
-    },
+    filter: updatedFilter,
+    filters: syncUserFilterInList(scene.filters, updatedFilter),
   };
 }
 
@@ -157,13 +174,16 @@ export function removeCondition(scene: Scene, conditionId: string): Scene {
     nextFocus = firstRange ? { conditionId: firstRange.id, spanIndex: 0 } : null;
   }
 
+  const updatedFilter: Filter = {
+    ...scene.filter,
+    conditions: nextConditions,
+    focus: nextFocus,
+  };
+
   return {
     ...scene,
-    filter: {
-      ...scene.filter,
-      conditions: nextConditions,
-      focus: nextFocus,
-    },
+    filter: updatedFilter,
+    filters: syncUserFilterInList(scene.filters, updatedFilter),
   };
 }
 
@@ -589,5 +609,172 @@ export function duplicateShapeWithFreshIds(
       ...p,
       id: createId('p'),
     })),
+  };
+}
+
+/**
+ * Sets the active filter by ID from scene.filters or PRESET_FILTERS.
+ */
+export function setPrimaryFilter(scene: Scene, filterId: string): Scene {
+  const allFilters = scene.filters && scene.filters.length > 0 ? scene.filters : PRESET_FILTERS;
+  const target = allFilters.find((f) => f.id === filterId || f.presetId === filterId);
+  if (!target) return scene;
+
+  // Deep clone to decouple active state
+  const cloned: Filter = {
+    ...target,
+    conditions: target.conditions.map((c) => ({
+      ...c,
+      ...(c.kind === 'range' ? { spans: c.spans.map((s) => ({ ...s })) } : {}),
+      ...(c.kind === 'cycle' ? { slotWeights: [...c.slotWeights] } : {}),
+    })),
+  };
+
+  return {
+    ...scene,
+    filter: cloned,
+  };
+}
+
+/**
+ * Creates a user copy of a preset or active filter.
+ */
+export function forkFilter(
+  scene: Scene,
+  sourceFilter: Filter = scene.filter,
+  createId: (prefix: string) => string = (prefix) =>
+    `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`
+): Scene {
+  const allFilters = scene.filters && scene.filters.length > 0 ? [...scene.filters] : [...PRESET_FILTERS];
+  const newId = createId('user-filter');
+  const forked: Filter = {
+    ...sourceFilter,
+    id: newId,
+    name: sourceFilter.origin === 'user' ? `${sourceFilter.name} (Copy)` : `${sourceFilter.name} (User)`,
+    origin: 'user',
+    category: 'user',
+    conditions: sourceFilter.conditions.map((c) => ({
+      ...c,
+      id: createId('c'),
+      ...(c.kind === 'range' ? { spans: c.spans.map((s) => ({ ...s })) } : {}),
+      ...(c.kind === 'cycle' ? { slotWeights: [...c.slotWeights] } : {}),
+    })),
+  };
+
+  return {
+    ...scene,
+    filters: [...allFilters, forked],
+    filter: forked,
+  };
+}
+
+/**
+ * Duplicates a filter with fresh ID into the user library.
+ */
+export function duplicateFilter(
+  scene: Scene,
+  sourceFilter: Filter = scene.filter,
+  createId: (prefix: string) => string = (prefix) =>
+    `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`
+): Scene {
+  return forkFilter(scene, sourceFilter, createId);
+}
+
+/**
+ * Deletes a user filter from the library.
+ */
+export function deleteUserFilter(scene: Scene, filterId: string): Scene {
+  const currentFilters = scene.filters && scene.filters.length > 0 ? scene.filters : PRESET_FILTERS;
+  const remainingFilters = currentFilters.filter(
+    (f) => f.id !== filterId || f.origin === 'preset'
+  );
+  const fallback = remainingFilters[0] || PRESET_FILTERS[0];
+
+  const nextActive = (scene.filter.id === filterId)
+    ? {
+        ...fallback,
+        conditions: fallback.conditions.map((c) => ({
+          ...c,
+          ...(c.kind === 'range' ? { spans: c.spans.map((s) => ({ ...s })) } : {}),
+          ...(c.kind === 'cycle' ? { slotWeights: [...c.slotWeights] } : {}),
+        })),
+      }
+    : scene.filter;
+
+  return {
+    ...scene,
+    filters: remainingFilters,
+    filter: nextActive,
+  };
+}
+
+/**
+ * Creates a brand new custom filter with a default aperture.
+ */
+export function createUserFilter(
+  scene: Scene,
+  name?: string,
+  createId: (prefix: string) => string = (prefix) =>
+    `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`
+): Scene {
+  const allFilters = scene.filters && scene.filters.length > 0 ? [...scene.filters] : [...PRESET_FILTERS];
+  const newId = createId('user-filter');
+  const userCount = allFilters.filter((f) => f.origin === 'user').length + 1;
+  const filterName = name || `Custom Filter ${userCount}`;
+
+  const newFilter: Filter = {
+    id: newId,
+    name: filterName,
+    origin: 'user',
+    category: 'user',
+    enabled: true,
+    action: 'keep',
+    combine: 'all',
+    depth: 1.0,
+    conditions: [
+      {
+        kind: 'range',
+        id: createId('cond-band'),
+        reference: 'scene',
+        reductionPeriod: null,
+        spans: [
+          {
+            lo: { unit: 'cents', value: -1200 },
+            hi: { unit: 'cents', value: 1200 },
+          },
+        ],
+        softness: { value: 600, unit: 'cents' },
+      },
+    ],
+    focus: null,
+    centreD: 0.0,
+    widthD: 2.0,
+    softnessD: 0.5,
+    mode: 'band-pass',
+    trackingMode: 'relative',
+  };
+
+  return {
+    ...scene,
+    filters: [...allFilters, newFilter],
+    filter: newFilter,
+  };
+}
+
+/**
+ * Renames the active filter, updating both scene.filter and its entry in scene.filters if user-created.
+ */
+export function renameActiveFilter(scene: Scene, name: string): Scene {
+  const updatedFilter: Filter = {
+    ...scene.filter,
+    name,
+  };
+  const currentFilters = scene.filters && scene.filters.length > 0 ? scene.filters : PRESET_FILTERS;
+  const updatedFilters = currentFilters.map((f) => (f.id === scene.filter.id ? { ...f, name } : f));
+
+  return {
+    ...scene,
+    filter: updatedFilter,
+    filters: updatedFilters,
   };
 }
