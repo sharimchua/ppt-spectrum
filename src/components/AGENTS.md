@@ -27,7 +27,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
-- `OverviewSection.tsx` — Hero card with Sawtooth Sweep Demo launcher, 8 analytical lens overview cards, and quick interaction tips.
+- `OverviewSection.tsx` — Hero card with 3:2 Hemiola Sweep Demo launcher, 8 analytical lens overview cards, and quick interaction tips.
 - `ConceptsSection.tsx` — 7 numbered theoretical foundation cards with embedded interactive SVG exploration diagrams.
 - `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
 - `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, and lesson archives.
@@ -81,7 +81,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useCanvasFilterGestures.ts` — Canvas gesture interactions for filter aperture scrubbing (drag, wheel, touch).
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
-- `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting Sawtooth shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
+- `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
 
 ### Tests (`src/components/__tests__/`)
 

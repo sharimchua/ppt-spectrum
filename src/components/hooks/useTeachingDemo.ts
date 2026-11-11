@@ -1,7 +1,8 @@
 /**
  * Hook to launch the educational walkthrough demo.
- * Selects a rich saw-like shape, sets bookmarks across the TPL boundary,
- * switches to Teaching Trio layout, and starts sweep oscillation and audio.
+ * Selects the prototypical 3 against 2 (Do to So) hemiola shape,
+ * sets bookmarks across the TPL boundary, switches to Teaching Trio layout,
+ * and starts sweep oscillation and audio.
  */
 
 import { useCallback } from 'react';
@@ -39,8 +40,8 @@ export function useTeachingDemo({
   setIsInfoOpen,
 }: UseTeachingDemoOptions): () => void {
   return useCallback(() => {
-    // 1. Select the rich saw-like preset shape (all-integer harmonics 1/k)
-    handleSelectPreset('saw-like');
+    // 1. Select the prototypical 3:2 Hemiola preset shape (Do to So / Perfect Fifth)
+    handleSelectPreset('hemiola-3-2');
 
     // 2. Configure bookmarks across the TPL boundary: 120 BPM in rhythm to 440 Hz in pitch
     const rhythmD = 3.689;
@@ -72,7 +73,7 @@ export function useTeachingDemo({
       setLayout(PRESET_TRIO);
     }
 
-    // 5. Bypass active filter so raw sawtooth harmonics are heard cleanly
+    // 5. Bypass active filter so 3:2 hemiola partials are heard cleanly
     if (scene.filter.enabled) {
       toggleFilter();
     }

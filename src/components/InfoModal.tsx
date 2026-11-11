@@ -242,7 +242,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
                 className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
-                <span>Play Sawtooth Sweep Demo</span>
+                <span>Play 3:2 Hemiola Sweep Demo</span>
               </button>
             )}
             <button

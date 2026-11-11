@@ -94,7 +94,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
             </div>
             <div className="text-left">
               <div className="text-xs uppercase font-bold tracking-wider text-amber-950">Interactive Experience</div>
-              <div className="text-sm font-extrabold text-stone-950">Play Sawtooth Sweep Demo</div>
+              <div className="text-sm font-extrabold text-stone-950">Play 3:2 Hemiola Sweep Demo</div>
             </div>
           </button>
         </div>
