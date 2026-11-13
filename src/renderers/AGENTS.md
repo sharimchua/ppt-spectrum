@@ -20,6 +20,7 @@ The `src/renderers` domain contains all high-performance 2D Canvas and WebGL gra
 - `src/renderers/alignment-meter-lens.ts` — Real-time Plomp-Levelt sensory roughness curve and Tenney harmonic complexity meter.
 - `src/renderers/filter-render-utils.ts` — Pure rendering utilities for filter aperture overlays and onset ghosting, adhering to WCAG 2.2 Three-Flashes safety.
 - `src/renderers/__tests__/filter-overlay.test.ts` — Unit test suite for aperture colour palettes, endpoint ruler mapping, and photosensitivity governor.
+- `src/renderers/__tests__/performance-profile.test.ts` — Unit test suite for performance band particle budgets and DPR caps.
 
 ## Local Contracts
 

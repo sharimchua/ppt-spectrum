@@ -15,6 +15,12 @@ import { RangeCondition } from '../core/filter-types';
 export class RulerLensRenderer implements RegisteredLensRenderer {
   public id = 'ruler';
   private dynamicLights: PostProcessingLight[] = [];
+  private cachedApertureGains: Float32Array = new Float32Array(0);
+  private cachedApertureCount: number = 0;
+  private cachedFilterRef: Scene['filter'] | null = null;
+  private cachedFundamentalD: number = NaN;
+  private cachedTplHz: number = NaN;
+  private cachedWidth: number = NaN;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -120,19 +126,41 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
       const apertureMaxH = height * 0.56;
 
+      const step = 3;
+      const sampleCount = Math.floor(width / step) + 1;
+      const cacheValid =
+        this.cachedFilterRef === filter &&
+        this.cachedFundamentalD === fundamentalD &&
+        this.cachedTplHz === scene.anchors.tplFrequencyHz &&
+        this.cachedWidth === width &&
+        this.cachedApertureCount === sampleCount;
+
+      if (!cacheValid) {
+        if (this.cachedApertureGains.length < sampleCount) {
+          this.cachedApertureGains = new Float32Array(sampleCount);
+        }
+        let idx = 0;
+        for (let x = 0; x <= width; x += step) {
+          const d = xToD(x);
+          this.cachedApertureGains[idx++] = evaluateDutyGain(filter, {
+            partialD: d,
+            sceneD: fundamentalD,
+            tplHz: scene.anchors.tplFrequencyHz,
+          });
+        }
+        this.cachedApertureCount = idx;
+        this.cachedFilterRef = filter;
+        this.cachedFundamentalD = fundamentalD;
+        this.cachedTplHz = scene.anchors.tplFrequencyHz;
+        this.cachedWidth = width;
+      }
+
       // Draw shaded transmission aperture polygon
       ctx.beginPath();
       ctx.moveTo(0, baselineY);
-
-      const step = 3;
-      for (let x = 0; x <= width; x += step) {
-        const d = xToD(x);
-        const gain = evaluateDutyGain(filter, {
-          partialD: d,
-          sceneD: fundamentalD,
-          tplHz: scene.anchors.tplFrequencyHz,
-        });
-        const fy = baselineY - gain * apertureMaxH;
+      for (let i = 0; i < this.cachedApertureCount; i++) {
+        const x = i * step;
+        const fy = baselineY - this.cachedApertureGains[i] * apertureMaxH;
         ctx.lineTo(x, fy);
       }
       ctx.lineTo(width, baselineY);
@@ -142,20 +170,13 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = colours.fill;
       ctx.fill();
 
-      // Transmission envelope stroke
+      // Transmission envelope stroke (reuses cached gain samples)
       ctx.beginPath();
-      let started = false;
-      for (let x = 0; x <= width; x += step) {
-        const d = xToD(x);
-        const gain = evaluateDutyGain(filter, {
-          partialD: d,
-          sceneD: fundamentalD,
-          tplHz: scene.anchors.tplFrequencyHz,
-        });
-        const fy = baselineY - gain * apertureMaxH;
-        if (!started) {
+      for (let i = 0; i < this.cachedApertureCount; i++) {
+        const x = i * step;
+        const fy = baselineY - this.cachedApertureGains[i] * apertureMaxH;
+        if (i === 0) {
           ctx.moveTo(x, fy);
-          started = true;
         } else {
           ctx.lineTo(x, fy);
         }

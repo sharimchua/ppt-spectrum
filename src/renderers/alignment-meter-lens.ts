@@ -13,6 +13,13 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
   private dynamicLights: PostProcessingLight[] = [];
   private visualPitchTurns: number = 0;
   private lastTransportTime: number = 0;
+  private cachedAnalysis: RealignmentAnalysis | null = null;
+  private cachedShapeRef: Scene['shapes'][number] | null = null;
+  private cachedPlacementD: number = NaN;
+  private cachedPlacementGain: number = NaN;
+  private cachedPlacementMute: boolean = false;
+  private cachedFilterRef: Scene['filter'] | null = null;
+  private cachedCurveRes: number = 0;
 
   public getDynamicLights(): PostProcessingLight[] {
     return this.dynamicLights;
@@ -77,14 +84,33 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       this.visualPitchTurns = 0;
     }
 
-    // Run Unified Realignment & Coincidence Analysis across all active voice anchors and partials
-    const analysis: RealignmentAnalysis = calculateRealignmentAnalysis(
-      shape,
-      placement,
-      scene.filter,
-      undefined,
-      Math.min(320, Math.max(128, Math.floor(width / 2)))
-    );
+    // Run Unified Realignment & Coincidence Analysis across all active voice anchors and partials (memoised)
+    const curveRes = Math.min(320, Math.max(128, Math.floor(width / 2)));
+    const analysisValid =
+      this.cachedAnalysis !== null &&
+      this.cachedShapeRef === shape &&
+      this.cachedPlacementD === placement.d &&
+      this.cachedPlacementGain === placement.gain &&
+      this.cachedPlacementMute === placement.mute &&
+      this.cachedFilterRef === scene.filter &&
+      this.cachedCurveRes === curveRes;
+
+    if (!analysisValid) {
+      this.cachedAnalysis = calculateRealignmentAnalysis(
+        shape,
+        placement,
+        scene.filter,
+        undefined,
+        curveRes
+      );
+      this.cachedShapeRef = shape;
+      this.cachedPlacementD = placement.d;
+      this.cachedPlacementGain = placement.gain;
+      this.cachedPlacementMute = placement.mute;
+      this.cachedFilterRef = scene.filter;
+      this.cachedCurveRes = curveRes;
+    }
+    const analysis: RealignmentAnalysis = this.cachedAnalysis!;
     const windowCycles = analysis.windowCycles;
 
     ctx.save();
