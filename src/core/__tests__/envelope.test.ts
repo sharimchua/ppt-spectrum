@@ -14,8 +14,10 @@ import {
 describe('Envelope Presets & Rhythm Supercycle Evaluation', () => {
   it('returns 1.0 when envelope is disabled or rhythmMode is off', () => {
     const pitchEnv = PRESET_ENVELOPES.find((e) => e.id === 'env-piano-hammer')!;
-    expect(evaluateRhythmEnvelopeGain(pitchEnv, 0.5)).toBe(1.0);
-    expect(evaluateRhythmEnvelopeGain({ ...pitchEnv, rhythmMode: 'supercycle', enabled: false }, 0.5)).toBe(1.0);
+    expect(pitchEnv.rhythmMode).toBe('supercycle');
+    expect(pitchEnv.supercycleLength).toBe(1);
+    expect(evaluateRhythmEnvelopeGain({ ...pitchEnv, rhythmMode: 'off' }, 0.5)).toBe(1.0);
+    expect(evaluateRhythmEnvelopeGain({ ...pitchEnv, enabled: false }, 0.5)).toBe(1.0);
   });
 
   it('modulates amplitude across the supercycle in rhythmMode: supercycle', () => {

@@ -892,8 +892,8 @@ export function createUserEnvelope(
     category: 'user',
     enabled: true,
     adsr: { attack: 0.02, decay: 0.8, sustain: 0.6, release: 0.3, damping: 0.2 },
-    rhythmMode: 'off',
-    supercycleLength: 4,
+    rhythmMode: 'supercycle',
+    supercycleLength: 1,
   };
   return {
     ...scene,
