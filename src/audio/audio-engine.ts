@@ -128,6 +128,9 @@ export class AudioEngine {
   private isKeyDownLocal: boolean = false;
   private isAuditioningLocal: boolean = false;
   private playStartTime: number = 0;
+  private activeMidiNotes: Set<number> = new Set();
+  private lastMidiNoteOnTime: number = 0;
+  private midiAuditionUntil: number = 0;
 
   private scene!: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
@@ -412,12 +415,16 @@ export class AudioEngine {
    */
   public getNoteAge(shapeId?: string): number {
     if (!this.isAudioActive()) return 0;
+    const now = performance.now();
+    if (this.activeMidiNotes.size > 0 || (this.lastMidiNoteOnTime > 0 && now <= this.midiAuditionUntil)) {
+      return Math.max(0, (now - this.lastMidiNoteOnTime) / 1000);
+    }
     const id = shapeId || this.scene.placements[0]?.shapeId;
     if (!id || !this.latestTelemetry?.phases?.[id]) {
-      return Math.max(0, (performance.now() - this.playStartTime) / 1000);
+      return Math.max(0, (now - this.playStartTime) / 1000);
     }
     const baseAge = (this.latestTelemetry.phases[id] as { noteAge?: number }).noteAge || 0;
-    const elapsedSec = (performance.now() - this.latestTelemetryTime) / 1000;
+    const elapsedSec = (now - this.latestTelemetryTime) / 1000;
     return baseAge + Math.max(0, elapsedSec);
   }
 
@@ -430,6 +437,8 @@ export class AudioEngine {
       this.scene = sceneOverride;
     }
     this.isMutedForFocus = false;
+    this.lastMidiNoteOnTime = 0;
+    this.midiAuditionUntil = 0;
     this.isKeyDownLocal = true;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
@@ -470,6 +479,11 @@ export class AudioEngine {
       this.scene = sceneOverride;
     }
     this.isMutedForFocus = false;
+    this.activeMidiNotes.add(midiNote);
+    this.lastMidiNoteOnTime = performance.now();
+    this.midiAuditionUntil = 0;
+    this.isKeyDownLocal = true;
+    this.isAuditioningLocal = true;
     const ok = await this.unlock();
     if (!ok || !this.hasSynthNode()) return;
     this.applyMasterGain();
@@ -485,6 +499,13 @@ export class AudioEngine {
    * Releases a polyphonic MIDI note.
    */
   public midiNoteOff(midiNote: number): void {
+    this.activeMidiNotes.delete(midiNote);
+    if (this.activeMidiNotes.size === 0) {
+      this.isKeyDownLocal = false;
+      const envEnabled = this.scene.envelope ? this.scene.envelope.enabled : true;
+      const releaseSec = envEnabled ? (this.scene.envelope?.adsr.release ?? 0.45) : 0.15;
+      this.midiAuditionUntil = performance.now() + Math.max(0.15, releaseSec) * 1000;
+    }
     if (!this.hasSynthNode()) return;
     this.postToSynth({
       type: 'MIDI_NOTE_OFF',
@@ -496,6 +517,10 @@ export class AudioEngine {
    * Releases all held MIDI notes.
    */
   public releaseAllMidiNotes(): void {
+    this.activeMidiNotes.clear();
+    this.isKeyDownLocal = false;
+    this.midiAuditionUntil = 0;
+    this.isAuditioningLocal = false;
     if (!this.hasSynthNode()) return;
     this.postToSynth({ type: 'MIDI_RELEASE_ALL' });
   }
@@ -508,6 +533,8 @@ export class AudioEngine {
       this.scene = sceneOverride;
     }
     this.isMutedForFocus = false;
+    this.lastMidiNoteOnTime = 0;
+    this.midiAuditionUntil = 0;
     this.isKeyDownLocal = false;
     this.isAuditioningLocal = true;
     const ok = await this.unlock();
@@ -606,11 +633,20 @@ export class AudioEngine {
   }
 
   public isAudioActive(): boolean {
+    if (
+      this.activeMidiNotes.size === 0 &&
+      !this.isKeyDownLocal &&
+      this.midiAuditionUntil > 0 &&
+      performance.now() > this.midiAuditionUntil
+    ) {
+      this.midiAuditionUntil = 0;
+      this.isAuditioningLocal = false;
+    }
     const hasAuditioning = Boolean(
       this.latestTelemetry?.phases &&
       Object.values(this.latestTelemetry.phases).some((p) => p.isAuditioning)
     );
-    const activeAuditioning = this.isAuditioningLocal || hasAuditioning;
+    const activeAuditioning = this.isAuditioningLocal || hasAuditioning || this.activeMidiNotes.size > 0;
     return (
       this.isUnlocked &&
       (this.isPlaying || activeAuditioning) &&
