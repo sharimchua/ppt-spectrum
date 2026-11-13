@@ -152,7 +152,7 @@ export const PhaseOffsetScrubber: React.FC<PhaseOffsetScrubberProps> = ({
           </text>
         </svg>
 
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5">
+        <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1 py-0.5">
           {nearbyOffsets.map((off) => {
             const isSnapped = Math.abs(clamped - off.phase) <= 0.015;
             return (

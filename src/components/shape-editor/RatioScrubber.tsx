@@ -164,8 +164,8 @@ export const RatioScrubber: React.FC<RatioScrubberProps> = ({
           </text>
         </svg>
 
-        {/* Single-line Autocomplete Snap Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5">
+        {/* Autocomplete Snap Pills (wrapped beside the dial) */}
+        <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1 py-0.5">
           {suggestions.map((sug) => {
             const isSnapped = Math.abs(sug.distCents) <= 2 && sug.ratio.kind === ratio.kind;
             return (
