@@ -135,6 +135,7 @@ export class AudioEngine {
   private scene!: Scene;
   private latestTelemetry: AudioTelemetryData | null = null;
   private latestTelemetryTime: number = 0;
+  private lastAppliedMasterGain: number | null = null;
 
   constructor(initialScene: Scene) {
     if (AudioEngine.instance) {
@@ -554,8 +555,45 @@ export class AudioEngine {
       // Audio graph output is unmuted whenever audio context is active and not focus-muted.
       // The worklet processor controls audio emission (continuous transport vs key-triggered audition).
       const targetGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
+      if (this.lastAppliedMasterGain !== null && Math.abs(targetGain - this.lastAppliedMasterGain) <= 1e-5) {
+        return;
+      }
+      this.lastAppliedMasterGain = targetGain;
       this.masterGainNode.gain.cancelScheduledValues(this.ctx.currentTime);
       this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.015);
+    }
+  }
+
+  /**
+   * High-frequency fast-path for Sweep Mode and scrubbing: updates primary placement d
+   * without re-scheduling AudioParam gain or rebuilding payloads when filter ranges are invariant.
+   */
+  public setPrimaryPlacementD(d: number): void {
+    const primary = this.scene.placements[0];
+    if (!primary) return;
+
+    const updatedPlacements = [...this.scene.placements];
+    updatedPlacements[0] = { ...primary, d };
+    this.scene = { ...this.scene, placements: updatedPlacements };
+
+    if (!this.hasSynthNode()) return;
+
+    const hasAbsoluteRange = Boolean(
+      this.scene.filter &&
+        this.scene.filter.enabled &&
+        'conditions' in this.scene.filter &&
+        this.scene.filter.conditions.some(
+          (c) => c.kind === 'range' && c.enabled !== false && c.reference === 'absolute'
+        )
+    );
+
+    if (hasAbsoluteRange) {
+      this.syncSceneToWorklet();
+    } else {
+      this.postToSynth({
+        type: 'SET_TARGET_D',
+        payload: { shapeId: primary.shapeId, targetD: d },
+      });
     }
   }
 
@@ -685,6 +723,7 @@ export class AudioEngine {
       this.masterGainNode = null;
       this.masterLimiterNode = null;
       this.isUnlocked = false;
+      this.lastAppliedMasterGain = null;
     }
     if (AudioEngine.instance === this) {
       AudioEngine.instance = null;

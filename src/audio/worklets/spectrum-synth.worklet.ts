@@ -22,6 +22,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
     // Message throttle counter (~30-60 Hz telemetry back to render thread)
     this.telemetryCounter = 0;
+    this.phaseTelemetry = {};
 
     this.port.onmessage = (event) => {
       const { type, payload } = event.data;
@@ -32,23 +33,32 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         this.masterGain = payload.masterGain !== undefined ? payload.masterGain : 0.75;
         this.tplHz = payload.tplHz || 25.8;
         this.isPlaying = !!payload.isPlaying;
-        const prevFilter = this.filter;
         this.filter = payload.filter || null;
         this.envelope = payload.envelope || null;
-        const filterChanged = JSON.stringify(prevFilter) !== JSON.stringify(this.filter);
 
-        // Allocate gate buffers for each shape's partials only when count changes
+        // Allocate or grow gate buffers only when partial count exceeds capacity;
+        // preserve gateSmooth so real-time filter edits glide without clicking.
         for (let sIdx = 0; sIdx < this.shapes.length; sIdx++) {
           const sh = this.shapes[sIdx];
           const pCount = sh.partials ? sh.partials.length : 0;
           let buf = this.filterBuffers.get(sh.shapeId);
-          if (!buf || buf.gateTarget.length !== pCount || filterChanged) {
+          if (!buf) {
             buf = {
               gateTarget: new Float32Array(pCount).fill(1.0),
               gateSmooth: new Float32Array(pCount).fill(1.0),
               lastOnsetIdx: new Float64Array(pCount).fill(-999999),
             };
             this.filterBuffers.set(sh.shapeId, buf);
+          } else if (buf.gateTarget.length < pCount) {
+            const nextTarget = new Float32Array(pCount).fill(1.0);
+            const nextSmooth = new Float32Array(pCount).fill(1.0);
+            const nextOnset = new Float64Array(pCount).fill(-999999);
+            nextTarget.set(buf.gateTarget);
+            nextSmooth.set(buf.gateSmooth);
+            nextOnset.set(buf.lastOnsetIdx);
+            buf.gateTarget = nextTarget;
+            buf.gateSmooth = nextSmooth;
+            buf.lastOnsetIdx = nextOnset;
           }
         }
 
@@ -122,7 +132,12 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         }
       } else if (type === 'SET_TARGET_D') {
         const { shapeId, targetD } = payload;
-        this.smoothedD.set(shapeId, targetD);
+        for (let sIdx = 0; sIdx < this.shapes.length; sIdx++) {
+          const sh = this.shapes[sIdx];
+          if (!shapeId || sh.shapeId === shapeId) {
+            sh.placementD = targetD;
+          }
+        }
       } else if (type === 'NOTE_ON') {
         const { shapeId } = payload || {};
         const targetIds = shapeId ? [shapeId] : (this.shapes.length > 0 ? this.shapes.map((s) => s.shapeId) : Array.from(this.noteStates.keys()));
@@ -337,7 +352,13 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const phaseTelemetry = {};
+    const sendTelemetry = (this.telemetryCounter + 1) >= 12;
+    const phaseTelemetry = this.phaseTelemetry;
+    if (sendTelemetry) {
+      for (const k in phaseTelemetry) {
+        delete phaseTelemetry[k];
+      }
+    }
 
     for (const shape of this.shapes) {
       if (shape.mute || shape.gain <= 0.0001) continue;
@@ -363,21 +384,22 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       // Audible if continuous transport is running OR if shape is being auditioned via key T
       const isAudible = this.isPlaying || nState.isAuditioning;
       if (!isAudible) {
-        phaseTelemetry[shapeId] = {
-          masterPhase: this.masterPhases.get(shapeId) || 0.0,
-          f0: this.tplHz * Math.pow(2, -currentD),
-          smoothedD: currentD,
-          noteAge: 0,
-          isAuditioning: false,
-        };
+        if (sendTelemetry) {
+          phaseTelemetry[shapeId] = {
+            masterPhase: this.masterPhases.get(shapeId) || 0.0,
+            f0: this.tplHz * Math.pow(2, -currentD),
+            smoothedD: currentD,
+            noteAge: 0,
+            isAuditioning: false,
+          };
+        }
         continue;
       }
 
-      // Exponential smoothing toward targetD
-      currentD += (targetD - currentD) * 0.08;
-      this.smoothedD.set(shapeId, currentD);
-
-      const f0 = this.tplHz * Math.pow(2, -currentD);
+      const sampleDt = 1.0 / sampleRate;
+      const dSmoothCoeff = 1.0 - Math.exp(-sampleDt / 0.012);
+      const isPitchGliding = Math.abs(targetD - currentD) > 1e-6;
+      let f0 = this.tplHz * Math.pow(2, -currentD);
       let masterPhase = this.masterPhases.get(shapeId) || 0.0;
       const adsr = shape.adsr;
 
@@ -400,7 +422,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
 
       for (let s = 0; s < numSamples; s++) {
-        const sampleDt = 1.0 / sampleRate;
+        if (isPitchGliding) {
+          currentD += (targetD - currentD) * dSmoothCoeff;
+          f0 = this.tplHz * Math.pow(2, -currentD);
+        }
         const masterPhaseIncrement = f0 * sampleDt;
         const prevPhase = masterPhase;
         // Keep masterPhase unwrapped so non-integer harmonic ratios (5/4, 3/2, 7/4, stretched piano)
@@ -468,7 +493,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               fBuf.gateSmooth[pIdx] += (fBuf.gateTarget[pIdx] - fBuf.gateSmooth[pIdx]) * a;
             } else {
               fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.rangeMatches, 0);
-              fBuf.gateSmooth[pIdx] = fBuf.gateTarget[pIdx];
+              const a = 1.0 - Math.exp(-sampleDt / 0.005);
+              fBuf.gateSmooth[pIdx] += (fBuf.gateTarget[pIdx] - fBuf.gateSmooth[pIdx]) * a;
             }
             curGateTarget = fBuf.gateTarget[pIdx];
             curGateSmooth = fBuf.gateSmooth[pIdx];
@@ -624,14 +650,17 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         channelRight[s] += sampleValR * this.masterGain;
       }
 
+      this.smoothedD.set(shapeId, currentD);
       this.masterPhases.set(shapeId, masterPhase);
-      phaseTelemetry[shapeId] = {
-        masterPhase,
-        f0,
-        smoothedD: currentD,
-        noteAge: nState.noteAge,
-        isAuditioning: nState.isAuditioning,
-      };
+      if (sendTelemetry) {
+        phaseTelemetry[shapeId] = {
+          masterPhase,
+          f0,
+          smoothedD: currentD,
+          noteAge: nState.noteAge,
+          isAuditioning: nState.isAuditioning,
+        };
+      }
     }
 
     // Polyphonic MIDI Voices (rendered using primary shape partials, ADSR & filter)
