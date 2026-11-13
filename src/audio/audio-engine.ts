@@ -157,7 +157,8 @@ export class AudioEngine {
   private onBlur = (): void => this.handleFocusChange(false);
   private onVisibilityChange = (): void => {
     if (typeof document !== 'undefined') {
-      this.handleFocusChange(!document.hidden);
+      const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+      this.handleFocusChange(!document.hidden && hasFocus);
     }
   };
 
@@ -553,12 +554,16 @@ export class AudioEngine {
       // Audio graph output is unmuted whenever audio context is active and not focus-muted.
       // The worklet processor controls audio emission (continuous transport vs key-triggered audition).
       const targetGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
-      this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.02);
+      this.masterGainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.masterGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.015);
     }
   }
 
   public updateScene(scene: Scene): void {
     this.scene = scene;
+    if (!scene.cosmetics.focusModeEnabled) {
+      this.isMutedForFocus = false;
+    }
     this.applyMasterGain();
     this.syncSceneToWorklet();
   }
@@ -598,9 +603,8 @@ export class AudioEngine {
       this.syncSceneToWorklet();
       return;
     }
-    // Only mute when document is genuinely hidden in background
-    const isActuallyHidden = typeof document !== 'undefined' && document.hidden;
-    this.isMutedForFocus = !focused && isActuallyHidden;
+    const isHidden = typeof document !== 'undefined' && document.hidden;
+    this.isMutedForFocus = !focused || isHidden;
     this.applyMasterGain();
     this.syncSceneToWorklet();
   }
