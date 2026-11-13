@@ -70,11 +70,12 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `ShapeLibraryHeader.tsx` — Preset/user shape selector dropdown, fork/duplicate/delete/new controls, and tab buttons.
 - `ShapePicker.tsx` — Mobile-first shape picker with category filter chips and structured dropdown.
 - `ShapeActionsMenu.tsx` — Mobile-first action toolbar supporting fork, rename, duplicate, delete, and new shape creation.
-- `PartialsTab.tsx` — Voice anchor cards container, overtone macros, and add-anchor controls.
+- `PartialsTab.tsx` — Scalable voice anchor tab strip with inline add button, ruler preview, and focused `VoiceAnchorCard`.
 - `OvertoneMacros.tsx` — Inharmonicity stretch coefficient (B) and spectral damping macro buttons.
-- `VoiceAnchorCard.tsx` — Voice anchor card with ratio, DuMetric offset, percussion voice, gain, and nested partial rows.
+- `VoiceAnchorCard.tsx` — Focused voice anchor editor with header name/rhythm voice controls, ratio & phase offset dials, and nested partial tabs.
 - `AnchorPartialRow.tsx` — Single harmonic partial editor with DuMetric octave scrubber, autocomplete snap pills, amplitude/phase sliders, and mute/delete controls.
-- `RatioScrubber.tsx` — Continuous DuMetric octave scrubber (horizontal linear on desktop, rotary pitch-clock dial on mobile) with rational snap pills.
+- `RatioScrubber.tsx` — Compact single-line DuMetric pitch-clock dial (rotary on touch, relative horizontal drag on desktop) with rational snap pills.
+- `PhaseOffsetScrubber.tsx` — Compact single-line DuMetric phase offset cycle dial (clamped 0–1) with nearby Solfège offset snap pills.
 - `ShapeRulerPreview.tsx` — Interactive Ruler-style spectrum preview for selecting Voice Anchors and Partials visually.
 - `EnvelopeTab.tsx` — Acoustic ADSR envelope tab with interactive curve, instrument presets, and parameter sliders.
 - `AdsrCurve.tsx` — SVG ADSR curve visualiser with high-harmonic damping overlay and phase labels.

@@ -1,17 +1,17 @@
 /**
  * Voice Anchor Card component.
- * Mobile-first collapsible card rendering anchor parameters and nested partial rows.
+ * Renders the focused voice anchor's header (name, rhythm voice, mute/delete),
+ * interval ratio & DuMetric offset dials, and nested partial rows.
  * Australian English spelling maintained.
  */
 
-import React, { useState } from 'react';
-import { Volume2, VolumeX, Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import React from 'react';
+import { Volume2, VolumeX, Trash2, Plus } from 'lucide-react';
 import { VoiceAnchor, VoiceId, PartialComponent } from '../../core/types';
-import { ratioToValue } from '../../core/rational';
-import { DU_METRIC_OFFSETS, resolveDuMetricOffsetToken } from '../../core/shape';
 import { VOICE_OPTIONS } from './shape-editor-data';
 import { AnchorPartialRow } from './AnchorPartialRow';
 import { RatioScrubber } from './RatioScrubber';
+import { PhaseOffsetScrubber } from './PhaseOffsetScrubber';
 
 export interface VoiceAnchorCardProps {
   anchor: VoiceAnchor;
@@ -42,14 +42,6 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
   onAddPartial,
   onRemovePartial,
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(anchorIdx === 0);
-
-  const anchorRatioVal = ratioToValue(anchor.ratio);
-  const anchorRatioStr =
-    anchor.ratio.kind === 'rational'
-      ? `${anchor.ratio.num}/${anchor.ratio.den}`
-      : anchorRatioVal.toFixed(2);
-  const offsetDescriptor = resolveDuMetricOffsetToken(anchor.phaseOffset || 0);
   const isAnchorMuted = Boolean(anchor.mute || anchor.gain <= 0.0001);
 
   return (
@@ -60,26 +52,41 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
           : 'bg-slate-900/75 border-slate-700/80'
       }`}
     >
-      {/* Anchor Header / Summary Bar */}
-      <div className="flex items-center justify-between gap-2 p-2.5 bg-slate-900/90 border-b border-slate-800/80">
-        <button
-          type="button"
-          onClick={() => setIsExpanded((prev) => !prev)}
-          className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer group"
-          title={isExpanded ? 'Collapse anchor' : 'Expand anchor'}
+      {/* Anchor Header: Badge, Name, Rhythm Voice, Mute & Delete */}
+      <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-slate-900/90 border-b border-slate-800/80">
+        <span className="px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/40 text-[9px] font-mono font-bold text-red-300 shrink-0">
+          {anchorIdx === 0 ? 'ROOT' : `#${anchorIdx + 1}`}
+        </span>
+        <input
+          type="text"
+          value={anchor.name}
+          onChange={(e) => onUpdateAnchor(anchorIdx, { name: e.target.value })}
+          className="bg-slate-950/80 border border-slate-800 focus:border-cyan-500 rounded px-2 py-1 text-xs font-semibold text-white focus:outline-none min-w-0 flex-1"
+          placeholder="Anchor name"
+          aria-label="Voice Anchor Name"
+        />
+
+        <select
+          value={anchor.voice || 'woodblock'}
+          onChange={(e) => {
+            const newVoice = e.target.value as VoiceId;
+            onUpdateAnchor(anchorIdx, {
+              voice: newVoice,
+              partials: anchor.partials.map((p, pIdx) =>
+                pIdx === 0 ? { ...p, voice: newVoice } : p
+              ),
+            });
+          }}
+          className="bg-slate-950/90 border border-slate-700 rounded px-2 py-1 text-[11px] font-mono text-cyan-300 font-semibold focus:outline-none cursor-pointer shrink-0 max-w-[130px]"
+          title="Anchor Rhythm Voice (inherited by all partials in this anchor)"
+          aria-label="Anchor Rhythm Voice"
         >
-          <span className="px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/40 text-[9px] font-mono font-bold text-red-300 shrink-0">
-            {anchorIdx === 0 ? 'ROOT' : `#${anchorIdx + 1}`}
-          </span>
-          <span className="text-xs font-bold text-white truncate group-hover:text-cyan-300 transition">
-            {anchor.name}
-          </span>
-          {!isExpanded && (
-            <span className="text-[10px] text-slate-400 font-mono truncate hidden xs:inline">
-              · {anchorRatioStr} · {anchor.partials.length}p · {anchor.voice || 'woodblock'} · {Math.round(anchor.gain * 100)}%
-            </span>
-          )}
-        </button>
+          {VOICE_OPTIONS.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.label}
+            </option>
+          ))}
+        </select>
 
         <div className="flex items-center gap-1 shrink-0">
           {/* Mute Anchor */}
@@ -106,100 +113,33 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
-
-          {/* Expand/Collapse Chevron */}
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="p-1.5 rounded text-slate-400 hover:text-white transition cursor-pointer"
-            title={isExpanded ? 'Collapse' : 'Expand'}
-          >
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
         </div>
       </div>
 
-      {/* Expanded Body */}
-      {isExpanded && (
-        <div className="p-2.5 space-y-2.5 animate-in fade-in duration-100">
-          {/* Anchor Name Input */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] text-slate-400 font-mono shrink-0">Name:</span>
-            <input
-              type="text"
-              value={anchor.name}
-              onChange={(e) => onUpdateAnchor(anchorIdx, { name: e.target.value })}
-              className="bg-slate-950/80 border border-slate-800 focus:border-cyan-500 rounded px-2 py-1 text-xs font-semibold text-white focus:outline-none min-w-0 flex-1"
-              placeholder="Anchor name"
-            />
-          </div>
+      {/* Anchor Body */}
+      <div className="p-2.5 space-y-2.5">
+        {/* Anchor Interval Ratio Scrubber (vs Root) */}
+        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
+          <RatioScrubber
+            ratio={anchor.ratio}
+            onChange={(ratio) => onUpdateAnchor(anchorIdx, { ratio })}
+            minOctaves={-1}
+            maxOctaves={3}
+            label="Anchor Interval Ratio (vs Root)"
+          />
+        </div>
 
-          {/* Anchor Interval Ratio Scrubber (vs Root) */}
-          <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
-            <RatioScrubber
-              ratio={anchor.ratio}
-              onChange={(ratio) => onUpdateAnchor(anchorIdx, { ratio })}
-              minOctaves={-1}
-              maxOctaves={3}
-              label="Anchor Interval Ratio (vs Root)"
-            />
-          </div>
+        {/* DuMetric Phase Offset Scrubber (0–1 cycle) */}
+        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
+          <PhaseOffsetScrubber
+            phaseOffset={anchor.phaseOffset || 0}
+            onChange={(phaseOffset, offsetToken) =>
+              onUpdateAnchor(anchorIdx, { phaseOffset, offsetToken })
+            }
+          />
+        </div>
 
-          {/* Anchor Parameters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70 text-[10px]">
-
-            {/* 2. DuMetric Solfège Phase Offset */}
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-400 font-mono block">
-                DuMetric Offset (<span className="text-amber-300">{offsetDescriptor.glyph} {offsetDescriptor.token}</span>):
-              </span>
-              <select
-                value={offsetDescriptor.token}
-                onChange={(e) => {
-                  const found = DU_METRIC_OFFSETS.find((o) => o.token === e.target.value);
-                  if (found) {
-                    onUpdateAnchor(anchorIdx, {
-                      phaseOffset: found.phase,
-                      offsetToken: found.token,
-                    });
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs font-mono text-amber-300 font-semibold focus:outline-none cursor-pointer"
-              >
-                {DU_METRIC_OFFSETS.map((off) => (
-                  <option key={off.token} value={off.token}>
-                    {off.glyph} {off.token} ({off.fraction}) — {off.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 3. Drum / Percussion Voice */}
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-400 font-mono block">Rhythm Voice:</span>
-              <select
-                value={anchor.voice || 'woodblock'}
-                onChange={(e) => {
-                  const newVoice = e.target.value as VoiceId;
-                  onUpdateAnchor(anchorIdx, {
-                    voice: newVoice,
-                    partials: anchor.partials.map((p, pIdx) =>
-                      pIdx === 0 ? { ...p, voice: newVoice } : p
-                    ),
-                  });
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs font-mono text-cyan-300 font-semibold focus:outline-none cursor-pointer"
-              >
-                {VOICE_OPTIONS.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Focused Partial Editor with Quick Partial Chips */}
+        {/* Focused Partial Editor with Quick Partial Chips */}
           <div className="pl-2 sm:pl-3 border-l-2 border-slate-800 space-y-2">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
               {anchor.partials.map((p, pIdx) => (
@@ -250,8 +190,7 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
               />
             )}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
