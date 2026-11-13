@@ -93,9 +93,14 @@ export const EnvelopeQuickSearchModal: React.FC<EnvelopeQuickSearchModalProps> =
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+      if (e.shiftKey) {
+        onOpenEnvelopeStudio?.();
+        onClose();
+        return;
+      }
       const target = filteredList[selectedIndex];
       if (target) {
-        handleApply(target, e.shiftKey);
+        handleApply(target, false);
       }
     }
   };
@@ -194,7 +199,7 @@ export const EnvelopeQuickSearchModal: React.FC<EnvelopeQuickSearchModalProps> =
               <CornerDownLeft className="w-3 h-3 text-amber-400" /> Apply
             </span>
             <span className="hidden sm:flex items-center gap-1 text-amber-300">
-              Shift+Enter: Apply &amp; Open Studio
+              Shift+Enter: Open Studio
             </span>
           </div>
           <span>Esc to close</span>

@@ -81,12 +81,14 @@ export const ShapeQuickSearchModal: React.FC<ShapeQuickSearchModalProps> = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+      if (e.shiftKey) {
+        onOpenShapeEditor?.();
+        onClose();
+        return;
+      }
       const target = filteredShapes[selectedIndex];
       if (target) {
         onSelectShape(target.id);
-        if (e.shiftKey) {
-          onOpenShapeEditor?.();
-        }
         onClose();
       }
     }

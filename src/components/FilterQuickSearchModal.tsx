@@ -99,9 +99,14 @@ export const FilterQuickSearchModal: React.FC<FilterQuickSearchModalProps> = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+      if (e.shiftKey) {
+        onOpenFilterPanel?.();
+        onClose();
+        return;
+      }
       const target = filteredList[selectedIndex];
       if (target) {
-        handleApply(target, e.shiftKey);
+        handleApply(target, false);
       }
     }
   };
