@@ -14,7 +14,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/CaptureModal.tsx` — Rhythm tap pad with 11-limit DuPeriod rationaliser and microphone pitch detector.
 - `src/components/InfoModal.tsx` — Comprehensive 4-tab interactive theory documentation and tutorial modal with scroll-spy navigation.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
-- `src/components/TraySheet.tsx` — Slide-up bottom tray sheet housing the shape partial inspector.
+- `src/components/TraySheet.tsx` — Floating & minimisable desktop window / mobile bottom sheet housing the shape partial inspector.
+- `src/components/FloatingStudioWindow.tsx` — Reusable non-blocking draggable & minimisable desktop floating window paired with a mobile touch sheet (shared by Shapes, Envelopes, and Filters).
 - `src/components/shape-editor/ShapeEditor.tsx` — Modular shape inspector container and tab orchestrator.
 - `src/components/App.tsx` — Main application shell integrating UI, `RenderCoordinator`, `AudioEngine`, URL deeplink slug decoding, and keyboard shortcuts.
 - `src/components/AppModals.tsx` — Unified modal orchestration component housing all overlay dialogs, bottom sheets, search modals, and radial menu overlays.
@@ -25,6 +26,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
+- `src/components/EnvelopeQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for envelopes (`Shift+V`, `Shift+Enter` to open Envelope Studio).
 - `src/components/MidiPermissionModal.tsx` — Web MIDI permission request dialogue.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 

@@ -164,13 +164,22 @@ export function useFilters({ scene, updateScene }: UseFiltersOptions): UseFilter
 
   const focusCondition = useCallback(
     (conditionId: string) => {
-      updateScene((prev) => ({
-        ...prev,
-        filter: {
-          ...prev.filter,
-          focus: { conditionId, spanIndex: 0 },
-        },
-      }));
+      updateScene((prev) => {
+        const target = prev.filter.conditions.find((c) => c.id === conditionId);
+        const isSpectral = target?.kind === 'range';
+        const nextConditions = isSpectral && target.enabled === false
+          ? prev.filter.conditions.map((c) => (c.id === conditionId ? { ...c, enabled: true } : c))
+          : prev.filter.conditions;
+        return {
+          ...prev,
+          filter: {
+            ...prev.filter,
+            enabled: isSpectral ? true : prev.filter.enabled,
+            conditions: nextConditions,
+            focus: { conditionId, spanIndex: 0 },
+          },
+        };
+      });
     },
     [updateScene]
   );

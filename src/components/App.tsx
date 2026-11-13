@@ -34,6 +34,7 @@ export const App: React.FC = () => {
   const [isFilterQuickSearchOpen, setIsFilterQuickSearchOpen] = useState<boolean>(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
+  const [isEnvelopeQuickSearchOpen, setIsEnvelopeQuickSearchOpen] = useState<boolean>(false);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
   const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
@@ -247,6 +248,7 @@ export const App: React.FC = () => {
       onHistoryForward: historyForward,
       onToggleEnvelope: envelopes.handleToggleEnvelopeEnabled,
       onToggleEnvelopesOpen: () => (envelopes.isEnvelopesOpen ? envelopes.closeEnvelopes() : envelopes.openEnvelopes()),
+      onToggleEnvelopeQuickSearch: () => setIsEnvelopeQuickSearchOpen((prev) => !prev),
       onToggleBundlesOpen: () => (bundlesApi.isBundleModalOpen ? bundlesApi.closeBundleModal() : bundlesApi.openBundleModal()),
     }),
     [
@@ -321,6 +323,7 @@ export const App: React.FC = () => {
           spanView={getFocusedSpanView(scene.filter)}
           controlParam={filterControlParam}
           onSelectParam={setFilterControlParam}
+          onFocusCondition={focusCondition}
           onCycleMode={handleCycleFilterMode}
           onOpenFilters={openFilters}
           onDone={() => setIsFilterEditMode(false)}
@@ -392,16 +395,13 @@ export const App: React.FC = () => {
         scene={scene}
         onUpdateScene={updateScene}
         onOpenInfoModal={() => setIsInfoOpen(true)}
-        isQuickSearchOpen={isQuickSearchOpen}
-        onCloseQuickSearch={() => setIsQuickSearchOpen(false)}
-        isFilterQuickSearchOpen={isFilterQuickSearchOpen}
-        onCloseFilterQuickSearch={() => setIsFilterQuickSearchOpen(false)}
+        isQuickSearchOpen={isQuickSearchOpen} onCloseQuickSearch={() => setIsQuickSearchOpen(false)}
+        onOpenShapeEditor={() => setIsShapeEditorOpen(true)}
+        isFilterQuickSearchOpen={isFilterQuickSearchOpen} onCloseFilterQuickSearch={() => setIsFilterQuickSearchOpen(false)}
+        isEnvelopeQuickSearchOpen={isEnvelopeQuickSearchOpen} onCloseEnvelopeQuickSearch={() => setIsEnvelopeQuickSearchOpen(false)}
         allFilters={allFilters}
         onSelectFilter={handleSelectFilter}
-        onOpenFilterPanel={() => {
-          setIsFilterQuickSearchOpen(false);
-          openFilters();
-        }}
+        onOpenFilterPanel={() => { setIsFilterQuickSearchOpen(false); openFilters(); }}
         isRadialMenuOpen={isRadialMenuOpen}
         onCloseRadialMenu={() => setIsRadialMenuOpen(false)}
         radialMenuAnchor={radialMenuAnchor}

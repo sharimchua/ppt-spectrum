@@ -432,7 +432,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-amber-500/70 bg-amber-950/60 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Envelope Studio — Pitch ADSR & Rhythm Supercycle (Shift+V to open, V to toggle)"
+              title="Envelope Studio — Pitch ADSR & Rhythm Supercycle (Shift+V to quick search, V to toggle)"
             >
               <Activity className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden xl:inline">Envelope</span>

@@ -8,6 +8,7 @@ import { MusicalBookmarksModal } from './MusicalBookmarksModal';
 import { SettingsDrawer } from './SettingsDrawer';
 import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 import { FilterQuickSearchModal } from './FilterQuickSearchModal';
+import { EnvelopeQuickSearchModal } from './EnvelopeQuickSearchModal';
 import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FiltersSheet } from './filters/FiltersSheet';
 import { EnvelopesSheet } from './envelopes/EnvelopesSheet';
@@ -59,8 +60,11 @@ export interface AppModalsProps {
   // Quick Search Modals
   isQuickSearchOpen: boolean;
   onCloseQuickSearch: () => void;
+  onOpenShapeEditor?: () => void;
   isFilterQuickSearchOpen: boolean;
   onCloseFilterQuickSearch: () => void;
+  isEnvelopeQuickSearchOpen: boolean;
+  onCloseEnvelopeQuickSearch: () => void;
   allFilters: Filter[];
   onSelectFilter: (id: string) => void;
   onOpenFilterPanel: () => void;
@@ -143,8 +147,11 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onOpenInfoModal,
   isQuickSearchOpen,
   onCloseQuickSearch,
+  onOpenShapeEditor,
   isFilterQuickSearchOpen,
   onCloseFilterQuickSearch,
+  isEnvelopeQuickSearchOpen,
+  onCloseEnvelopeQuickSearch,
   allFilters,
   onSelectFilter,
   onOpenFilterPanel,
@@ -240,6 +247,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         shapes={scene.shapes}
         activeShapeId={activeShape?.id}
         onSelectShape={onSelectShape}
+        onOpenShapeEditor={onOpenShapeEditor}
       />
 
       <FilterQuickSearchModal
@@ -249,6 +257,15 @@ export const AppModals: React.FC<AppModalsProps> = ({
         activeFilterId={scene.filter.id || scene.filter.presetId}
         onSelectFilter={onSelectFilter}
         onOpenFilterPanel={onOpenFilterPanel}
+      />
+
+      <EnvelopeQuickSearchModal
+        isOpen={isEnvelopeQuickSearchOpen}
+        onClose={onCloseEnvelopeQuickSearch}
+        envelopes={envelopes.allEnvelopes}
+        activeEnvelopeId={envelopes.activeEnvelope.id}
+        onSelectEnvelope={envelopes.handleSelectEnvelope}
+        onOpenEnvelopeStudio={envelopes.openEnvelopes}
       />
 
       <RadialMenuOverlay
@@ -297,6 +314,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onRemoveCondition={removeFilterCondition}
         onMoveCondition={moveFilterCondition}
         onFocusCondition={focusCondition}
+        onEnterFilterEditMode={onEnterFilterEditMode}
       />
 
       <MidiPermissionModal

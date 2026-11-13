@@ -30,6 +30,7 @@ export interface KeyboardActions {
   onToggleFilterQuickSearch?: () => void;
   onToggleEnvelope?: () => void;
   onToggleEnvelopesOpen?: () => void;
+  onToggleEnvelopeQuickSearch?: () => void;
   onToggleBundlesOpen?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
@@ -143,7 +144,11 @@ export function useKeyboardShortcuts({
       } else if (e.code === 'KeyV' || e.key === 'v' || e.key === 'V') {
         e.preventDefault();
         if (e.shiftKey) {
-          actionsRef.current.onToggleEnvelopesOpen?.();
+          if (actionsRef.current.onToggleEnvelopeQuickSearch) {
+            actionsRef.current.onToggleEnvelopeQuickSearch();
+          } else {
+            actionsRef.current.onToggleEnvelopesOpen?.();
+          }
         } else {
           actionsRef.current.onToggleEnvelope?.();
         }

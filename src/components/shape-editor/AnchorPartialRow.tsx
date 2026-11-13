@@ -126,35 +126,6 @@ export const AnchorPartialRow: React.FC<AnchorPartialRowProps> = ({
           />
         </div>
       </div>
-
-      {/* Action Buttons for Desktop */}
-      <div className="hidden sm:flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          onClick={() => onTogglePartialMute(anchorIdx, partialIdx)}
-          className={`p-1.5 rounded border transition cursor-pointer ${
-            isMuted
-              ? 'border-slate-800 bg-slate-950 text-slate-600'
-              : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
-          }`}
-          title={isMuted ? 'Unmute Partial' : 'Mute Partial'}
-        >
-          {isMuted ? (
-            <VolumeX className="w-3.5 h-3.5" />
-          ) : (
-            <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onRemovePartial(anchorIdx, partialIdx)}
-          disabled={totalPartialsInAnchor <= 1}
-          className="p-1.5 rounded text-slate-500 hover:text-red-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Remove Partial"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 };

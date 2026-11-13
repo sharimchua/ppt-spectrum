@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Activity, Play, X, Copy, Plus, Trash2, Edit3, Check } from 'lucide-react';
+import { Activity, Play, Copy, Plus, Trash2, Edit3, Check } from 'lucide-react';
 import { Envelope, MAX_ENVELOPE_SUPERCYCLE } from '../../core/types';
 import { AdsrCurve } from '../shape-editor/AdsrCurve';
+import { FloatingStudioWindow } from '../FloatingStudioWindow';
 
 export interface EnvelopesSheetProps {
   isOpen: boolean;
@@ -71,48 +72,34 @@ export const EnvelopesSheet: React.FC<EnvelopesSheetProps> = ({
     setIsRenaming(false);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[1px]" onClick={onClose}>
-      <div
-        className="w-full sm:w-[420px] h-full bg-[#090d16] border-l border-slate-800 shadow-2xl flex flex-col overflow-hidden text-slate-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80">
-          <div className="flex items-center gap-2 min-w-0">
-            <Activity className="w-4 h-4 text-amber-400 shrink-0" />
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-white truncate">Envelope Studio</h2>
-              <p className="text-[10px] text-slate-400 font-mono truncate">
-                Pitch ADSR &amp; Rhythm Supercycle Contours
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={onToggleEnabled}
-              className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
-                envelope.enabled
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-            >
-              {envelope.enabled ? 'ON' : 'BYPASSED'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              aria-label="Close Envelope Studio"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+  const defaultX = typeof window !== 'undefined' ? Math.max(24, window.innerWidth - 460) : 760;
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+  return (
+    <FloatingStudioWindow
+      isOpen={isOpen}
+      onClose={onClose}
+      icon={<Activity className="w-4 h-4 text-amber-400 shrink-0" />}
+      title="Envelope Studio"
+      subtitle="Pitch ADSR & Rhythm Supercycle Contours"
+      defaultPosition={{ x: defaultX, y: 70 }}
+      desktopWidthClass="w-[420px] lg:w-[440px]"
+      ariaLabel="Envelope Studio"
+      headerActions={
+        <button
+          type="button"
+          onClick={onToggleEnabled}
+          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+            envelope.enabled
+              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+              : 'bg-slate-800 border-slate-700 text-slate-400'
+          }`}
+          title="Toggle Envelope Bypass (V)"
+        >
+          {envelope.enabled ? 'ON' : 'BYPASSED'}
+        </button>
+      }
+    >
+      <div className="space-y-4 text-slate-200">
           {/* Category Filter Chips + Selector */}
           <div className="space-y-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -371,8 +358,7 @@ export const EnvelopesSheet: React.FC<EnvelopesSheetProps> = ({
               </>
             );
           })()}
-        </div>
       </div>
-    </div>
+    </FloatingStudioWindow>
   );
 };

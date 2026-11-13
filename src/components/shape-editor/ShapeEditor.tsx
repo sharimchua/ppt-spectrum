@@ -42,9 +42,6 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
     handleToggleAnchorPartialMute,
     handleAddAnchorPartial,
     handleRemoveAnchorPartial,
-    handleSetAnchorOvertonePreset,
-    handleApplyInharmonicity,
-    handleApplyDamping,
     handleDuplicateCurrentShape,
     handleCreateNewShape,
   } = useShapeEditing({
@@ -70,13 +67,10 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
 
       <PartialsTab
         anchors={anchors}
-        onApplyInharmonicity={handleApplyInharmonicity}
-        onApplyDamping={handleApplyDamping}
         onAddAnchor={handleAddAnchor}
         onUpdateAnchor={handleUpdateAnchor}
         onToggleAnchorMute={handleToggleAnchorMute}
         onRemoveAnchor={handleRemoveAnchor}
-        onSetAnchorOvertonePreset={handleSetAnchorOvertonePreset}
         onUpdatePartial={handleUpdateAnchorPartial}
         onTogglePartialMute={handleToggleAnchorPartialMute}
         onAddPartial={handleAddAnchorPartial}

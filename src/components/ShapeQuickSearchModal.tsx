@@ -9,6 +9,7 @@ interface ShapeQuickSearchModalProps {
   shapes: Shape[];
   activeShapeId?: string;
   onSelectShape: (shapeId: string) => void;
+  onOpenShapeEditor?: () => void;
 }
 
 export const ShapeQuickSearchModal: React.FC<ShapeQuickSearchModalProps> = ({
@@ -17,6 +18,7 @@ export const ShapeQuickSearchModal: React.FC<ShapeQuickSearchModalProps> = ({
   shapes,
   activeShapeId,
   onSelectShape,
+  onOpenShapeEditor,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -82,6 +84,9 @@ export const ShapeQuickSearchModal: React.FC<ShapeQuickSearchModalProps> = ({
       const target = filteredShapes[selectedIndex];
       if (target) {
         onSelectShape(target.id);
+        if (e.shiftKey) {
+          onOpenShapeEditor?.();
+        }
         onClose();
       }
     }
@@ -209,6 +214,9 @@ export const ShapeQuickSearchModal: React.FC<ShapeQuickSearchModalProps> = ({
             <span className="flex items-center gap-1">
               <CornerDownLeft className="w-3 h-3 text-red-400" />
               <span>Select</span>
+            </span>
+            <span className="hidden sm:inline text-red-300">
+              Shift+Enter: Open Studio
             </span>
           </div>
           <span>Esc to dismiss • Shift + L</span>

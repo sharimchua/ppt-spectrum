@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Check, SlidersHorizontal, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Check, SlidersHorizontal, ChevronsDown, ChevronsUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SpanView, Filter } from '../core/types';
 import { FilterControlParam } from './hooks/useFilters';
 
@@ -14,6 +14,7 @@ export interface FilterEditHudProps {
   spanView?: SpanView | null;
   controlParam: FilterControlParam;
   onSelectParam: (param: FilterControlParam) => void;
+  onFocusCondition?: (conditionId: string) => void;
   onCycleMode: () => void;
   onOpenFilters?: () => void;
   onDone: () => void;
@@ -24,6 +25,7 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
   spanView,
   controlParam,
   onSelectParam,
+  onFocusCondition,
   onCycleMode,
   onOpenFilters,
   onDone,
@@ -45,6 +47,18 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
   const widthVal = spanView?.widthD ?? filter?.widthD ?? 4.0;
   const skirtVal = spanView?.softnessD ?? filter?.softnessD ?? 1.0;
   const modeLabel = filter?.action === 'remove' ? 'REJECT' : (filter?.mode ?? 'band-pass');
+
+  const conditions = filter?.conditions ?? [];
+  const focusedIdx = Math.max(
+    0,
+    conditions.findIndex((c) => c.id === filter?.focus?.conditionId)
+  );
+  const focusedCond = conditions[focusedIdx];
+  const stepCondition = (delta: -1 | 1) => {
+    if (conditions.length === 0 || !onFocusCondition) return;
+    const nextIdx = (focusedIdx + delta + conditions.length) % conditions.length;
+    onFocusCondition(conditions[nextIdx].id);
+  };
 
   return (
     <div
@@ -69,6 +83,43 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
       </div>
 
       <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
+
+      {/* Condition Step Selector */}
+      {conditions.length > 0 && onFocusCondition && (
+        <>
+          <div className="flex items-center gap-1 shrink-0 bg-slate-900/90 border border-slate-700/80 rounded-lg px-1 py-0.5">
+            <button
+              type="button"
+              onClick={() => stepCondition(-1)}
+              disabled={conditions.length <= 1}
+              className="p-0.5 rounded text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+              title="Previous Filter Condition"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[10px] text-sky-200 px-1 truncate max-w-[110px]">
+              {focusedIdx + 1}/{conditions.length}{' '}
+              <span className={focusedCond?.kind === 'range' ? 'text-sky-400' : 'text-amber-300'}>
+                {focusedCond?.kind === 'range'
+                  ? `Spectral (${focusedCond.reference})`
+                  : focusedCond
+                  ? `Cycle (${focusedCond.divisions})`
+                  : 'None'}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => stepCondition(1)}
+              disabled={conditions.length <= 1}
+              className="p-0.5 rounded text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+              title="Next Filter Condition"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
+        </>
+      )}
 
       {/* Parameter Selector Pills */}
       <div className="flex items-center gap-1 shrink-0">

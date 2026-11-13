@@ -22,7 +22,6 @@ export interface VoiceAnchorCardProps {
   onUpdateAnchor: (anchorIdx: number, patch: Partial<VoiceAnchor>) => void;
   onToggleAnchorMute: (anchorIdx: number) => void;
   onRemoveAnchor: (anchorIdx: number) => void;
-  onSetAnchorOvertonePreset: (anchorIdx: number, mode: 'pure' | 'to-p5' | 'saw4') => void;
   onUpdatePartial: (anchorIdx: number, partialIdx: number, patch: Partial<PartialComponent>) => void;
   onTogglePartialMute: (anchorIdx: number, partialIdx: number) => void;
   onAddPartial: (anchorIdx: number) => void;
@@ -38,7 +37,6 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
   onUpdateAnchor,
   onToggleAnchorMute,
   onRemoveAnchor,
-  onSetAnchorOvertonePreset,
   onUpdatePartial,
   onTogglePartialMute,
   onAddPartial,
@@ -124,46 +122,16 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
       {/* Expanded Body */}
       {isExpanded && (
         <div className="p-2.5 space-y-2.5 animate-in fade-in duration-100">
-          {/* Anchor Name Input & Overtone Macros */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="text-[10px] text-slate-400 font-mono shrink-0">Name:</span>
-              <input
-                type="text"
-                value={anchor.name}
-                onChange={(e) => onUpdateAnchor(anchorIdx, { name: e.target.value })}
-                className="bg-slate-950/80 border border-slate-800 focus:border-cyan-500 rounded px-2 py-1 text-xs font-semibold text-white focus:outline-none min-w-0 flex-1"
-                placeholder="Anchor name"
-              />
-            </div>
-
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[9px] text-slate-400 font-mono hidden sm:inline">Presets:</span>
-              <button
-                type="button"
-                onClick={() => onSetAnchorOvertonePreset(anchorIdx, 'pure')}
-                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 cursor-pointer transition active:scale-95"
-                title="Reset to 1x fundamental partial"
-              >
-                1x Pure
-              </button>
-              <button
-                type="button"
-                onClick={() => onSetAnchorOvertonePreset(anchorIdx, 'to-p5')}
-                className="px-2 py-1 rounded bg-purple-950/70 hover:bg-purple-900/80 border border-purple-500/40 text-[10px] font-mono text-purple-200 cursor-pointer transition active:scale-95"
-                title="Populate 1x Fundamental, 2x Octave, and 3x Perfect 5th"
-              >
-                1–3x P5
-              </button>
-              <button
-                type="button"
-                onClick={() => onSetAnchorOvertonePreset(anchorIdx, 'saw4')}
-                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-cyan-300 cursor-pointer transition active:scale-95"
-                title="Populate 1x–4x harmonic series"
-              >
-                1–4x Saw
-              </button>
-            </div>
+          {/* Anchor Name Input */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] text-slate-400 font-mono shrink-0">Name:</span>
+            <input
+              type="text"
+              value={anchor.name}
+              onChange={(e) => onUpdateAnchor(anchorIdx, { name: e.target.value })}
+              className="bg-slate-950/80 border border-slate-800 focus:border-cyan-500 rounded px-2 py-1 text-xs font-semibold text-white focus:outline-none min-w-0 flex-1"
+              placeholder="Anchor name"
+            />
           </div>
 
           {/* Anchor Interval Ratio Scrubber (vs Root) */}
@@ -178,7 +146,7 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
           </div>
 
           {/* Anchor Parameters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70 text-[10px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70 text-[10px]">
 
             {/* 2. DuMetric Solfège Phase Offset */}
             <div className="space-y-1">
@@ -228,30 +196,6 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* 4. Anchor Gain */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                <span>Gain</span>
-                <span className="text-white font-semibold">{Math.round(anchor.gain * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.02}
-                value={anchor.gain}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  onUpdateAnchor(anchorIdx, {
-                    gain: val,
-                    mute: val <= 0.0001,
-                    previousGain: val > 0 ? val : anchor.previousGain,
-                  });
-                }}
-                className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block mt-2"
-              />
             </div>
           </div>
 
