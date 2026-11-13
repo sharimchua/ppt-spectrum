@@ -140,8 +140,8 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
         </div>
 
         {/* Focused Partial Editor with Quick Partial Chips */}
-          <div className="pl-2 sm:pl-3 border-l-2 border-slate-800 space-y-2">
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+          <div className="pl-2 sm:pl-3 border-l-2 border-slate-800 space-y-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-1 pb-0.5">
               {anchor.partials.map((p, pIdx) => (
                 <button
                   key={p.id || pIdx}

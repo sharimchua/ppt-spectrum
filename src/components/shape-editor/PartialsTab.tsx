@@ -55,7 +55,7 @@ export const PartialsTab: React.FC<PartialsTabProps> = ({
       />
 
       {/* Scalable Anchor Selector Tabs + Add Anchor Button */}
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5 min-w-0">
+      <div className="flex flex-wrap items-center gap-1 pb-0.5 min-w-0">
         {anchors.map((a, idx) => (
           <button
             key={a.id || idx}
