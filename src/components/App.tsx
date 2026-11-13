@@ -52,13 +52,7 @@ export const App: React.FC = () => {
 
   // Core scene engine (RenderCoordinator, AudioEngine, debounced save)
   const {
-    scene,
-    sceneRef,
-    updateScene,
-    setPrimaryDSmooth,
-    updateSceneFast,
-    coordinator,
-    audioEngine,
+    scene, sceneRef, updateScene, setPrimaryDSmooth, updateSceneFast, flushSceneToReact, coordinator, audioEngine,
   } = useSceneEngine(isOscillatingInit);
 
   // Ref tracking active sweep oscillation to allow synchronous pause and scrub cancellation
@@ -356,6 +350,7 @@ export const App: React.FC = () => {
             onUpdatePlacementD={handleUpdatePlacementD}
             onUpdateFilterCentreD={handleUpdateFilterCentreD}
             onUpdateFilterParams={handleUpdateFilterParams}
+            onFlushScene={flushSceneToReact}
             onUpdateCell={handleUpdateCell}
             isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}

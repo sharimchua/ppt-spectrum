@@ -19,6 +19,8 @@ import {
   renameActiveFilter,
   getFocusedSpanView,
   patchFocusedSpan,
+  getActiveSpectralSpanView,
+  patchActiveSpectralSpan,
 } from '../scene-ops';
 import { Scene, Shape, Filter } from '../types';
 import { DEFAULT_SCENE } from '../config';
@@ -351,6 +353,29 @@ describe('scene-ops', () => {
       expect(getFocusedSpanView(cycFocused)).toBeNull();
       const patchedCyc = patchFocusedSpan(cycFocused, { centreD: 1.0 });
       expect(patchedCyc.conditions.find((c) => c.id === 'cond-cyc')?.kind).toBe('cycle');
+
+      // Active spectral helpers fall back to the last-focused or first range condition without spawning a new one
+      const activeView = getActiveSpectralSpanView(cycFocused, 'cond-hp');
+      expect(activeView?.mode).toBe('high-pass');
+      expect(activeView?.centreD).toBeCloseTo(-1.0, 5);
+
+      const patchedActive = patchActiveSpectralSpan(cycFocused, { centreD: -0.25 }, 'cond-hp');
+      expect(patchedActive.conditions).toHaveLength(cycFocused.conditions.length);
+      expect(patchedActive.focus).toEqual({ conditionId: 'cond-cyc', spanIndex: 0 });
+      const patchedHp2 = patchedActive.conditions.find((c) => c.id === 'cond-hp');
+      if (patchedHp2?.kind === 'range') {
+        expect(patchedHp2.spans[0].lo).toEqual({ unit: 'd', value: -0.25 });
+      }
+
+      // Does not spawn a new band-pass condition when no range condition exists
+      const cycleOnlyFilter: Filter = {
+        ...multiCondFilter,
+        conditions: [multiCondFilter.conditions[3]],
+        focus: null,
+      };
+      expect(getActiveSpectralSpanView(cycleOnlyFilter)).toBeNull();
+      const unchangedCycleOnly = patchActiveSpectralSpan(cycleOnlyFilter, { centreD: 1.0 });
+      expect(unchangedCycleOnly.conditions).toHaveLength(1);
     });
   });
 });

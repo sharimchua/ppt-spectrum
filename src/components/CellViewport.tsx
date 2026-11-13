@@ -11,7 +11,7 @@ import {
 import { Scene, SpanView } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
 import { SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
-import { getFocusedSpanView } from '../core/scene-ops';
+import { getActiveSpectralSpanView } from '../core/scene-ops';
 import { useCanvasFilterGestures } from './hooks/useCanvasFilterGestures';
 import { RenderCoordinator, RegisteredLensRenderer } from '../renderers/render-coordinator';
 import { getCanvasDprCaps } from '../renderers/performance-profile';
@@ -46,6 +46,7 @@ interface CellViewportProps {
   onUpdatePlacementD?: (d: number) => void;
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<SpanView>) => void;
+  onFlushScene?: () => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   isPlaying?: boolean;
   onTogglePlay?: () => void;
@@ -72,6 +73,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onUpdatePlacementD,
   onUpdateFilterCentreD,
   onUpdateFilterParams,
+  onFlushScene,
   onUpdateCell,
   isPlaying = false,
   onTogglePlay,
@@ -232,7 +234,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || isEditMode) return;
     setIsDragging(true);
-    const view = getFocusedSpanView(scene.filter);
+    const view = getActiveSpectralSpanView(scene.filter);
     const filterD = view?.centreD ?? 0;
     const filterWidth = view?.widthD ?? 4.0;
     const filterSoftness = view?.softnessD ?? 1.0;
@@ -281,7 +283,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setFilterGestureMode('none');
-  }, [setFilterGestureMode]);
+    onFlushScene?.();
+  }, [setFilterGestureMode, onFlushScene]);
 
   useEffect(() => {
     if (isDragging) {
@@ -440,6 +443,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     }
     setIsTouchScrubbing(false);
     lastAngleRef.current = null;
+    onFlushScene?.();
   };
 
   const lensOptions: { id: SpectrumLensType; label: string }[] = [
@@ -752,23 +756,27 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         )}
 
       {/* Floating HUD Pill for Filter Adjustment Gestures */}
-      {isDragging && filterGestureMode !== 'none' && scene.filter && (
-        <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-in fade-in zoom-in-95 duration-100 select-none">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-sky-500/50 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md">
-            <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider">
-              {filterGestureMode === 'skirt' && 'Filter Skirt'}
-              {filterGestureMode === 'width' && 'Aperture Width'}
-              {filterGestureMode === 'centre' && 'Filter Centre'}
-            </span>
-            <div className="h-3 w-px bg-slate-700" />
-            <span className="text-[11px] font-mono font-bold text-white">
-              {filterGestureMode === 'skirt' && `${(scene.filter.softnessD ?? 1.0).toFixed(2)} oct`}
-              {filterGestureMode === 'width' && `${(scene.filter.widthD ?? 4.0).toFixed(2)} oct`}
-              {filterGestureMode === 'centre' && `d = ${(scene.filter.centreD ?? 0).toFixed(2)}`}
-            </span>
+      {isDragging && filterGestureMode !== 'none' && scene.filter && (() => {
+        const hudView = getActiveSpectralSpanView(scene.filter);
+        if (!hudView) return null;
+        return (
+          <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-in fade-in zoom-in-95 duration-100 select-none">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-sky-500/50 shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md">
+              <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider">
+                {filterGestureMode === 'skirt' && 'Filter Skirt'}
+                {filterGestureMode === 'width' && 'Aperture Width'}
+                {filterGestureMode === 'centre' && 'Filter Centre'}
+              </span>
+              <div className="h-3 w-px bg-slate-700" />
+              <span className="text-[11px] font-mono font-bold text-white">
+                {filterGestureMode === 'skirt' && `${hudView.softnessD.toFixed(2)} oct`}
+                {filterGestureMode === 'width' && `${hudView.widthD.toFixed(2)} oct`}
+                {filterGestureMode === 'centre' && `d = ${hudView.centreD.toFixed(2)}`}
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

@@ -4,7 +4,7 @@
  * Follows Australian English spelling conventions.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Scene, SpanView, Filter, FilterCondition } from '../../core/types';
 import { PRESET_FILTERS } from '../../core/filter-presets';
 import {
@@ -15,7 +15,7 @@ import {
   removeCondition,
   moveCondition,
   applyStarterPreset,
-  patchFocusedSpan,
+  patchActiveSpectralSpan,
   cycleSpectralPreset,
   setPrimaryFilter,
   forkFilter,
@@ -69,6 +69,14 @@ export function useFilters({ scene, updateScene, updateSceneFast }: UseFiltersOp
   const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
   const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
   const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
+  const lastFocusedRangeIdRef = useRef<string | null>(null);
+
+  if (scene.filter.focus) {
+    const focusedCond = scene.filter.conditions.find((c) => c.id === scene.filter.focus?.conditionId);
+    if (focusedCond?.kind === 'range') {
+      lastFocusedRangeIdRef.current = focusedCond.id;
+    }
+  }
 
   const openFilters = useCallback(() => setIsFiltersOpen(true), []);
   const closeFilters = useCallback(() => setIsFiltersOpen(false), []);
@@ -79,7 +87,12 @@ export function useFilters({ scene, updateScene, updateSceneFast }: UseFiltersOp
   const handleUpdateFilterCentreD = useCallback(
     (centreD: number) => {
       fastUpdate((prev) => {
-        const patchedFilter = patchFocusedSpan(prev.filter, { centreD });
+        if (!prev.filter.conditions.some((c) => c.kind === 'range')) return prev;
+        const patchedFilter = patchActiveSpectralSpan(
+          prev.filter,
+          { centreD },
+          lastFocusedRangeIdRef.current
+        );
         return { ...prev, filter: { ...patchedFilter, enabled: true } };
       });
     },
@@ -89,7 +102,12 @@ export function useFilters({ scene, updateScene, updateSceneFast }: UseFiltersOp
   const handleUpdateFilterParams = useCallback(
     (params: Partial<SpanView>) => {
       fastUpdate((prev) => {
-        const patchedFilter = patchFocusedSpan(prev.filter, params);
+        if (!prev.filter.conditions.some((c) => c.kind === 'range')) return prev;
+        const patchedFilter = patchActiveSpectralSpan(
+          prev.filter,
+          params,
+          lastFocusedRangeIdRef.current
+        );
         return { ...prev, filter: { ...patchedFilter, enabled: true } };
       });
     },

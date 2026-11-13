@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { Scene, SpanView } from '../../core/types';
-import { getFocusedSpanView } from '../../core/scene-ops';
+import { getActiveSpectralSpanView } from '../../core/scene-ops';
 
 export type FilterGestureMode = 'none' | 'width' | 'skirt' | 'centre';
 
@@ -139,7 +139,7 @@ export function useCanvasFilterGestures({
     (e: React.WheelEvent<HTMLCanvasElement>): boolean => {
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
-      const view = getFocusedSpanView(scene.filter);
+      const view = getActiveSpectralSpanView(scene.filter);
       if (!view) {
         return isFilterEditMode;
       }
@@ -200,7 +200,7 @@ export function useCanvasFilterGestures({
     ): boolean => {
       if (!isFilterEditMode || !onUpdateFilterParams) return false;
 
-      const view = getFocusedSpanView(scene.filter) || {
+      const view = getActiveSpectralSpanView(scene.filter) || {
         centreD: 0,
         widthD: 4,
         softnessD: 1,

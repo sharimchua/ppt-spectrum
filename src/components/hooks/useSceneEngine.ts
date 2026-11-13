@@ -17,6 +17,7 @@ export interface UseSceneEngineResult {
   updateScene: (updater: Scene | ((prev: Scene) => Scene)) => void;
   setPrimaryDSmooth: (d: number, syncReact?: boolean) => void;
   updateSceneFast: (updater: (prev: Scene) => Scene, syncReact?: boolean) => void;
+  flushSceneToReact: () => void;
   coordinator: RenderCoordinator;
   audioEngine: AudioEngine;
 }
@@ -110,6 +111,17 @@ export function useSceneEngine(isOscillating: boolean): UseSceneEngineResult {
     [audioEngine, coordinator]
   );
 
+  const flushSceneToReact = useCallback(() => {
+    if (pendingAudioRafRef.current !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(pendingAudioRafRef.current);
+      pendingAudioRafRef.current = null;
+      audioEngine.updateScene(sceneRef.current);
+    }
+    lastSyncedSceneRef.current = sceneRef.current;
+    lastReactSyncTimeRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    setScene(sceneRef.current);
+  }, [audioEngine]);
+
   // Connect AudioEngine sample-accurate telemetry to RenderCoordinator
   useEffect(() => {
     coordinator.setAudioPhaseProvider((shapeId) => audioEngine.getMasterPhase(shapeId));
@@ -144,6 +156,7 @@ export function useSceneEngine(isOscillating: boolean): UseSceneEngineResult {
     updateScene,
     setPrimaryDSmooth,
     updateSceneFast,
+    flushSceneToReact,
     coordinator,
     audioEngine,
   };

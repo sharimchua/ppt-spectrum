@@ -16,6 +16,7 @@ interface FlexLayoutRendererProps {
   onUpdatePlacementD?: (d: number) => void;
   onUpdateFilterCentreD?: (centreD: number) => void;
   onUpdateFilterParams?: (params: Partial<Pick<BandFilter, 'centreD' | 'widthD' | 'softnessD'>>) => void;
+  onFlushScene?: () => void;
   onUpdateCell?: (updated: LayoutCellNode) => void;
   isPlaying?: boolean;
   onTogglePlay?: () => void;
@@ -43,6 +44,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   onUpdatePlacementD,
   onUpdateFilterCentreD,
   onUpdateFilterParams,
+  onFlushScene,
   onUpdateCell,
   isPlaying,
   onTogglePlay,
@@ -75,6 +77,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onUpdatePlacementD={onUpdatePlacementD}
           onUpdateFilterCentreD={onUpdateFilterCentreD}
           onUpdateFilterParams={onUpdateFilterParams}
+          onFlushScene={onFlushScene}
           onUpdateCell={onUpdateCell}
           isPlaying={isPlaying}
           onTogglePlay={onTogglePlay}
@@ -126,6 +129,7 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
             onUpdatePlacementD={onUpdatePlacementD}
             onUpdateFilterCentreD={onUpdateFilterCentreD}
             onUpdateFilterParams={onUpdateFilterParams}
+            onFlushScene={onFlushScene}
             onUpdateCell={onUpdateCell}
             isPlaying={isPlaying}
             onTogglePlay={onTogglePlay}

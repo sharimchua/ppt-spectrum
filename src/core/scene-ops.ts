@@ -303,6 +303,75 @@ export function getFocusedSpanView(filter: Filter): SpanView | null {
 }
 
 /**
+ * Resolves a SpanView for canvas gesture scrubbing, falling back to the specified
+ * fallbackConditionId or the first range condition if `filter.focus` is unset or non-range.
+ * Returns null if the filter has no range conditions at all.
+ */
+export function getActiveSpectralSpanView(
+  filter: Filter,
+  fallbackConditionId?: string | null
+): SpanView | null {
+  if (!filter.conditions.some((c) => c.kind === 'range')) return null;
+
+  const direct = getFocusedSpanView(filter);
+  if (direct) return direct;
+
+  const rangeCond =
+    (fallbackConditionId
+      ? filter.conditions.find(
+          (c): c is RangeCondition => c.id === fallbackConditionId && c.kind === 'range'
+        )
+      : undefined) ||
+    filter.conditions.find((c): c is RangeCondition => c.kind === 'range');
+
+  if (!rangeCond) return null;
+  return getFocusedSpanView({
+    ...filter,
+    focus: { conditionId: rangeCond.id, spanIndex: 0 },
+  });
+}
+
+/**
+ * Patches the focused (or fallback/first) range condition without spawning a new band-pass
+ * condition when the filter contains no spectral range conditions.
+ */
+export function patchActiveSpectralSpan(
+  filter: Filter,
+  params: Partial<SpanView>,
+  fallbackConditionId?: string | null
+): Filter {
+  const hasRange = filter.conditions.some((c) => c.kind === 'range');
+  if (!hasRange) return filter;
+
+  const focusedIsRange =
+    filter.focus &&
+    filter.conditions.some((c) => c.id === filter.focus?.conditionId && c.kind === 'range');
+
+  if (focusedIsRange) {
+    return patchFocusedSpan(filter, params);
+  }
+
+  const targetRange =
+    (fallbackConditionId
+      ? filter.conditions.find(
+          (c): c is RangeCondition => c.id === fallbackConditionId && c.kind === 'range'
+        )
+      : undefined) ||
+    filter.conditions.find((c): c is RangeCondition => c.kind === 'range');
+
+  if (!targetRange) return filter;
+
+  const patched = patchFocusedSpan(
+    { ...filter, focus: { conditionId: targetRange.id, spanIndex: 0 } },
+    params
+  );
+  return {
+    ...patched,
+    focus: filter.focus,
+  };
+}
+
+/**
  * Patches the focused range span using canvas gesture parameters (centreD, widthD, softnessD).
  */
 export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Filter {
