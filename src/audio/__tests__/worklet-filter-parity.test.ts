@@ -271,4 +271,57 @@ describe('worklet-filter-parity', () => {
       expect(gWorklet).toBe(1.0);
     }
   });
+
+  it('matches evaluateOnsetGain when combining Range + Cycle with remove and all/any', () => {
+    const makeFilter = (combine: 'all' | 'any', action: 'keep' | 'remove'): Filter => ({
+      name: `Combo ${combine} ${action}`,
+      enabled: true,
+      action,
+      combine,
+      depth: 1.0,
+      conditions: [
+        {
+          kind: 'range',
+          id: 'r1',
+          reference: 'scene',
+          reductionPeriod: null,
+          spans: [{ lo: { unit: 'd', value: 0.5 }, hi: { unit: 'd', value: -0.5 } }],
+          softness: { value: 0.01, unit: 'd' },
+          supercycle: { length: 2, cycleWeights: [1.0, 0.0] },
+        },
+        createGridCycleCondition(2, 0.0, 'c1'),
+      ],
+      focus: null,
+      centreD: 0,
+      widthD: 1,
+      softnessD: 0.01,
+      mode: 'band-pass',
+      trackingMode: 'fixed',
+    });
+
+    for (const combine of ['all', 'any'] as const) {
+      for (const action of ['keep', 'remove'] as const) {
+        const filter = makeFilter(combine, action);
+        const compiled = compileFilterForWorklet(filter);
+        expect(compiled.hasRangeSuper).toBe(true);
+        const proc = instantiateWorklet();
+        proc.filter = compiled;
+
+        for (const bar of [0, 1]) {
+          for (const slotTurn of [0.0, 0.5]) {
+            const sceneTurns = bar + slotTurn;
+            // In-range partial (partialD = 0, sceneD = 0 => rangeMatch = 1.0)
+            const coreIn = evaluateOnsetGain(filter, { partialD: 0, sceneD: 0 }, sceneTurns);
+            const workletIn = proc.evalOnsetGain([1.0], sceneTurns);
+            expect(workletIn).toBeCloseTo(coreIn, 4);
+
+            // Out-of-range partial (partialD = 4, sceneD = 0 => rangeMatch = 0.0)
+            const coreOut = evaluateOnsetGain(filter, { partialD: 4, sceneD: 0 }, sceneTurns);
+            const workletOut = proc.evalOnsetGain([0.0], sceneTurns);
+            expect(workletOut).toBeCloseTo(coreOut, 4);
+          }
+        }
+      }
+    }
+  });
 });

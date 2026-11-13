@@ -64,7 +64,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     let filterSuperLength = 1;
     if (scene.filter && scene.filter.enabled) {
       for (const cond of scene.filter.conditions) {
-        if (cond.kind === 'cycle' && cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
+        if (cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
           filterSuperLength = Math.max(filterSuperLength, cond.supercycle.length);
         }
       }

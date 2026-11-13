@@ -89,9 +89,9 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
 
     const payload = buildAudioPayloadShapes(scene);
     expect(payload).toHaveLength(1);
-    // Partials should be completely attenuated (gain = 0)
-    expect(payload[0].partials[0].amp).toBe(0);
-    expect(payload[0].partials[1].amp).toBe(0);
+    // Modern filter defers attenuation to the worklet via rangeMatches so combine/action/supercycle stay consistent
+    expect(payload[0].partials[0].rangeMatches).toEqual([0]);
+    expect(payload[0].partials[1].rangeMatches).toEqual([0]);
   });
 
   it('passes partials centered inside the filter passband', () => {

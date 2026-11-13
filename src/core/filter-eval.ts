@@ -365,6 +365,11 @@ export interface CompiledWorkletFilter {
   combine: number; // 0 = all, 1 = any
   depth: number;
   hasCycle: boolean;
+  hasRangeSuper: boolean;
+  ranges: Array<{
+    superLength: number;
+    superWeights: number[];
+  }>;
   cycles: Array<{
     divisions: number;
     slotWeights: number[];
@@ -374,8 +379,6 @@ export interface CompiledWorkletFilter {
     superLength: number;
     superWeights: number[];
   }>;
-  rangeSuperLength?: number;
-  rangeSuperWeights?: number[];
 }
 
 /**
@@ -389,6 +392,8 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
       combine: 0,
       depth: 1.0,
       hasCycle: false,
+      hasRangeSuper: false,
+      ranges: [],
       cycles: [],
     };
   }
@@ -401,15 +406,20 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
       combine: 0,
       depth: 1.0,
       hasCycle: false,
+      hasRangeSuper: false,
+      ranges: [],
       cycles: [],
     };
   }
 
+  const rangeConds = activeConds.filter(
+    (c): c is RangeCondition => c.kind === 'range'
+  );
   const cycleConds = activeConds.filter(
     (c): c is CycleCondition => c.kind === 'cycle'
   );
-  const rangeWithSuper = activeConds.find(
-    (c): c is RangeCondition => c.kind === 'range' && !!c.supercycle && c.supercycle.length > 0
+  const hasRangeSuper = rangeConds.some(
+    (c) => !!c.supercycle && c.supercycle.length > 0
   );
 
   return {
@@ -418,8 +428,11 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
     combine: filter.combine === 'any' ? 1 : 0,
     depth: Math.max(0.0, Math.min(1.0, filter.depth)),
     hasCycle: cycleConds.length > 0,
-    rangeSuperLength: rangeWithSuper?.supercycle ? rangeWithSuper.supercycle.length : 0,
-    rangeSuperWeights: rangeWithSuper?.supercycle ? [...rangeWithSuper.supercycle.cycleWeights] : [],
+    hasRangeSuper,
+    ranges: rangeConds.map((c) => ({
+      superLength: c.supercycle ? c.supercycle.length : 0,
+      superWeights: c.supercycle ? [...c.supercycle.cycleWeights] : [],
+    })),
     cycles: cycleConds.map((c) => ({
       divisions: c.divisions,
       slotWeights: [...c.slotWeights],

@@ -159,29 +159,37 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     };
   }
 
-  evalOnsetGain(staticMatch, sceneTurns) {
+  evalOnsetGain(rangeMatchesOrScalar, sceneTurns) {
     const f = this.filter;
     if (!f || !f.enabled) return 1.0;
 
-    let effectiveStatic = staticMatch;
-    if (staticMatch !== undefined && f.rangeSuperLength > 0 && f.rangeSuperWeights && f.rangeSuperWeights.length > 0) {
-      const L = f.rangeSuperLength;
-      const c = Math.floor(sceneTurns);
-      const superIdx = ((c % L) + L) % L;
-      const superWeight = f.rangeSuperWeights[superIdx] !== undefined ? f.rangeSuperWeights[superIdx] : 1.0;
-      effectiveStatic = staticMatch * superWeight;
-    }
-
-    if (!f.hasCycle) {
-      if (effectiveStatic !== undefined) {
-        return f.action === 1 ? 1.0 - effectiveStatic * f.depth : 1.0 - (1.0 - effectiveStatic) * f.depth;
-      }
-      return 1.0;
-    }
-
     const matches = [];
-    if (effectiveStatic !== undefined) {
-      matches.push(effectiveStatic);
+
+    if (Array.isArray(rangeMatchesOrScalar)) {
+      const rangeDefs = f.ranges || [];
+      for (let i = 0; i < rangeMatchesOrScalar.length; i++) {
+        let match = rangeMatchesOrScalar[i];
+        const rDef = rangeDefs[i];
+        if (rDef && rDef.superLength > 0 && rDef.superWeights && rDef.superWeights.length > 0) {
+          const L = rDef.superLength;
+          const c = Math.floor(sceneTurns);
+          const superIdx = ((c % L) + L) % L;
+          const superWeight = rDef.superWeights[superIdx] !== undefined ? rDef.superWeights[superIdx] : 1.0;
+          match *= superWeight;
+        }
+        matches.push(Math.max(0.0, Math.min(1.0, match)));
+      }
+    } else if (rangeMatchesOrScalar !== undefined) {
+      let match = rangeMatchesOrScalar;
+      const rDef = (f.ranges && f.ranges[0]) || null;
+      if (rDef && rDef.superLength > 0 && rDef.superWeights && rDef.superWeights.length > 0) {
+        const L = rDef.superLength;
+        const c = Math.floor(sceneTurns);
+        const superIdx = ((c % L) + L) % L;
+        const superWeight = rDef.superWeights[superIdx] !== undefined ? rDef.superWeights[superIdx] : 1.0;
+        match *= superWeight;
+      }
+      matches.push(Math.max(0.0, Math.min(1.0, match)));
     }
 
     if (f.cycles && f.cycles.length > 0) {
@@ -377,18 +385,18 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           let curGateSmooth = 1.0;
 
           if (fBuf && this.filter && this.filter.enabled) {
-            if (this.filter.hasCycle) {
+            if (this.filter.hasCycle || this.filter.hasRangeSuper) {
               const n = Math.floor((masterPhase - p.phaseOffset) * ratioVal);
               if (n !== fBuf.lastOnsetIdx[pIdx]) {
                 fBuf.lastOnsetIdx[pIdx] = n;
                 const onsetMaster = n / ratioVal + p.phaseOffset;
                 const sceneTurns = shape.isPrimary ? onsetMaster : onsetMaster * (shape.ratioToScene || 1.0);
-                fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.staticMatch, sceneTurns);
+                fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.rangeMatches, sceneTurns);
               }
               const a = 1.0 - Math.exp(-sampleDt / Math.max(0.0005, 0.25 / partialFreq));
               fBuf.gateSmooth[pIdx] += (fBuf.gateTarget[pIdx] - fBuf.gateSmooth[pIdx]) * a;
             } else {
-              fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.staticMatch, 0);
+              fBuf.gateTarget[pIdx] = this.evalOnsetGain(p.rangeMatches, 0);
               fBuf.gateSmooth[pIdx] = fBuf.gateTarget[pIdx];
             }
             curGateTarget = fBuf.gateTarget[pIdx];

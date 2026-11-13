@@ -8,7 +8,6 @@ import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
-import { CycleCondition } from '../core/filter-types';
 
 export class CycleWheelLensRenderer implements RegisteredLensRenderer {
   public id = 'cycle-wheel';
@@ -72,7 +71,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     let filterSuperLength = 1;
     if (scene.filter && scene.filter.enabled) {
       for (const cond of scene.filter.conditions) {
-        if (cond.kind === 'cycle' && cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
+        if (cond.enabled !== false && cond.supercycle && cond.supercycle.length > 1) {
           filterSuperLength = Math.max(filterSuperLength, cond.supercycle.length);
         }
       }
@@ -155,15 +154,15 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     ctx.fillText(headerTitle, centerX, Math.max(14, centerY - maxR - 12));
     ctx.restore();
 
-    // Filter Supercycle Indicator (when filter has a cycle condition with supercycle length > 1)
-    const cycleCondWithSuper = scene.filter.enabled
+    // Filter Supercycle Indicator (when any active condition has supercycle length > 1)
+    const condWithSuper = scene.filter.enabled
       ? scene.filter.conditions.find(
-          (c): c is CycleCondition => c.kind === 'cycle' && !!c.supercycle && c.supercycle.length > 1
+          (c) => c.enabled !== false && !!c.supercycle && c.supercycle.length > 1
         )
       : undefined;
 
-    if (cycleCondWithSuper?.supercycle) {
-      const L = cycleCondWithSuper.supercycle.length;
+    if (condWithSuper?.supercycle) {
+      const L = condWithSuper.supercycle.length;
       const curBar = ((Math.floor(unwrappedRootTurns) % L) + L) % L + 1;
       ctx.save();
       ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';

@@ -1,8 +1,8 @@
-import { Scene, VoiceId, ADSREnvelope, Filter } from '../core/types';
+import { Scene, VoiceId, ADSREnvelope, Filter, RangeCondition } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
 import { calculateFilterGain, getFilterablePartials } from '../core/shape';
-import { evaluateStaticMatch, applyFilterAction, compileFilterForWorklet } from '../core/filter-eval';
+import { rangeCoordinate, evaluateRangeMatch, compileFilterForWorklet } from '../core/filter-eval';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
 
 export interface WorkletPartialPayload {
@@ -10,7 +10,7 @@ export interface WorkletPartialPayload {
   amp: number;
   phaseOffset: number;
   voice?: VoiceId;
-  staticMatch?: number;
+  rangeMatches?: number[];
 }
 
 export interface WorkletShapePayload {
@@ -37,33 +37,28 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
     const hasModernFilter = Boolean(
       scene.filter && scene.filter.enabled && 'conditions' in scene.filter
     );
-    const hasActiveRangeConds = Boolean(
-      hasModernFilter &&
-        (scene.filter as Filter).conditions.some((c) => c.kind === 'range' && c.enabled !== false)
-    );
+    const activeRangeConds: RangeCondition[] = hasModernFilter
+      ? (scene.filter as Filter).conditions.filter(
+          (c): c is RangeCondition => c.kind === 'range' && c.enabled !== false
+        )
+      : [];
 
     const partials = filterablePartials.map((p) => {
       const ratioVal = ratioToValue(p.ratio);
       const partialD = placement.d - Math.log2(ratioVal);
 
-      // Range conditions statically attenuate frequency bands.
-      // Cycle conditions are evaluated dynamically per onset inside the AudioWorklet.
+      // Modern filters evaluate rangeMatches + cycle/supercycle gates together in the worklet
+      // so combine ('all'/'any'), action ('keep'/'remove'), and range supercycles match core evaluation.
       let staticGain = 1.0;
-      if (hasActiveRangeConds && scene.filter && 'conditions' in scene.filter) {
-        const staticMatch = evaluateStaticMatch(scene.filter as Filter, {
-          partialD,
-          sceneD,
-          ratio: p.ratio,
-          phase: p.phase,
-          anchorRatio: p.anchorRatio,
-          placementD: placement.d,
-          tplHz: scene.anchors.tplFrequencyHz,
+      let rangeMatches: number[] | undefined;
+
+      if (hasModernFilter && activeRangeConds.length > 0) {
+        const anchorRatioVal = p.anchorRatio ? ratioToValue(p.anchorRatio) : 1.0;
+        const anchorD = placement.d - Math.log2(anchorRatioVal);
+        rangeMatches = activeRangeConds.map((cond) => {
+          const x = rangeCoordinate(partialD, cond.reference, sceneD, anchorD);
+          return evaluateRangeMatch(x, cond, scene.anchors.tplFrequencyHz);
         });
-        staticGain = applyFilterAction(
-          staticMatch,
-          (scene.filter as Filter).action,
-          (scene.filter as Filter).depth
-        );
       } else if (!hasModernFilter && scene.filter) {
         staticGain = calculateFilterGain(partialD, scene.filter, sceneD);
       }
@@ -73,7 +68,7 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
         amp: p.amp * staticGain,
         phaseOffset: p.phase,
         voice: p.voice,
-        staticMatch: undefined,
+        rangeMatches,
       };
     });
 
