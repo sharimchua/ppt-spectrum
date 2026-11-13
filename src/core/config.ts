@@ -1,6 +1,7 @@
-import { Scene, CosmeticsConfig, Shape, Filter } from './types';
+import { Scene, CosmeticsConfig, Shape, Filter, Envelope } from './types';
 import { PRESET_SHAPES } from './presets';
 import { PRESET_FILTERS } from './filter-presets';
+import { PRESET_ENVELOPES } from './envelope-presets';
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
 import { DEFAULT_FILTER, sanitiseFilter } from './filter-migration';
 
@@ -53,6 +54,8 @@ export const DEFAULT_SCENE: Scene = {
   ],
   filter: PRESET_FILTERS[0] || DEFAULT_FILTER,
   filters: PRESET_FILTERS,
+  envelope: PRESET_ENVELOPES[0],
+  envelopes: PRESET_ENVELOPES,
   anchors: {
     tplFrequencyHz: TPL_FREQUENCY_HZ,
     tuningA4Hz: 440.0,
@@ -118,6 +121,11 @@ export function loadSavedScene(): Scene {
       : [];
     const mergedFilters = [...PRESET_FILTERS, ...userFilters];
 
+    const userEnvelopes = Array.isArray(parsed.envelopes)
+      ? parsed.envelopes.filter((e: Envelope) => e && e.origin !== 'preset')
+      : [];
+    const mergedEnvelopes = [...PRESET_ENVELOPES, ...userEnvelopes];
+
     const rawProfile = dedicatedProfile || parsed?.cosmetics?.performanceProfile;
     const finalProfile = (rawProfile === 'max' || rawProfile === 'balanced' || rawProfile === 'eco' || rawProfile === 'none')
       ? rawProfile
@@ -129,6 +137,8 @@ export function loadSavedScene(): Scene {
       shapes: mergedShapes,
       filters: mergedFilters,
       filter: sanitiseFilter(parsed.filter || PRESET_FILTERS[0]),
+      envelopes: mergedEnvelopes,
+      envelope: parsed.envelope || PRESET_ENVELOPES[0],
       audio: {
         ...DEFAULT_SCENE.audio,
         ...(parsed.audio || {}),

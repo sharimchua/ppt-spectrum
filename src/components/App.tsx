@@ -21,6 +21,7 @@ import { useFilters } from './hooks/useFilters';
 import { useKeyboardShortcuts, KeyboardActions } from './hooks/useKeyboardShortcuts';
 import { useFullscreen } from './hooks/useFullscreen';
 import { useMidi } from './hooks/useMidi';
+import { useEnvelopes } from './hooks/useEnvelopes';
 import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
@@ -86,17 +87,15 @@ export const App: React.FC = () => {
   } = useTransport({ coordinator, audioEngine, sceneRef });
 
   // Web MIDI keyboard input (polyphonic play + ruler ghosting)
-  const {
-    midiState,
-    isMidiModalOpen,
-    openMidiModal,
-    closeMidiModal,
-  } = useMidi({
+  const { midiState, isMidiModalOpen, openMidiModal, closeMidiModal } = useMidi({
     coordinator,
     audioEngine,
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
+
+  // Dedicated Envelopes Sheet state & library
+  const envelopes = useEnvelopes({ scene, updateScene });
 
   // Musical bookmarks and continuum sweep oscillation
   const {
@@ -310,6 +309,7 @@ export const App: React.FC = () => {
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
         onToggleFilter={toggleFilter}
         onOpenFilters={openFilters}
+        onOpenEnvelopes={envelopes.openEnvelopes}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenRadialMenu={handleOpenRadialMenu}
@@ -441,6 +441,7 @@ export const App: React.FC = () => {
         focusCondition={focusCondition}
         isMidiModalOpen={isMidiModalOpen}
         onCloseMidiModal={closeMidiModal}
+        envelopes={envelopes}
       />
     </div>
   );

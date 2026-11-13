@@ -23,6 +23,7 @@ import {
   Filter,
   Compass,
   Keyboard,
+  Activity,
 } from 'lucide-react';
 import { MidiDeviceState } from '../audio/midi-manager';
 
@@ -49,6 +50,7 @@ interface ControlToolbarProps {
   onToggleShapeEditor?: () => void;
   onToggleFilter?: () => void;
   onOpenFilters?: () => void;
+  onOpenEnvelopes?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
   onOpenRadialMenu?: () => void;
@@ -78,6 +80,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleShapeEditor,
   onToggleFilter,
   onOpenFilters,
+  onOpenEnvelopes,
   onOpenCapture,
   onOpenInfo,
   onOpenRadialMenu,
@@ -413,6 +416,22 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Share Layout & Deep Link"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          {/* Dedicated Envelopes Sheet Launcher */}
+          {onOpenEnvelopes && (
+            <button
+              onClick={onOpenEnvelopes}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+                scene.envelope?.enabled !== false
+                  ? 'border-amber-500/70 bg-amber-950/60 text-amber-300'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
+              }`}
+              title="Envelope Studio (Pitch ADSR & Rhythm Supercycle)"
+            >
+              <Activity className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Envelope</span>
             </button>
           )}
 

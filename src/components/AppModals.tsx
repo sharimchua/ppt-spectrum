@@ -10,6 +10,8 @@ import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 import { FilterQuickSearchModal } from './FilterQuickSearchModal';
 import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FiltersSheet } from './filters/FiltersSheet';
+import { EnvelopesSheet } from './envelopes/EnvelopesSheet';
+import { UseEnvelopesResult } from './hooks/useEnvelopes';
 import { MidiPermissionModal } from './MidiPermissionModal';
 
 export interface AppModalsProps {
@@ -99,6 +101,9 @@ export interface AppModalsProps {
   // MIDI Modal
   isMidiModalOpen: boolean;
   onCloseMidiModal: () => void;
+
+  // Envelopes Sheet
+  envelopes: UseEnvelopesResult;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -171,6 +176,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   focusCondition,
   isMidiModalOpen,
   onCloseMidiModal,
+  envelopes,
 }) => {
   return (
     <>
@@ -287,6 +293,24 @@ export const AppModals: React.FC<AppModalsProps> = ({
       <MidiPermissionModal
         isOpen={isMidiModalOpen}
         onClose={onCloseMidiModal}
+      />
+
+      <EnvelopesSheet
+        isOpen={envelopes.isEnvelopesOpen}
+        envelope={envelopes.activeEnvelope}
+        allEnvelopes={envelopes.allEnvelopes}
+        onClose={envelopes.closeEnvelopes}
+        onSelectEnvelope={envelopes.handleSelectEnvelope}
+        onToggleEnabled={envelopes.handleToggleEnvelopeEnabled}
+        onUpdateEnvelope={envelopes.handleUpdateEnvelope}
+        onForkEnvelope={envelopes.handleForkEnvelope}
+        onDuplicateEnvelope={envelopes.handleDuplicateEnvelope}
+        onCreateNewEnvelope={envelopes.handleCreateNewEnvelope}
+        onRenameEnvelope={envelopes.handleRenameEnvelope}
+        onDeleteEnvelope={envelopes.handleDeleteEnvelope}
+        onTriggerNote={onTriggerNote}
+        onNoteOn={onNoteOn}
+        onNoteOff={onNoteOff}
       />
     </>
   );

@@ -109,8 +109,10 @@ export interface BandFilter {
 }
 
 import { Filter } from './filter-types';
+import { Envelope } from './envelope-types';
 
 export * from './filter-types';
+export * from './envelope-types';
 
 export interface AnchorConfig {
   tplFrequencyHz: number;
@@ -194,6 +196,8 @@ export interface Scene {
   placements: Placement[];
   filter: Filter;
   filters?: Filter[];
+  envelope?: Envelope;
+  envelopes?: Envelope[];
   anchors: AnchorConfig;
   lenses: LensConfig[];
   audio: AudioConfig;

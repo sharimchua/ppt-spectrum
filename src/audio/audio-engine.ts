@@ -72,13 +72,20 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
       };
     });
 
+    const activeAdsr =
+      scene.envelope && scene.envelope.enabled
+        ? scene.envelope.adsr
+        : scene.envelope && !scene.envelope.enabled
+        ? undefined
+        : shapeObj?.adsr;
+
     return {
       shapeId: placement.shapeId,
       placementD: placement.d,
       gain: placement.gain,
       mute: placement.mute,
       partials,
-      adsr: shapeObj?.adsr,
+      adsr: activeAdsr,
       ratioToScene: Math.pow(2, sceneD - placement.d),
       isPrimary: placementIdx === 0,
     };
@@ -535,6 +542,7 @@ export class AudioEngine {
     const payloadShapes = buildAudioPayloadShapes(this.scene);
     const effectiveGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
 
+    const env = this.scene.envelope;
     this.postToSynth({
       type: 'UPDATE_SCENE',
       payload: {
@@ -544,6 +552,14 @@ export class AudioEngine {
         isPlaying: this.isPlaying,
         tplHz: this.scene.anchors.tplFrequencyHz,
         filter: compileFilterForWorklet(this.scene.filter),
+        envelope: env
+          ? {
+              enabled: env.enabled,
+              rhythmMode: env.rhythmMode === 'supercycle' ? 1 : 0,
+              supercycleLength: env.supercycleLength || 4,
+              adsr: env.adsr,
+            }
+          : null,
       },
     });
   }

@@ -11,6 +11,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
     // Filter state & pre-allocated gate buffers
     this.filter = null;
+    this.envelope = null;
     this.filterBuffers = new Map(); // shapeId -> { gateTarget: Float32Array, gateSmooth: Float32Array, lastOnsetIdx: Float64Array }
 
     // Poetic voice envelopes & triggers
@@ -33,6 +34,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         this.isPlaying = !!payload.isPlaying;
         const prevFilter = this.filter;
         this.filter = payload.filter || null;
+        this.envelope = payload.envelope || null;
         const filterChanged = JSON.stringify(prevFilter) !== JSON.stringify(this.filter);
 
         // Allocate gate buffers for each shape's partials only when count changes
@@ -281,6 +283,44 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     }
   }
 
+  evalRhythmEnvelope(sceneTurns, ratioVal) {
+    const envCfg = this.envelope;
+    if (!envCfg || !envCfg.enabled || envCfg.rhythmMode !== 1 || !envCfg.adsr) {
+      return 1.0;
+    }
+    const L = Math.max(1, Math.min(16, Math.round(envCfg.supercycleLength || 4)));
+    const u = (((sceneTurns % L) + L) % L) / L;
+    const adsr = envCfg.adsr;
+    const rawA = Math.max(0.005, adsr.attack);
+    const rawD = Math.max(0.01, adsr.decay);
+    const rawR = Math.max(0.01, adsr.release);
+    const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
+    const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
+
+    const total = rawA + rawD + rawR;
+    const scale = total > 0.9 ? 0.9 / total : 1.0;
+    const attFrac = rawA * scale;
+    const decFrac = rawD * scale;
+    const relFrac = rawR * scale;
+    const susEnd = 1.0 - relFrac;
+
+    let env = 1.0;
+    if (u < attFrac) {
+      const aRatio = u / Math.max(0.0001, attFrac);
+      env = aRatio * aRatio * (3.0 - 2.0 * aRatio);
+    } else if (u < attFrac + decFrac) {
+      const dProgress = (u - attFrac) / Math.max(0.0001, decFrac);
+      const dampMult = 1.0 + damp * Math.max(0.0, (ratioVal || 1.0) - 1.0);
+      env = sus + (1.0 - sus) * Math.exp(-3.0 * dProgress * dampMult);
+    } else if (u < susEnd) {
+      env = sus;
+    } else {
+      const rProgress = (u - susEnd) / Math.max(0.0001, relFrac);
+      env = sus * Math.max(0.0, 1.0 - rProgress);
+    }
+    return Math.max(0.0, Math.min(1.0, env));
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     const channelLeft = output[0];
@@ -509,10 +549,12 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           // 2. Event / Pulse Component
           let eventSample = 0;
           if (eventWeight > 0.001) {
+            const sceneTurnsForEnv = shape.isPrimary ? masterPhase : masterPhase * (shape.ratioToScene || 1.0);
+            const rhythmEnv = this.evalRhythmEnvelope(sceneTurnsForEnv, ratioVal);
             if (this.audioMode === 'literal') {
               const pulseW = 0.08;
               if (eventPhase < pulseW) {
-                eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (eventPhase / pulseW))) * p.amp * eventWeight * curGateTarget;
+                eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (eventPhase / pulseW))) * p.amp * eventWeight * curGateTarget * rhythmEnv;
               }
             } else {
               // Poetic Mode: voice-specific pitched percussion synthesis on eventPhase wrap
@@ -563,7 +605,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                   clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
                 }
                 const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
-                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult;
+                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult * rhythmEnv;
                 vState.sampleIndex++;
                 if (vState.sampleIndex >= vState.decaySamples) {
                   vState.active = false;

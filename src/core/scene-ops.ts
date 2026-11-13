@@ -3,11 +3,12 @@
  * Manages placement updates, filter states, and shape library modifications.
  */
 
-import { Scene, Shape, BandFilter, Filter, FilterCondition, RangeCondition, SpanView } from './types';
+import { Scene, Shape, BandFilter, Filter, FilterCondition, RangeCondition, SpanView, Envelope } from './types';
 import { MAX_CONDITIONS } from './filter-types';
 import { resolveEndpoint } from './filter-eval';
 import { rationalise } from './rational';
 import { PRESET_FILTERS } from './filter-presets';
+import { PRESET_ENVELOPES } from './envelope-presets';
 
 /**
  * Updates the primary placement's DuPeriod coordinate d.
@@ -776,5 +777,154 @@ export function renameActiveFilter(scene: Scene, name: string): Scene {
     ...scene,
     filter: updatedFilter,
     filters: updatedFilters,
+  };
+}
+
+// ============================================================================
+// Envelope Library & Operations
+// ============================================================================
+
+const defaultCreateId = (prefix: string): string =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+function getActiveEnvelopeOrDefault(scene: Scene): Envelope {
+  return scene.envelope || PRESET_ENVELOPES[0];
+}
+
+function syncUserEnvelopeInList(
+  envelopes: Envelope[] | undefined,
+  updated: Envelope
+): Envelope[] | undefined {
+  if (!envelopes || updated.origin !== 'user') return envelopes;
+  return envelopes.map((e) => (e.id === updated.id ? updated : e));
+}
+
+export function setPrimaryEnvelope(scene: Scene, envelopeId: string): Scene {
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  const target = allEnvelopes.find((e) => e.id === envelopeId);
+  if (!target) return scene;
+  return {
+    ...scene,
+    envelope: { ...target, adsr: { ...target.adsr } },
+  };
+}
+
+export function toggleEnvelopeEnabled(scene: Scene, enabled?: boolean): Scene {
+  const cur = getActiveEnvelopeOrDefault(scene);
+  const nextEnabled = enabled !== undefined ? enabled : !cur.enabled;
+  const updated: Envelope = { ...cur, enabled: nextEnabled };
+  return {
+    ...scene,
+    envelope: updated,
+    envelopes: syncUserEnvelopeInList(scene.envelopes, updated),
+  };
+}
+
+export function updateActiveEnvelope(
+  scene: Scene,
+  patch: Partial<Omit<Envelope, 'adsr'>> & { adsr?: Partial<Envelope['adsr']> }
+): Scene {
+  const cur = getActiveEnvelopeOrDefault(scene);
+  const updated: Envelope = {
+    ...cur,
+    ...patch,
+    adsr: patch.adsr ? { ...cur.adsr, ...patch.adsr } : cur.adsr,
+  };
+  return {
+    ...scene,
+    envelope: updated,
+    envelopes: syncUserEnvelopeInList(scene.envelopes, updated),
+  };
+}
+
+export function forkEnvelope(
+  scene: Scene,
+  source: Envelope,
+  createId: (prefix: string) => string = defaultCreateId
+): Scene {
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  const forked: Envelope = {
+    ...source,
+    id: createId('user-env'),
+    name: `${source.name} (Custom)`,
+    origin: 'user',
+    category: 'user',
+    adsr: { ...source.adsr },
+  };
+  return {
+    ...scene,
+    envelopes: [...allEnvelopes, forked],
+    envelope: forked,
+  };
+}
+
+export function duplicateEnvelope(
+  scene: Scene,
+  source: Envelope,
+  createId: (prefix: string) => string = defaultCreateId
+): Scene {
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  const dup: Envelope = {
+    ...source,
+    id: createId('user-env'),
+    name: `${source.name} Copy`,
+    origin: 'user',
+    category: 'user',
+    adsr: { ...source.adsr },
+  };
+  return {
+    ...scene,
+    envelopes: [...allEnvelopes, dup],
+    envelope: dup,
+  };
+}
+
+export function createUserEnvelope(
+  scene: Scene,
+  name: string = 'New Custom Envelope',
+  createId: (prefix: string) => string = defaultCreateId
+): Scene {
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  const created: Envelope = {
+    id: createId('user-env'),
+    name,
+    origin: 'user',
+    category: 'user',
+    enabled: true,
+    adsr: { attack: 0.02, decay: 0.8, sustain: 0.6, release: 0.3, damping: 0.2 },
+    rhythmMode: 'off',
+    supercycleLength: 4,
+  };
+  return {
+    ...scene,
+    envelopes: [...allEnvelopes, created],
+    envelope: created,
+  };
+}
+
+export function renameActiveEnvelope(scene: Scene, name: string): Scene {
+  const cur = getActiveEnvelopeOrDefault(scene);
+  const updated: Envelope = { ...cur, name };
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  return {
+    ...scene,
+    envelope: updated,
+    envelopes: allEnvelopes.map((e) => (e.id === cur.id ? { ...e, name } : e)),
+  };
+}
+
+export function deleteUserEnvelope(scene: Scene, envelopeId: string): Scene {
+  const allEnvelopes = scene.envelopes && scene.envelopes.length > 0 ? scene.envelopes : PRESET_ENVELOPES;
+  const target = allEnvelopes.find((e) => e.id === envelopeId);
+  if (!target || target.origin !== 'user') return scene;
+  const remaining = allEnvelopes.filter((e) => e.id !== envelopeId);
+  const nextActive =
+    scene.envelope?.id === envelopeId
+      ? remaining[0] || PRESET_ENVELOPES[0]
+      : scene.envelope || PRESET_ENVELOPES[0];
+  return {
+    ...scene,
+    envelopes: remaining,
+    envelope: nextActive,
   };
 }

@@ -12,6 +12,8 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/filter-eval.ts` — Pure mathematical evaluation of generic filters: endpoint coordinate mapping, modular period-reduced span matching, cycle grid slot matching, Zadeh fuzzy logic combination, static duty gains, and worklet compilation.
 - `src/core/filter-presets.ts` — Procedural filter generators: Björklund Euclidean rhythm generator, Xenakis residue sieves, Just ↔ 12-TET microtonal interval windows, harmonic series combs, and starter filters.
 - `src/core/filter-migration.ts` — Legacy BandFilter migration, golden mathematical equivalence evaluation, and sanitisation for persisted localStorage scenes.
+- `src/core/envelope-types.ts` — Standalone `Envelope` data contracts supporting Pitch-space ADSR and Rhythm-space Supercycle contours.
+- `src/core/envelope-presets.ts` — Canonical Pitch-space and Rhythm-space envelope presets plus `evaluateRhythmEnvelopeGain`.
 - `src/core/ppt-constants.ts` — Theory constants ($f_{\text{TPL}} = 25.8\text{ Hz}$, $T_{\text{TPL}} \approx 38.76\text{ ms}$), canonical Solfège palette, Prime palette, and Hann window decay.
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
@@ -31,6 +33,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `core.test.ts` — Axis maths, rational algebra and prime limits, alignment and ghost fundamental, BandFilter, presets and piano inharmonicity, graphics profile persistence.
 - `decompose.test.ts` — Rhythm decomposer and 11-limit quantiser.
 - `endpoint-parse.test.ts` — Range endpoint string parsing across all supported units and display formatting.
+- `envelope.test.ts` — Rhythm-space Supercycle envelope evaluation and Envelope library scene operations.
 - `filter-eval.test.ts` — Mathematical evaluation of span matches, circular period reduction, cycle slot rounding, fuzzy combination, and worklet compilation.
 - `filter-migration.test.ts` — Golden parity evaluation between legacy BandFilter and modern Filter, plus persistence sanitisation.
 - `filter-presets.test.ts` — Björklund Euclidean rhythm patterns, Xenakis residue sieves, Just ↔ 12-TET windows, and starter filters.
