@@ -8,6 +8,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 
 - `src/components/SpectrumViewport.tsx` — 4-layer canvas container (`bgCanvas`, lens layer, `effectsCanvas`, `postProcessingCanvas`) with high-DPI scaling, ResizeObserver, and docked top Layout Editor control banner.
 - `src/components/ControlToolbar.tsx` — Standardised top menu bar featuring unified branding logo, play/pause transport, Slower <-> Faster timeline slider ($x = -d$), preset selector, audio mode switcher, capture modal launcher, layout preset selector, layout edit mode toggle, share deeplink button, and fullscreen toggle.
+- `src/components/ToolbarOverflowMenu.tsx` — Responsive desktop overflow menu (`More`) surfacing secondary workspace tools collapsed at narrower desktop breakpoints (`md`–`xl`).
 - `src/components/FlexLayoutRenderer.tsx` — Recursive multi-cell Flexbox layout renderer supporting nested containers and live cell splitting/reordering.
 - `src/components/CellViewport.tsx` — Modular lens cell wrapper providing canvas high-DPI binding and in-place layout editor controls (lens switcher, split row/col, duplicate, remove).
 - `src/components/CaptureModal.tsx` — Rhythm tap pad with 11-limit DuPeriod rationaliser and microphone pitch detector.

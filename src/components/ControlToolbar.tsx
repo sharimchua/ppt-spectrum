@@ -27,6 +27,7 @@ import {
   Package,
 } from 'lucide-react';
 import { MidiDeviceState } from '../audio/midi-manager';
+import { ToolbarOverflowMenu } from './ToolbarOverflowMenu';
 
 interface ControlToolbarProps {
   scene: Scene;
@@ -129,12 +130,12 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               alt="PPT Logo"
               className="w-6 h-6 sm:w-8 sm:h-8 object-contain shrink-0 drop-shadow-[0_0_8px_rgba(225,54,16,0.3)] group-hover:scale-105 transition-transform"
             />
-            <div className="hidden sm:flex flex-col">
+            <div className="hidden lg:flex flex-col">
               <span className="text-xs sm:text-sm font-bold tracking-wider text-slate-100 flex items-center gap-1 group-hover:text-amber-300 transition-colors">
                 <span className="text-ppt-do">PPT</span>
                 <span>SPECTRUM</span>
               </span>
-              <span className="text-[9px] font-mono text-slate-400 hidden md:inline group-hover:text-slate-300 transition-colors">
+              <span className="text-[9px] font-mono text-slate-400 hidden 2xl:inline group-hover:text-slate-300 transition-colors">
                 Prime Period Theory
               </span>
             </div>
@@ -166,20 +167,20 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Open Shape Synthesiser & User Library (L)"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-ppt-do shrink-0" />
-              <span className="hidden sm:inline">Library</span>
+              <span className="hidden xl:inline">Library</span>
               {activeShape && (
-                <span className="text-[10px] sm:text-[11px] text-slate-200 sm:text-slate-300 font-mono font-medium truncate max-w-[80px] xs:max-w-[105px] sm:max-w-[150px] sm:pl-1.5 sm:border-l sm:border-slate-700/80">
+                <span className="text-[10px] sm:text-[11px] text-slate-200 sm:text-slate-300 font-mono font-medium truncate max-w-[80px] xs:max-w-[105px] lg:max-w-[130px] xl:max-w-[150px] xl:pl-1.5 xl:border-l xl:border-slate-700/80">
                   {activeShape.name}
                 </span>
               )}
             </button>
           )}
 
-          {/* Continuum Sweep / Oscillation Toggle Button (Desktop) */}
+          {/* Continuum Sweep / Oscillation Toggle Button (Desktop lg+) */}
           {onToggleOscillate && (
             <button
               onClick={onToggleOscillate}
-              className={`hidden md:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap shrink-0 ${
+              className={`hidden lg:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border transition cursor-pointer shadow-md font-semibold text-xs whitespace-nowrap shrink-0 ${
                 isOscillating
                   ? 'border-red-500 bg-red-600/30 text-red-300 ring-1 ring-red-400/50 shadow-[0_0_12px_rgba(225,54,16,0.4)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:bg-slate-700'
@@ -187,16 +188,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title={isOscillating ? 'Stop Continuum Sweep Oscillation (S)' : 'Oscillate Continuously Between Bookmarks A and B (S)'}
             >
               <Repeat className={`w-3.5 h-3.5 ${isOscillating ? 'animate-spin text-red-400' : 'text-slate-400'}`} />
-              <span className="hidden md:inline">{isOscillating ? 'Sweeping' : 'Sweep'}</span>
+              <span className="hidden xl:inline">{isOscillating ? 'Sweeping' : 'Sweep'}</span>
             </button>
           )}
 
-          {/* Musical Bookmarks Anchor Modal Button (Desktop) */}
+          {/* Musical Bookmarks Anchor Modal Button (Desktop 2xl+, otherwise in More menu) */}
           {onOpenBookmarks && (
             <button
               onClick={onOpenBookmarks}
-              className="hidden lg:flex h-8 sm:h-9 px-2 sm:px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink-0"
-              title="Configure Musical Bookmarks (BPM & Piano Keyboard)"
+              className="hidden 2xl:flex h-8 sm:h-9 px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink-0"
+              title="Configure Musical Bookmarks (M)"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
               <span>Bookmarks</span>
@@ -244,7 +245,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         </div>
 
         {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop: >= 768px) */}
-        <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 max-w-xl px-2">
+        <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 min-w-[230px] lg:min-w-[290px] xl:min-w-[340px] max-w-2xl px-2">
           <div className="flex-1 space-y-1">
             <div className="relative flex justify-between items-center text-[10px] font-mono leading-none select-none">
               <span className="text-slate-300">
@@ -273,30 +274,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
               {bookmarks && (
                 <>
-                  {/* Bookmark A Marker */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 shadow-[0_0_8px_rgba(56,189,248,0.9)] pointer-events-none z-10 flex items-center justify-center"
-                    style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }}
-                    title={`Bookmark A: ${bookmarks.a.label} (d: ${bookmarks.a.d.toFixed(2)})`}
-                  >
+                  <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 shadow-[0_0_8px_rgba(56,189,248,0.9)] pointer-events-none z-10 flex items-center justify-center" style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }} title={`Bookmark A: ${bookmarks.a.label} (d: ${bookmarks.a.d.toFixed(2)})`}>
                     <span className="text-[7px] font-black text-slate-950 font-mono leading-none select-none">A</span>
                   </div>
-                  {/* Bookmark B Marker */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.9)] pointer-events-none z-10 flex items-center justify-center"
-                    style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }}
-                    title={`Bookmark B: ${bookmarks.b.label} (d: ${bookmarks.b.d.toFixed(2)})`}
-                  >
+                  <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.9)] pointer-events-none z-10 flex items-center justify-center" style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }} title={`Bookmark B: ${bookmarks.b.label} (d: ${bookmarks.b.d.toFixed(2)})`}>
                     <span className="text-[7px] font-black text-slate-950 font-mono leading-none select-none">B</span>
                   </div>
                 </>
               )}
               <input
-                type="range"
-                min={-7}
-                max={7}
-                step={0.001}
-                value={-dVal}
+                type="range" min={-7} max={7} step={0.001} value={-dVal}
                 onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
                 className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500 relative z-0 focus:outline-none"
                 title="Continuous DuPeriod continuum navigation (Drag to glide between macro rhythm and micro pitch)"
@@ -311,27 +298,27 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           </div>
         </div>
 
-        {/* Desktop Right Tools Group (>= md): Capture, Layout Tools, Filter, Settings, Help, Fullscreen */}
-        <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Capture Pad / Mic Pitch Modal */}
+        {/* Desktop Right Tools Group (>= md): Primary Live Controls + Responsive Overflow */}
+        <div className="hidden md:flex items-center gap-1.5 shrink-0">
+          {/* Capture Pad / Mic Pitch Modal (xl+, otherwise in More menu) */}
           <button
             onClick={onOpenCapture}
-            className="flex items-center gap-1 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
-            title="Capture / Mic Sampling"
+            className="hidden xl:flex items-center gap-1 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
+            title="Capture / Mic Sampling (P)"
           >
             <Radio className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Sample</span>
+            <span className="hidden 2xl:inline">Sample</span>
           </button>
 
-          {/* Layout Presets Dropdown */}
-          <div className="relative">
+          {/* Layout Presets Dropdown (xl+, otherwise in More menu) */}
+          <div className="relative hidden xl:block">
             <button
               onClick={() => setShowLayoutMenu((prev) => !prev)}
               className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition text-xs font-medium cursor-pointer"
               title="Choose Layout Preset"
             >
               <Layers className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden xl:inline capitalize">
+              <span className="hidden 2xl:inline capitalize">
                 {currentLayoutId === 'custom' || currentLayoutId.startsWith('custom')
                   ? 'Custom'
                   : currentLayoutId.replace('-', ' ')}
@@ -393,11 +380,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             )}
           </div>
 
-          {/* Layout Edit Mode Toggle */}
+          {/* Layout Edit Mode Toggle (xl+, otherwise in More menu) */}
           {onToggleEditMode && (
             <button
               onClick={onToggleEditMode}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition cursor-pointer ${
+              className={`hidden xl:flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs font-medium transition cursor-pointer ${
                 isEditMode
                   ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)] ring-1 ring-purple-400/50'
                   : 'border-slate-700/80 bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700'
@@ -405,15 +392,15 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title={isEditMode ? 'Exit Layout Editor' : 'Enter Layout Editor (Split, rearrange, and configure lenses)'}
             >
               <LayoutGrid className={`w-3.5 h-3.5 ${isEditMode ? 'text-white animate-pulse' : 'text-purple-400'}`} />
-              <span className="hidden xl:inline">{isEditMode ? 'Editing' : 'Edit Layout'}</span>
+              <span className="hidden 2xl:inline">{isEditMode ? 'Editing' : 'Edit Layout'}</span>
             </button>
           )}
 
-          {/* Share Layout & Deep Link Button */}
+          {/* Share Layout & Deep Link Button (2xl+, otherwise in More menu) */}
           {onShareLayout && (
             <button
               onClick={handleShareClick}
-              className={`p-1.5 rounded-md border transition cursor-pointer ${
+              className={`hidden 2xl:flex p-1.5 rounded-md border transition cursor-pointer ${
                 copiedLink
                   ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
@@ -424,23 +411,23 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Library Bundles & Sharing Launcher */}
+          {/* Library Bundles & Sharing Launcher (2xl+, otherwise in More menu) */}
           {onOpenBundles && (
             <button
               onClick={onOpenBundles}
-              className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
+              className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
               title="Library Bundles (Shape + Filter + Envelope) & Slug Sharing (U)"
             >
               <Package className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden lg:inline">Bundles</span>
+              <span>Bundles</span>
             </button>
           )}
 
-          {/* Dedicated Envelopes Sheet Launcher */}
+          {/* Dedicated Envelopes Sheet Launcher (Always visible on Desktop md+) */}
           {onOpenEnvelopes && (
             <button
               onClick={onOpenEnvelopes}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 scene.envelope?.enabled !== false
                   ? 'border-amber-500/70 bg-amber-950/60 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
@@ -448,16 +435,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Envelope Studio — Pitch ADSR & Rhythm Supercycle (Shift+V to open, V to toggle)"
             >
               <Activity className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">Envelope</span>
+              <span className="hidden xl:inline">Envelope</span>
               <span onClick={onToggleEnvelope ? (e) => { e.stopPropagation(); onToggleEnvelope(); } : undefined} className="text-[9px] px-1 rounded bg-slate-900/80 font-bold hover:bg-slate-800" title="Toggle Envelope Bypass (V)">{scene.envelope?.enabled !== false ? 'ON' : 'OFF'}</span>
             </button>
           )}
 
-          {/* Dedicated Filters Sheet Launcher */}
+          {/* Dedicated Filters Sheet Launcher (Always visible on Desktop md+) */}
           {(onOpenFilters || onToggleFilter) && (
             <button
               onClick={onOpenFilters ?? onToggleFilter}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 scene.filter?.enabled
                   ? 'border-sky-500 bg-sky-950/70 text-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
@@ -465,16 +452,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title="Acoustic Aperture & Sieve Filters (Shift+F to quick search, F to toggle)"
             >
               <Filter className="w-3.5 h-3.5 text-sky-400" />
-              <span className="hidden md:inline">Filters</span>
+              <span className="hidden xl:inline">Filters</span>
               <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">{scene.filter?.enabled ? 'ON' : 'OFF'}</span>
             </button>
           )}
 
-          {/* MIDI Keyboard Connection Button */}
+          {/* MIDI Keyboard Connection Button (xl+, otherwise in More menu) */}
           {onOpenMidiModal && midiState?.permissionStatus !== 'unsupported' && (
             <button
               onClick={onOpenMidiModal}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+              className={`hidden xl:flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 midiState?.isConnected
                   ? 'border-emerald-500/70 bg-emerald-950/60 text-emerald-300'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
@@ -482,41 +469,54 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title={midiState?.isConnected ? `MIDI Connected (${midiState.inputs.length})` : 'Connect MIDI Keyboard'}
             >
               <Keyboard className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">MIDI</span>
+              <span className="hidden 2xl:inline">MIDI</span>
               {midiState?.isConnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
             </button>
           )}
 
-          {/* Help / Primer (Desktop) */}
+          {/* Help / Primer (xl+, otherwise in More menu) */}
           <button
             onClick={onOpenInfo}
-            className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+            className="hidden xl:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
             title="Theory Primer & Walkthrough"
           >
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
 
-          {/* Settings Drawer Button */}
+          {/* Settings Drawer Button (lg+, otherwise in More menu) */}
           {onToggleSettings && (
             <button
               onClick={onToggleSettings}
-              className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+              className="hidden lg:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
               title="Settings & Visual Cosmetics"
             >
               <Settings className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* Fullscreen Toggle */}
+          {/* Fullscreen Toggle (2xl+, otherwise in More menu) */}
           {onToggleFullscreen && (
             <button
               onClick={onToggleFullscreen}
-              className="p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+              className="hidden 2xl:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
               title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Mode'}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
           )}
+
+          {/* Responsive Overflow Menu for collapsed desktop tools (< 2xl) */}
+          <ToolbarOverflowMenu
+            currentLayoutId={currentLayoutId} customLayout={customLayout}
+            isEditMode={isEditMode} isFullscreen={isFullscreen} isOscillating={isOscillating}
+            copiedLink={copiedLink} midiState={midiState} onSelectLayout={onSelectLayout}
+            onToggleOscillate={onToggleOscillate} onOpenBookmarks={onOpenBookmarks}
+            onOpenCapture={onOpenCapture} onToggleEditMode={onToggleEditMode}
+            onShareClick={onShareLayout ? handleShareClick : undefined}
+            onOpenBundles={onOpenBundles} onOpenMidiModal={onOpenMidiModal}
+            onOpenInfo={onOpenInfo} onToggleSettings={onToggleSettings}
+            onToggleFullscreen={onToggleFullscreen} onOpenRadialMenu={onOpenRadialMenu}
+          />
         </div>
       </div>
 
@@ -545,28 +545,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           />
           {bookmarks && (
             <>
-              <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm"
-                style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }}
-                title={`Bookmark A (d: ${bookmarks.a.d.toFixed(2)})`}
-              >
+              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-cyan-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm" style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.a.d) / 14) * 100))}%` }} title={`Bookmark A (d: ${bookmarks.a.d.toFixed(2)})`}>
                 <span className="text-[7px] font-black text-slate-950 font-mono leading-none">A</span>
               </div>
-              <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm"
-                style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }}
-                title={`Bookmark B (d: ${bookmarks.b.d.toFixed(2)})`}
-              >
+              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 border border-slate-950 pointer-events-none z-10 flex items-center justify-center shadow-sm" style={{ left: `${Math.max(0, Math.min(100, ((7 - bookmarks.b.d) / 14) * 100))}%` }} title={`Bookmark B (d: ${bookmarks.b.d.toFixed(2)})`}>
                 <span className="text-[7px] font-black text-slate-950 font-mono leading-none">B</span>
               </div>
             </>
           )}
           <input
-            type="range"
-            min={-7}
-            max={7}
-            step={0.001}
-            value={-dVal}
+            type="range" min={-7} max={7} step={0.001} value={-dVal}
             onChange={(e) => onUpdatePlacementD(-parseFloat(e.target.value))}
             className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-red-500 relative z-0 focus:outline-none"
             title="Continuous DuPeriod continuum navigation"
