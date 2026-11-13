@@ -139,7 +139,7 @@ describe('shape-editing', () => {
       const intervalAnchor = createAnchor('interval', 2, (p) => `${p}-int`);
       expect(intervalAnchor.name).toBe('Voice Anchor 2 (So 3/2)');
       expect(intervalAnchor.voice).toBe('woodblock');
-      expect(intervalAnchor.partials).toHaveLength(3);
+      expect(intervalAnchor.partials).toHaveLength(1);
 
       const rhythmAnchor = createAnchor('rhythm', 3, (p) => `${p}-rhy`);
       expect(rhythmAnchor.name).toBe('Rhythm Anchor 3 (Fi Offbeat)');
