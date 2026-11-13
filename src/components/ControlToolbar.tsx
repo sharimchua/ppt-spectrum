@@ -24,6 +24,7 @@ import {
   Compass,
   Keyboard,
   Activity,
+  Package,
 } from 'lucide-react';
 import { MidiDeviceState } from '../audio/midi-manager';
 
@@ -51,6 +52,7 @@ interface ControlToolbarProps {
   onToggleFilter?: () => void;
   onOpenFilters?: () => void;
   onOpenEnvelopes?: () => void;
+  onOpenBundles?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
   onOpenRadialMenu?: () => void;
@@ -81,6 +83,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleFilter,
   onOpenFilters,
   onOpenEnvelopes,
+  onOpenBundles,
   onOpenCapture,
   onOpenInfo,
   onOpenRadialMenu,
@@ -419,6 +422,18 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
+          {/* Library Bundles & Sharing Launcher */}
+          {onOpenBundles && (
+            <button
+              onClick={onOpenBundles}
+              className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
+              title="Library Bundles (Shape + Filter + Envelope) & Slug Sharing"
+            >
+              <Package className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden lg:inline">Bundles</span>
+            </button>
+          )}
+
           {/* Dedicated Envelopes Sheet Launcher */}
           {onOpenEnvelopes && (
             <button
@@ -463,17 +478,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
                   ? 'border-emerald-500/70 bg-emerald-950/60 text-emerald-300'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title={
-                midiState?.isConnected
-                  ? `MIDI Connected (${midiState.inputs.length} device${midiState.inputs.length === 1 ? '' : 's'})`
-                  : 'Connect MIDI Keyboard'
-              }
+              title={midiState?.isConnected ? `MIDI Connected (${midiState.inputs.length})` : 'Connect MIDI Keyboard'}
             >
               <Keyboard className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">MIDI</span>
-              {midiState?.isConnected && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              )}
+              {midiState?.isConnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
             </button>
           )}
 

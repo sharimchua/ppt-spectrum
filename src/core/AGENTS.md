@@ -22,6 +22,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Duple 1:2, Quadruple 1:4, Hemiola 3:2, Polyrhythms 4:3 & 5:4, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar).
 - `src/core/config.ts` — Default application configuration, sanitisation, and localStorage persistence.
 - `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialisation for deep linking.
+- `src/core/library-models.ts` — Higher-level `LibraryBundle` presets (Shape + Filter + Envelope), URL-safe slug encoding/decoding, and non-destructive, idempotent library set import/export.
 - `src/core/decompose.ts` — Dynamic 11-limit DuPeriod interval quantisation for tapped rhythm inputs.
 - `src/core/scene-ops.ts` — Pure Scene updaters for placement DuPeriod coordinates, filter aperture states, and shape library upsert/deletion.
 - `src/core/shape-editing.ts` — Pure VoiceAnchor, harmonic partial, ADSR envelope, overtone series presets, inharmonicity, and damping operations.
@@ -38,6 +39,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `filter-migration.test.ts` — Golden parity evaluation between legacy BandFilter and modern Filter, plus persistence sanitisation.
 - `filter-presets.test.ts` — Björklund Euclidean rhythm patterns, Xenakis residue sieves, Just ↔ 12-TET windows, and starter filters.
 - `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
+- `library-models.test.ts` — Library bundle slug round-trips, idempotent re-imports, and collision-safe non-destructive merging.
 - `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
 - `scene-ops.test.ts` — Scene placement coordinate stepping, filter mode cycling, shape capture, upsert, and duplication.
 - `shape-editing.test.ts` — VoiceAnchor and partial addition/removal guards, mute/unmute restoration, overtone presets, inharmonicity, and damping.

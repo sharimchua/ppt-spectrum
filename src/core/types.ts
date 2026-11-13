@@ -110,6 +110,7 @@ export interface BandFilter {
 
 import { Filter } from './filter-types';
 import { Envelope } from './envelope-types';
+import type { LibraryBundle } from './library-models';
 
 export * from './filter-types';
 export * from './envelope-types';
@@ -198,6 +199,7 @@ export interface Scene {
   filters?: Filter[];
   envelope?: Envelope;
   envelopes?: Envelope[];
+  libraryBundles?: LibraryBundle[];
   anchors: AnchorConfig;
   lenses: LensConfig[];
   audio: AudioConfig;

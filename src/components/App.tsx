@@ -22,6 +22,7 @@ import { useKeyboardShortcuts, KeyboardActions } from './hooks/useKeyboardShortc
 import { useFullscreen } from './hooks/useFullscreen';
 import { useMidi } from './hooks/useMidi';
 import { useEnvelopes } from './hooks/useEnvelopes';
+import { useLibraryBundles } from './hooks/useLibraryBundles';
 import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
@@ -96,6 +97,7 @@ export const App: React.FC = () => {
 
   // Dedicated Envelopes Sheet state & library
   const envelopes = useEnvelopes({ scene, updateScene });
+  const bundlesApi = useLibraryBundles({ scene, updateScene });
 
   // Musical bookmarks and continuum sweep oscillation
   const {
@@ -310,6 +312,7 @@ export const App: React.FC = () => {
         onToggleFilter={toggleFilter}
         onOpenFilters={openFilters}
         onOpenEnvelopes={envelopes.openEnvelopes}
+        onOpenBundles={bundlesApi.openBundleModal}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenRadialMenu={handleOpenRadialMenu}
@@ -387,10 +390,7 @@ export const App: React.FC = () => {
         onCloseBookmarks={() => setIsBookmarksOpen(false)}
         bookmarks={bookmarks}
         onUpdateBookmarks={setBookmarks}
-        onJumpToD={(targetD) => {
-          handleUpdatePlacementD(targetD);
-          setIsBookmarksOpen(false);
-        }}
+        onJumpToD={(targetD) => { handleUpdatePlacementD(targetD); setIsBookmarksOpen(false); }}
         isOscillating={isOscillating}
         onToggleOscillate={toggleOscillating}
         isSettingsOpen={isSettingsOpen}
@@ -442,6 +442,7 @@ export const App: React.FC = () => {
         isMidiModalOpen={isMidiModalOpen}
         onCloseMidiModal={closeMidiModal}
         envelopes={envelopes}
+        bundlesApi={bundlesApi}
       />
     </div>
   );

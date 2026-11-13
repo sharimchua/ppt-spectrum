@@ -12,6 +12,8 @@ import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FiltersSheet } from './filters/FiltersSheet';
 import { EnvelopesSheet } from './envelopes/EnvelopesSheet';
 import { UseEnvelopesResult } from './hooks/useEnvelopes';
+import { LibraryShareModal } from './LibraryShareModal';
+import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
 
 export interface AppModalsProps {
@@ -104,6 +106,9 @@ export interface AppModalsProps {
 
   // Envelopes Sheet
   envelopes: UseEnvelopesResult;
+
+  // Library Bundles Modal
+  bundlesApi: UseLibraryBundlesResult;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -177,6 +182,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   isMidiModalOpen,
   onCloseMidiModal,
   envelopes,
+  bundlesApi,
 }) => {
   return (
     <>
@@ -312,6 +318,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onNoteOn={onNoteOn}
         onNoteOff={onNoteOff}
       />
+
+      <LibraryShareModal bundlesApi={bundlesApi} />
     </>
   );
 };

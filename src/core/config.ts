@@ -2,6 +2,7 @@ import { Scene, CosmeticsConfig, Shape, Filter, Envelope } from './types';
 import { PRESET_SHAPES } from './presets';
 import { PRESET_FILTERS } from './filter-presets';
 import { PRESET_ENVELOPES } from './envelope-presets';
+import { PRESET_LIBRARY_BUNDLES } from './library-models';
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
 import { DEFAULT_FILTER, sanitiseFilter } from './filter-migration';
 
@@ -56,6 +57,7 @@ export const DEFAULT_SCENE: Scene = {
   filters: PRESET_FILTERS,
   envelope: PRESET_ENVELOPES[0],
   envelopes: PRESET_ENVELOPES,
+  libraryBundles: PRESET_LIBRARY_BUNDLES,
   anchors: {
     tplFrequencyHz: TPL_FREQUENCY_HZ,
     tuningA4Hz: 440.0,

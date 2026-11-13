@@ -25,6 +25,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
 - `src/components/MidiPermissionModal.tsx` — Web MIDI permission request dialogue.
+- `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
@@ -88,6 +89,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 - `useMidi.ts` — Web MIDI input lifecycle, polyphonic voice dispatch, scene frequency updates, and ruler ghost note syncing.
 - `useEnvelopes.ts` — Dedicated Envelopes sheet visibility, Pitch/Rhythm envelope parameter updates, and Envelope library CRUD.
+- `useLibraryBundles.ts` — Library bundle presets, `?bundle=` deeplink decoding, and non-destructive JSON/slug import/export.
 - `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
 
 ### Tests (`src/components/__tests__/`)
