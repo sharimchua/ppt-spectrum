@@ -8,25 +8,44 @@ import { ratioToValue, reduceRational } from './rational';
 
 export interface RatioSuggestion {
   label: string;
+  shortTag: string;
   name: string;
   ratio: Ratio;
   octaves: number;
   distCents: number;
 }
 
-const BASE_OCTAVE_INTERVALS: Array<{ num: number; den: number; name: string }> = [
-  { num: 1, den: 1, name: 'Unison (Do)' },
-  { num: 16, den: 15, name: 'Minor 2nd (Ra)' },
-  { num: 9, den: 8, name: 'Major 2nd (Re)' },
-  { num: 6, den: 5, name: 'Minor 3rd (Me)' },
-  { num: 5, den: 4, name: 'Major 3rd (Mi)' },
-  { num: 4, den: 3, name: 'Perfect 4th (Fa)' },
-  { num: 7, den: 5, name: 'Tritone (Fi)' },
-  { num: 3, den: 2, name: 'Perfect 5th (So)' },
-  { num: 8, den: 5, name: 'Minor 6th (Le)' },
-  { num: 5, den: 3, name: 'Major 6th (La)' },
-  { num: 7, den: 4, name: 'Harmonic 7th (Te)' },
-  { num: 15, den: 8, name: 'Major 7th (Ti)' },
+const BASE_OCTAVE_INTERVALS: Array<{ num: number; den: number; shortTag: string; name: string }> = [
+  { num: 1, den: 1, shortTag: 'Unison Do', name: 'Unison / Octave (Do)' },
+  { num: 16, den: 15, shortTag: 'Just m2', name: 'Just Minor 2nd (Ra)' },
+  { num: 9, den: 8, shortTag: 'Pyth M2', name: 'Pythagorean Major 2nd (Re)' },
+  { num: 10, den: 9, shortTag: 'Just m2+', name: 'Minor Whole Tone (Re-)' },
+  { num: 6, den: 5, shortTag: 'Just m3', name: 'Just Minor 3rd (Me)' },
+  { num: 5, den: 4, shortTag: 'Just M3', name: 'Just Major 3rd (Mi)' },
+  { num: 4, den: 3, shortTag: 'P4 Fa', name: 'Perfect 4th (Fa)' },
+  { num: 7, den: 5, shortTag: 'Sept TT', name: 'Septimal Tritone (Fi)' },
+  { num: 45, den: 32, shortTag: 'Just TT', name: 'Just Augmented 4th (Fi+)' },
+  { num: 3, den: 2, shortTag: 'P5 So', name: 'Perfect 5th (So)' },
+  { num: 8, den: 5, shortTag: 'Just m6', name: 'Just Minor 6th (Le)' },
+  { num: 5, den: 3, shortTag: 'Just M6', name: 'Just Major 6th (La)' },
+  { num: 7, den: 4, shortTag: 'Harm 7th', name: 'Harmonic / Septimal 7th (Te)' },
+  { num: 16, den: 9, shortTag: 'Pyth m7', name: 'Pythagorean Minor 7th (Te)' },
+  { num: 9, den: 5, shortTag: 'Just m7', name: 'Just Minor 7th (Te+)' },
+  { num: 15, den: 8, shortTag: 'Just M7', name: 'Just Major 7th (Ti)' },
+];
+
+const TET12_STEPS: Array<{ step: number; shortTag: string; name: string }> = [
+  { step: 1, shortTag: '12ET m2', name: '12-TET Minor 2nd (100¢)' },
+  { step: 2, shortTag: '12ET M2', name: '12-TET Major 2nd (200¢)' },
+  { step: 3, shortTag: '12ET m3', name: '12-TET Minor 3rd (300¢)' },
+  { step: 4, shortTag: '12ET M3', name: '12-TET Major 3rd (400¢)' },
+  { step: 5, shortTag: '12ET P4', name: '12-TET Perfect 4th (500¢)' },
+  { step: 6, shortTag: '12ET TT', name: '12-TET Tritone (600¢)' },
+  { step: 7, shortTag: '12ET P5', name: '12-TET Perfect 5th (700¢)' },
+  { step: 8, shortTag: '12ET m6', name: '12-TET Minor 6th (800¢)' },
+  { step: 9, shortTag: '12ET M6', name: '12-TET Major 6th (900¢)' },
+  { step: 10, shortTag: '12ET m7', name: '12-TET Minor 7th (1000¢)' },
+  { step: 11, shortTag: '12ET M7', name: '12-TET Major 7th (1100¢)' },
 ];
 
 /**
@@ -81,10 +100,27 @@ export function getNearbyRatioSuggestions(
       const distCents = Math.round((oct - octValue) * 1200);
       candidates.set(key, {
         label: reduced.den === 1 ? `${reduced.num}x` : key,
+        shortTag: band === 0 ? base.shortTag : `${base.shortTag} ${band > 0 ? `+${band}o` : `${band}o`}`,
         name: base.name,
         ratio: { kind: 'rational', num: reduced.num, den: reduced.den },
         octaves: oct,
         distCents,
+      });
+    }
+
+    // Include 12-TET equal-tempered chromatic steps (irrational real ratios)
+    for (const tet of TET12_STEPS) {
+      const oct = band + tet.step / 12;
+      if (oct < minOct - 0.01 || oct > maxOct + 0.01) continue;
+      const val = Number(Math.pow(2, oct).toFixed(5));
+      const key = `12et:${band}:${tet.step}`;
+      candidates.set(key, {
+        label: `${val.toFixed(3)}x`,
+        shortTag: band === 0 ? tet.shortTag : `${tet.shortTag} ${band > 0 ? `+${band}o` : `${band}o`}`,
+        name: tet.name,
+        ratio: { kind: 'real', value: val },
+        octaves: oct,
+        distCents: Math.round((oct - octValue) * 1200),
       });
     }
   }
@@ -97,6 +133,7 @@ export function getNearbyRatioSuggestions(
     if (!candidates.has(key)) {
       candidates.set(key, {
         label: `${h}x`,
+        shortTag: `Harm ${h}`,
         name: `Harmonic ${h}`,
         ratio: { kind: 'rational', num: h, den: 1 },
         octaves: oct,

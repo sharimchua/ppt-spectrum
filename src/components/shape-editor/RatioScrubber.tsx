@@ -32,7 +32,7 @@ export const RatioScrubber: React.FC<RatioScrubberProps> = ({
   label,
 }) => {
   const octValue = Math.max(minOctaves, Math.min(maxOctaves, ratioToOctaves(ratio)));
-  const suggestions = getNearbyRatioSuggestions(octValue, 5, minOctaves, maxOctaves);
+  const suggestions = getNearbyRatioSuggestions(octValue, 6, minOctaves, maxOctaves);
 
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
@@ -167,20 +167,21 @@ export const RatioScrubber: React.FC<RatioScrubberProps> = ({
         {/* Single-line Autocomplete Snap Pills */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5">
           {suggestions.map((sug) => {
-            const isSnapped = Math.abs(sug.distCents) <= 2 && ratio.kind === 'rational';
+            const isSnapped = Math.abs(sug.distCents) <= 2 && sug.ratio.kind === ratio.kind;
             return (
               <button
-                key={sug.label}
+                key={`${sug.label}-${sug.shortTag}`}
                 type="button"
                 onClick={() => onChange(sug.ratio)}
                 title={`${sug.name} (${sug.distCents >= 0 ? `+${sug.distCents}` : sug.distCents}¢)`}
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0 transition cursor-pointer ${
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0 transition cursor-pointer flex items-baseline gap-1 ${
                   isSnapped
                     ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-bold'
                     : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-cyan-500/50 hover:text-white'
                 }`}
               >
-                {sug.label}
+                <span className="font-semibold">{sug.label}</span>
+                <span className="text-[9px] text-slate-400 font-normal">{sug.shortTag}</span>
               </button>
             );
           })}

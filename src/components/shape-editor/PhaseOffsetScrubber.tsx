@@ -161,13 +161,14 @@ export const PhaseOffsetScrubber: React.FC<PhaseOffsetScrubberProps> = ({
                 type="button"
                 onClick={() => onChange(off.phase, off.token)}
                 title={`${off.glyph} ${off.token} (${off.fraction}) — ${off.description}`}
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0 transition cursor-pointer ${
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0 transition cursor-pointer flex items-baseline gap-1 ${
                   isSnapped
                     ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-bold'
                     : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-amber-500/50 hover:text-white'
                 }`}
               >
-                {off.glyph} {off.token}
+                <span className="font-semibold">{off.glyph} {off.token}</span>
+                <span className="text-[9px] text-slate-400 font-normal">{off.fraction}</span>
               </button>
             );
           })}

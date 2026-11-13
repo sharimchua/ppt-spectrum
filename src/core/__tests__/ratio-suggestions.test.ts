@@ -28,6 +28,14 @@ describe('Ratio Suggestions & DuMetric Octave Helpers', () => {
     // Sub-octave 1/2 (octaves = -1)
     const nearSubOct = getNearbyRatioSuggestions(-1.0, 4);
     expect(nearSubOct[0].label).toBe('1/2');
+
+    // Near 12-TET Minor 7th (10/12 octaves ≈ 1000¢): includes 12ET m7, Pyth 16/9, Just 9/5, and Septimal 7/4
+    const nearM7 = getNearbyRatioSuggestions(10 / 12, 6);
+    const tags = nearM7.map((s) => s.shortTag);
+    expect(tags).toContain('12ET m7');
+    expect(tags).toContain('Pyth m7');
+    expect(tags).toContain('Just m7');
+    expect(tags).toContain('Harm 7th');
   });
 
   it('formats ratios and converts octaves back to real ratio', () => {
