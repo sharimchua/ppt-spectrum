@@ -118,6 +118,16 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
 
       {/* Anchor Body */}
       <div className="p-2.5 space-y-2.5">
+        {/* DuMetric Phase Offset Scrubber (0–1 cycle) */}
+        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
+          <PhaseOffsetScrubber
+            phaseOffset={anchor.phaseOffset || 0}
+            onChange={(phaseOffset, offsetToken) =>
+              onUpdateAnchor(anchorIdx, { phaseOffset, offsetToken })
+            }
+          />
+        </div>
+
         {/* Anchor Interval Ratio Scrubber (vs Root) */}
         <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
           <RatioScrubber
@@ -126,16 +136,6 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
             minOctaves={-1}
             maxOctaves={3}
             label="Anchor Interval Ratio (vs Root)"
-          />
-        </div>
-
-        {/* DuMetric Phase Offset Scrubber (0–1 cycle) */}
-        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
-          <PhaseOffsetScrubber
-            phaseOffset={anchor.phaseOffset || 0}
-            onChange={(phaseOffset, offsetToken) =>
-              onUpdateAnchor(anchorIdx, { phaseOffset, offsetToken })
-            }
           />
         </div>
 
