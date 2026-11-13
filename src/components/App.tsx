@@ -51,7 +51,15 @@ export const App: React.FC = () => {
   const [isOscillatingInit, setIsOscillatingInit] = useState<boolean>(false);
 
   // Core scene engine (RenderCoordinator, AudioEngine, debounced save)
-  const { scene, sceneRef, updateScene, coordinator, audioEngine } = useSceneEngine(isOscillatingInit);
+  const {
+    scene,
+    sceneRef,
+    updateScene,
+    setPrimaryDSmooth,
+    updateSceneFast,
+    coordinator,
+    audioEngine,
+  } = useSceneEngine(isOscillatingInit);
 
   // Ref tracking active sweep oscillation to allow synchronous pause and scrub cancellation
   const isOscillatingRef = useRef<boolean>(false);
@@ -114,7 +122,7 @@ export const App: React.FC = () => {
     setBookmarkFromCurrent,
   } = useBookmarks({
     sceneRef,
-    updateScene,
+    setPrimaryDSmooth,
     coordinator,
     setPrimaryD: handleUpdatePlacementD,
   });
@@ -194,7 +202,7 @@ export const App: React.FC = () => {
     handleDeleteFilter,
     handleCreateNewFilter,
     handleRenameFilter,
-  } = useFilters({ scene, updateScene });
+  } = useFilters({ scene, updateScene, updateSceneFast });
 
   // Audio mode toggle
   const handleToggleAudioMode = useCallback(() => {
@@ -331,7 +339,6 @@ export const App: React.FC = () => {
       )}
 
       <SpectrumViewport
-        scene={scene}
         coordinator={coordinator}
         layout={layout}
         isEditMode={isEditMode}

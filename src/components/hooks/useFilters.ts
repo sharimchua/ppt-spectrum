@@ -30,6 +30,7 @@ export type FilterControlParam = 'centre' | 'width' | 'skirt';
 export interface UseFiltersOptions {
   scene: Scene;
   updateScene: (updater: Scene | ((prev: Scene) => Scene)) => void;
+  updateSceneFast?: (updater: (prev: Scene) => Scene, syncReact?: boolean) => void;
 }
 
 export interface UseFiltersResult {
@@ -64,7 +65,7 @@ export interface UseFiltersResult {
   handleRenameFilter: (name: string) => void;
 }
 
-export function useFilters({ scene, updateScene }: UseFiltersOptions): UseFiltersResult {
+export function useFilters({ scene, updateScene, updateSceneFast }: UseFiltersOptions): UseFiltersResult {
   const [isFiltersOpen, setIsFiltersOpen] = useState<boolean>(false);
   const [isFilterEditMode, setIsFilterEditMode] = useState<boolean>(false);
   const [filterControlParam, setFilterControlParam] = useState<FilterControlParam>('centre');
@@ -73,24 +74,26 @@ export function useFilters({ scene, updateScene }: UseFiltersOptions): UseFilter
   const closeFilters = useCallback(() => setIsFiltersOpen(false), []);
   const toggleFiltersOpen = useCallback(() => setIsFiltersOpen((prev) => !prev), []);
 
+  const fastUpdate = updateSceneFast ?? updateScene;
+
   const handleUpdateFilterCentreD = useCallback(
     (centreD: number) => {
-      updateScene((prev) => {
+      fastUpdate((prev) => {
         const patchedFilter = patchFocusedSpan(prev.filter, { centreD });
         return { ...prev, filter: { ...patchedFilter, enabled: true } };
       });
     },
-    [updateScene]
+    [fastUpdate]
   );
 
   const handleUpdateFilterParams = useCallback(
     (params: Partial<SpanView>) => {
-      updateScene((prev) => {
+      fastUpdate((prev) => {
         const patchedFilter = patchFocusedSpan(prev.filter, params);
         return { ...prev, filter: { ...patchedFilter, enabled: true } };
       });
     },
-    [updateScene]
+    [fastUpdate]
   );
 
   const handleEnterFilterEditMode = useCallback(

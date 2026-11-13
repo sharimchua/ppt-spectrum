@@ -6,7 +6,6 @@
 import { useState, useEffect, useCallback, MutableRefObject } from 'react';
 import { Scene } from '../../core/types';
 import { RenderCoordinator } from '../../renderers/render-coordinator';
-import { setPrimaryPlacementD } from '../../core/scene-ops';
 import { computeSweepTiming, sweepProgress } from '../../core/sweep';
 import {
   BookmarkSettings,
@@ -17,7 +16,7 @@ import {
 
 export interface UseBookmarksOptions {
   sceneRef: MutableRefObject<Scene>;
-  updateScene: (updater: Scene | ((prev: Scene) => Scene)) => void;
+  setPrimaryDSmooth: (d: number, syncReact?: boolean) => void;
   coordinator: RenderCoordinator;
   setPrimaryD: (d: number) => void;
 }
@@ -37,7 +36,7 @@ export interface UseBookmarksResult {
 
 export function useBookmarks({
   sceneRef,
-  updateScene,
+  setPrimaryDSmooth,
   coordinator,
   setPrimaryD,
 }: UseBookmarksOptions): UseBookmarksResult {
@@ -49,9 +48,11 @@ export function useBookmarks({
     if (!isOscillating) return;
     let animId: number;
     const startTime = performance.now();
+    let lastUiSyncTime = startTime;
     const startD = bookmarks.a.d;
     const targetD = bookmarks.b.d;
     const span = targetD - startD;
+    let latestGlideD = startD;
 
     const timing = computeSweepTiming({
       periodSec: bookmarks.periodSec,
@@ -61,21 +62,28 @@ export function useBookmarks({
     const step = (now: number) => {
       const elapsed = now - startTime;
       const progress = sweepProgress(elapsed, timing);
-      const currentGlideD = startD + span * progress;
+      latestGlideD = startD + span * progress;
 
-      updateScene((prev) => setPrimaryPlacementD(prev, currentGlideD));
+      const shouldSyncUi = now - lastUiSyncTime >= 100;
+      if (shouldSyncUi) {
+        lastUiSyncTime = now;
+      }
+      setPrimaryDSmooth(latestGlideD, shouldSyncUi);
       animId = requestAnimationFrame(step);
     };
 
     animId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      cancelAnimationFrame(animId);
+      setPrimaryDSmooth(latestGlideD, true);
+    };
   }, [
     isOscillating,
     bookmarks.a.d,
     bookmarks.b.d,
     bookmarks.periodSec,
     bookmarks.dwellSec,
-    updateScene,
+    setPrimaryDSmooth,
   ]);
 
   const handleJumpBookmarkA = useCallback(() => {

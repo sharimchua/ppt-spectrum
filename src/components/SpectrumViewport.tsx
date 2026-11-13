@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Scene } from '../core/types';
 import {
   LayoutDefinition,
   LayoutFlexDirection,
@@ -10,7 +9,6 @@ import { RenderCoordinator } from '../renderers/render-coordinator';
 import { Plus, RotateCcw, Share2, Check } from 'lucide-react';
 
 interface SpectrumViewportProps {
-  scene: Scene;
   coordinator: RenderCoordinator;
   layout: LayoutDefinition;
   isEditMode?: boolean;
@@ -22,7 +20,6 @@ interface SpectrumViewportProps {
 }
 
 export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
-  scene,
   coordinator,
   layout,
   isEditMode = false,
@@ -49,10 +46,6 @@ export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
       coordinator.stop();
     };
   }, [coordinator]);
-
-  useEffect(() => {
-    coordinator.setScene(scene);
-  }, [coordinator, scene]);
 
   // High-DPI canvas resizing with mobile thermal safeguards
   useEffect(() => {
