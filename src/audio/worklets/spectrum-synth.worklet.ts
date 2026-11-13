@@ -110,10 +110,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           const nextVel = velocity !== undefined ? Math.max(0.05, Math.min(1.0, velocity)) : 0.8;
           const nextD = targetD !== undefined ? targetD : 0;
           if (existing && existing.currentAmp > 0.0005) {
-            // Preserve phase and ramp from current amplitude to avoid re-strike clicks
+            // Preserve phase and ramp from current velocity-scaled amplitude to avoid re-strike clicks
+            existing.attackStartAmp = Math.min(1.0, (existing.currentAmp * existing.velocity) / nextVel);
             existing.targetD = nextD;
             existing.velocity = nextVel;
-            existing.attackStartAmp = existing.currentAmp;
             existing.noteAge = 0.0;
             existing.isKeyDown = true;
             existing.isSustained = false;
@@ -732,8 +732,6 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           totalAmpSum += primaryShape.partials[pIdx].amp;
         }
         const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
-        const voiceCount = this.midiVoices.size;
-        const polyHeadroom = voiceCount > 1 ? 1.0 / Math.sqrt(voiceCount) : 1.0;
         const sampleDt = 1.0 / sampleRate;
 
         for (const [midiNote, mv] of this.midiVoices.entries()) {
@@ -751,6 +749,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
             let sampleValL = 0;
             let sampleValR = 0;
+            let updatedVoiceAmp = false;
 
             for (let pIdx = 0; pIdx < primaryShape.partials.length; pIdx++) {
               const p = primaryShape.partials[pIdx];
@@ -792,7 +791,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 }
               }
 
-              if (pIdx === 0) {
+              if (!updatedVoiceAmp) {
+                updatedVoiceAmp = true;
                 mv.currentAmp = env;
                 if (mv.isReleased && env <= 0.0008) {
                   finished = true;
@@ -810,7 +810,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               }
               mv.gateSmooths[pIdx] = gateGain;
 
-              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom * polyHeadroom;
+              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom;
               const pan = Math.sin(pIdx * 1.2) * 0.35;
               sampleValL += sig * (0.5 - pan * 0.5);
               sampleValR += sig * (0.5 + pan * 0.5);
