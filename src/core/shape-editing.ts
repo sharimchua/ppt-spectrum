@@ -127,24 +127,6 @@ export function createAnchor(
             voice: 'woodblock',
             label: '1x Fund',
           },
-          {
-            id: createId('p2'),
-            ratio: { kind: 'rational', num: 2, den: 1 },
-            amp: 0.48,
-            previousAmp: 0.48,
-            phase: 0,
-            voice: 'clave',
-            label: '2x Oct',
-          },
-          {
-            id: createId('p3'),
-            ratio: { kind: 'rational', num: 3, den: 1 },
-            amp: 0.28,
-            previousAmp: 0.28,
-            phase: 0,
-            voice: 'triangle',
-            label: '3x P5',
-          },
         ],
       };
 }
