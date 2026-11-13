@@ -760,15 +760,15 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
               let env = 1.0;
               if (adsr) {
-                const att = Math.max(0.004, adsr.attack);
+                const att = Math.max(0.0015, adsr.attack);
                 const dec = Math.max(0.01, adsr.decay);
                 const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
                 const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
                 const rel = Math.max(0.04, adsr.release);
                 if (mv.noteAge < att) {
                   const aRatio = mv.noteAge / att;
-                  const hermite = aRatio * aRatio * (3.0 - 2.0 * aRatio);
-                  env = startAmp + (1.0 - startAmp) * hermite;
+                  const curve = att <= 0.004 ? aRatio : aRatio * aRatio * (3.0 - 2.0 * aRatio);
+                  env = startAmp + (1.0 - startAmp) * curve;
                 } else {
                   const decayElapsed = mv.noteAge - att;
                   const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
@@ -779,11 +779,10 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                   env *= (1.0 - relProgress);
                 }
               } else {
-                const minAtt = 0.004;
+                const minAtt = 0.0015;
                 if (mv.noteAge < minAtt) {
                   const aRatio = mv.noteAge / minAtt;
-                  const hermite = aRatio * aRatio * (3.0 - 2.0 * aRatio);
-                  env = startAmp + (1.0 - startAmp) * hermite;
+                  env = startAmp + (1.0 - startAmp) * aRatio;
                 }
                 if (mv.isReleased) {
                   const relProgress = Math.min(1.0, mv.releaseAge / 0.15);
