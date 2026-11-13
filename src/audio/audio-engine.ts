@@ -296,7 +296,11 @@ export class AudioEngine {
           this.isUnlocked = true;
           return true;
         }
-        this.ctx = new AudioContextClass();
+        try {
+          this.ctx = new AudioContextClass({ latencyHint: 'interactive' });
+        } catch {
+          this.ctx = new AudioContextClass();
+        }
       }
 
       // CRITICAL FOR iOS SAFARI: Trigger silent buffer AND start resume() SYNCHRONOUSLY
@@ -470,6 +474,7 @@ export class AudioEngine {
 
   /**
    * Triggers a polyphonic MIDI note-on at a specific DuPeriod coordinate d.
+   * Uses a synchronous zero-await fast-path whenever AudioContext is already running.
    */
   public async midiNoteOn(
     midiNote: number,
@@ -486,6 +491,16 @@ export class AudioEngine {
     this.midiAuditionUntil = 0;
     this.isKeyDownLocal = true;
     this.isAuditioningLocal = true;
+
+    if (this.isUnlocked && this.ctx?.state === 'running' && this.hasSynthNode()) {
+      this.applyMasterGain();
+      this.postToSynth({
+        type: 'MIDI_NOTE_ON',
+        payload: { midiNote, targetD, velocity },
+      });
+      return;
+    }
+
     const ok = await this.unlock();
     if (!ok || !this.hasSynthNode()) return;
     this.applyMasterGain();
@@ -494,6 +509,17 @@ export class AudioEngine {
     this.postToSynth({
       type: 'MIDI_NOTE_ON',
       payload: { midiNote, targetD, velocity },
+    });
+  }
+
+  /**
+   * Updates the MIDI sustain (damper) pedal state (CC 64).
+   */
+  public setMidiSustain(isDown: boolean): void {
+    if (!this.hasSynthNode()) return;
+    this.postToSynth({
+      type: 'MIDI_SUSTAIN',
+      payload: { sustain: isDown },
     });
   }
 

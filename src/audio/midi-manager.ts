@@ -22,6 +22,7 @@ export interface MidiDeviceState {
 
 export type NoteOnCallback = (midi: number, velocity: number) => void;
 export type NoteOffCallback = (midi: number) => void;
+export type SustainCallback = (isDown: boolean) => void;
 
 interface MidiPermissionDescriptor {
   name: PermissionName;
@@ -32,10 +33,12 @@ export class MidiManager {
   private midiAccess: MIDIAccess | null = null;
   private noteOnCallbacks: Set<NoteOnCallback> = new Set();
   private noteOffCallbacks: Set<NoteOffCallback> = new Set();
+  private sustainCallbacks: Set<SustainCallback> = new Set();
   private stateChangeCallbacks: Set<(state: MidiDeviceState) => void> = new Set();
 
   private focusModeEnabled: boolean = true;
   private heldMidiNotes: Set<number> = new Set();
+  private sustainPedalDown: boolean = false;
   private mockFocusedState: boolean | null = null;
   private mockPermissionStatus: MidiPermissionStatus | null = null;
 
@@ -151,6 +154,9 @@ export class MidiManager {
   }
 
   public releaseAllHeldNotes(): void {
+    if (this.sustainPedalDown) {
+      this.triggerSustain(false);
+    }
     for (const note of Array.from(this.heldMidiNotes)) {
       this.triggerNoteOff(note);
     }
@@ -264,6 +270,20 @@ export class MidiManager {
       this.triggerNoteOn(note, velocity);
     } else if (status === 0x80 || (status === 0x90 && velocity === 0)) {
       this.triggerNoteOff(note);
+    } else if (status === 0xb0 && note === 64 && data.length > 2) {
+      // MIDI CC 64: Damper / Sustain Pedal (>= 64 down, < 64 up)
+      this.triggerSustain(data[2] >= 64);
+    }
+  }
+
+  public triggerSustain(isDown: boolean): void {
+    if (this.focusModeEnabled && !this.isWindowFocused() && isDown) {
+      return;
+    }
+    if (this.sustainPedalDown === isDown) return;
+    this.sustainPedalDown = isDown;
+    for (const cb of this.sustainCallbacks) {
+      cb(isDown);
     }
   }
 
@@ -294,6 +314,11 @@ export class MidiManager {
     return () => this.noteOffCallbacks.delete(cb);
   }
 
+  public onSustainChange(cb: SustainCallback): () => void {
+    this.sustainCallbacks.add(cb);
+    return () => this.sustainCallbacks.delete(cb);
+  }
+
   public onStateChange(cb: (state: MidiDeviceState) => void): () => void {
     this.stateChangeCallbacks.add(cb);
     cb({ ...this.state, inputs: [...this.state.inputs] });
@@ -321,6 +346,7 @@ export class MidiManager {
     this.releaseAllHeldNotes();
     this.noteOnCallbacks.clear();
     this.noteOffCallbacks.clear();
+    this.sustainCallbacks.clear();
     this.stateChangeCallbacks.clear();
   }
 }

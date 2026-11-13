@@ -17,7 +17,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     // Poetic voice envelopes & triggers
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz, gate }
     this.noteStates = new Map(); // shapeId -> { noteAge, lastD, isKeyDown, isAuditioning, isReleased, releaseAge, releaseStartAmp, rhythmTurnsElapsed }
-    this.midiVoices = new Map(); // midiNote -> { midiNote, targetD, velocity, masterPhase, noteAge, isKeyDown, isReleased, releaseAge, currentAmp }
+    this.midiVoices = new Map(); // midiNote -> { midiNote, targetD, velocity, masterPhase, noteAge, isKeyDown, isSustained, isReleased, releaseAge, currentAmp }
+    this.sustainPedalDown = false;
     this.isPlaying = false; // Transport playback state
 
     // Message throttle counter (~30-60 Hz telemetry back to render thread)
@@ -101,6 +102,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           v.active = false;
         }
         this.midiVoices.clear();
+        this.sustainPedalDown = false;
       } else if (type === 'MIDI_NOTE_ON') {
         const { midiNote, targetD, velocity } = payload || {};
         if (midiNote !== undefined) {
@@ -111,6 +113,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             masterPhase: 0.0,
             noteAge: 0.0,
             isKeyDown: true,
+            isSustained: false,
             isReleased: false,
             releaseAge: 0.0,
             currentAmp: 0.0,
@@ -121,12 +124,31 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const v = this.midiVoices.get(midiNote);
         if (v) {
           v.isKeyDown = false;
-          v.isReleased = true;
-          v.releaseAge = 0.0;
+          if (this.sustainPedalDown) {
+            v.isSustained = true;
+          } else {
+            v.isSustained = false;
+            v.isReleased = true;
+            v.releaseAge = 0.0;
+          }
+        }
+      } else if (type === 'MIDI_SUSTAIN') {
+        const nextSustain = Boolean(payload && payload.sustain);
+        this.sustainPedalDown = nextSustain;
+        if (!nextSustain) {
+          for (const v of this.midiVoices.values()) {
+            if (v.isSustained && !v.isKeyDown) {
+              v.isSustained = false;
+              v.isReleased = true;
+              v.releaseAge = 0.0;
+            }
+          }
         }
       } else if (type === 'MIDI_RELEASE_ALL') {
+        this.sustainPedalDown = false;
         for (const v of this.midiVoices.values()) {
           v.isKeyDown = false;
+          v.isSustained = false;
           v.isReleased = true;
           v.releaseAge = 0.0;
         }

@@ -61,23 +61,25 @@ export function useMidi({
       const sc = sceneRef.current;
       const d = midiToD(midi, sc.anchors.tuningA4Hz, sc.anchors.tplFrequencyHz);
 
+      // Dispatch audio note-on first for minimum keypress-to-sound latency
+      void audioEngine.midiNoteOn(midi, velocity, d);
+
       // Move or append this note as the latest primary note
       const filtered = heldStackRef.current.filter((item) => item.midi !== midi);
       filtered.push({ midi, d, velocity });
       heldStackRef.current = filtered;
 
       syncGhostsToCoordinator();
-      onUpdatePlacementDRef.current(d);
-      void audioEngine.midiNoteOn(midi, velocity, d, sc);
       coordinator.triggerNoteStrike();
+      onUpdatePlacementDRef.current(d);
     });
 
     const unsubOff = midiManagerInstance.onNoteOff((midi) => {
+      audioEngine.midiNoteOff(midi);
+
       const prevTop = heldStackRef.current[heldStackRef.current.length - 1];
       heldStackRef.current = heldStackRef.current.filter((item) => item.midi !== midi);
       syncGhostsToCoordinator();
-
-      audioEngine.midiNoteOff(midi);
 
       // If the released note was the active primary note and another note is still held,
       // promote the most recent remaining held note to the scene frequency.
@@ -87,12 +89,18 @@ export function useMidi({
       }
     });
 
+    const unsubSustain = midiManagerInstance.onSustainChange((isDown) => {
+      audioEngine.setMidiSustain(isDown);
+    });
+
     return () => {
       unsubState();
       unsubOn();
       unsubOff();
+      unsubSustain();
       heldStackRef.current = [];
       coordinator.setHeldMidiNotes([]);
+      audioEngine.setMidiSustain(false);
       audioEngine.releaseAllMidiNotes();
     };
   }, [audioEngine, coordinator, sceneRef, syncGhostsToCoordinator]);
