@@ -18,10 +18,12 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
 }) => {
   const [midiState, setMidiState] = useState<MidiDeviceState>(midiManagerInstance.state);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [lastNote, setLastNote] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const unsub = midiManagerInstance.onStateChange(setMidiState);
+    const unsubNote = midiManagerInstance.onNoteOn((midi) => setLastNote(midi));
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -32,6 +34,7 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       unsub();
+      unsubNote();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -96,8 +99,11 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
 
           {midiState.isConnected && (
             <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3 space-y-2">
-              <div className="text-xs font-semibold text-emerald-300">
-                Connected ({midiState.inputs.length} input{midiState.inputs.length === 1 ? '' : 's'})
+              <div className="flex items-center justify-between text-xs font-semibold text-emerald-300">
+                <span>Connected ({midiState.inputs.length} input{midiState.inputs.length === 1 ? '' : 's'})</span>
+                <span className="text-[10px] font-mono text-emerald-400/90">
+                  {lastNote !== null ? `Last MIDI note: ${lastNote}` : 'Press a key to test…'}
+                </span>
               </div>
               <select
                 value={midiState.selectedInputId}
@@ -108,10 +114,13 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
                 <option value="all">All MIDI Inputs ({midiState.inputs.length})</option>
                 {midiState.inputs.map((inp) => (
                   <option key={inp.id} value={inp.id}>
-                    {inp.name}
+                    {inp.name}{inp.connection ? ` (${inp.connection})` : ''}
                   </option>
                 ))}
               </select>
+              <p className="text-[10px] text-slate-400">
+                On Windows, MIDI ports are single-client: if another browser (like Edge) or DAW is open with MIDI active, close it so this browser can receive notes.
+              </p>
             </div>
           )}
 

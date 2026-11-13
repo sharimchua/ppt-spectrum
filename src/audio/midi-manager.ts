@@ -9,6 +9,7 @@ export interface MidiInputDeviceInfo {
   id: string;
   name: string;
   manufacturer?: string;
+  connection?: string;
 }
 
 export interface MidiDeviceState {
@@ -190,10 +191,6 @@ export class MidiManager {
 
     const inputList: MidiInputDeviceInfo[] = [];
 
-    for (const input of this.midiAccess.inputs.values()) {
-      input.onmidimessage = null;
-    }
-
     if (!this.state.selectedInputId) {
       this.state.selectedInputId = 'all';
     }
@@ -203,10 +200,13 @@ export class MidiManager {
         id: input.id,
         name: input.name || `MIDI Port ${input.id}`,
         manufacturer: input.manufacturer || undefined,
+        connection: input.connection,
       });
 
       if (this.state.selectedInputId === 'all' || this.state.selectedInputId === input.id) {
         this.bindInput(input);
+      } else {
+        input.onmidimessage = null;
       }
     }
 
@@ -216,9 +216,26 @@ export class MidiManager {
   }
 
   private bindInput(input: MIDIInput): void {
-    input.onmidimessage = this.boundMessageHandler;
-    if (typeof input.open === 'function' && input.connection === 'closed') {
-      void input.open().catch(() => {});
+    if (input.onmidimessage !== this.boundMessageHandler) {
+      input.onmidimessage = this.boundMessageHandler;
+    }
+    if (typeof input.open === 'function' && input.connection !== 'open') {
+      void input.open().then(
+        () => {
+          const item = this.state.inputs.find((i) => i.id === input.id);
+          if (item && item.connection !== input.connection) {
+            item.connection = input.connection;
+            this.notifyState();
+          }
+        },
+        (err: unknown) => {
+          this.state.lastError =
+            err instanceof Error
+              ? err.message
+              : `Could not open MIDI port "${input.name || input.id}" (it may be in use by another app or browser).`;
+          this.notifyState();
+        }
+      );
     }
   }
 
