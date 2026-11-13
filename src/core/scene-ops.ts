@@ -238,6 +238,9 @@ export function getFocusedSpanView(filter: Filter): SpanView | null {
 
   if (focus) {
     const found = filter.conditions.find((c: FilterCondition) => c.id === focus.conditionId);
+    if (found && found.kind !== 'range') {
+      return null;
+    }
     if (found && found.kind === 'range') {
       rangeCond = found;
       spanIdx = Math.max(0, Math.min(rangeCond.spans.length - 1, focus.spanIndex));
@@ -327,15 +330,19 @@ export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Fil
   if (filter.focus) {
     targetCondIdx = nextConds.findIndex((c: FilterCondition) => c.id === filter.focus?.conditionId);
     targetSpanIdx = filter.focus.spanIndex;
+    if (targetCondIdx !== -1 && nextConds[targetCondIdx].kind !== 'range') {
+      return filter;
+    }
   }
   if (targetCondIdx === -1) {
     targetCondIdx = nextConds.findIndex((c: FilterCondition) => c.kind === 'range');
     targetSpanIdx = 0;
   }
 
-  const existingRef = targetCondIdx !== -1 && nextConds[targetCondIdx].kind === 'range'
-    ? (nextConds[targetCondIdx] as RangeCondition).reference
-    : 'scene';
+  const existingCond = targetCondIdx !== -1 && nextConds[targetCondIdx].kind === 'range'
+    ? (nextConds[targetCondIdx] as RangeCondition)
+    : undefined;
+  const existingRef = existingCond ? existingCond.reference : 'scene';
   const reference = isRelative ? (existingRef === 'anchor' ? 'anchor' : 'scene') : 'absolute';
 
   // Construct new span
@@ -366,15 +373,23 @@ export function patchFocusedSpan(filter: Filter, params: Partial<SpanView>): Fil
   }
 
   const condId = targetCondIdx !== -1 ? nextConds[targetCondIdx].id : 'cond-focused-formant';
+  const nextSpans = existingCond ? [...existingCond.spans] : [];
+  if (targetSpanIdx >= 0 && targetSpanIdx < nextSpans.length) {
+    nextSpans[targetSpanIdx] = newSpan;
+  } else {
+    nextSpans.push(newSpan);
+  }
   const updatedCond: RangeCondition = {
     kind: 'range',
     id: condId,
+    ...(existingCond?.enabled !== undefined ? { enabled: existingCond.enabled } : {}),
     reference,
-    reductionPeriod: null,
-    spans: [newSpan],
+    reductionPeriod: existingCond ? existingCond.reductionPeriod : null,
+    spans: nextSpans,
     softness: isRelative
       ? { value: targetSoftnessD * 1200.0, unit: 'cents' }
       : { value: targetSoftnessD, unit: 'd' },
+    ...(existingCond?.supercycle !== undefined ? { supercycle: existingCond.supercycle } : {}),
   };
 
   if (targetCondIdx !== -1) {

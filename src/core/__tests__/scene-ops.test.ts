@@ -17,8 +17,10 @@ import {
   deleteUserFilter,
   createUserFilter,
   renameActiveFilter,
+  getFocusedSpanView,
+  patchFocusedSpan,
 } from '../scene-ops';
-import { Scene, Shape } from '../types';
+import { Scene, Shape, Filter } from '../types';
 import { DEFAULT_SCENE } from '../config';
 import { bandFilterToFilter } from '../filter-migration';
 
@@ -269,6 +271,86 @@ describe('scene-ops', () => {
       const deleted = deleteUserFilter(created, 'user-filter-del');
       expect(deleted.filters?.some((f) => f.id === 'user-filter-del')).toBe(false);
       expect(deleted.filter.origin).toBe('preset');
+    });
+  });
+
+  describe('Focused Span View & Patching', () => {
+    it('identifies and preserves low-pass and high-pass conditions when patching centreD or softnessD', () => {
+      const multiCondFilter: Filter = {
+        ...baseScene.filter,
+        id: 'multi',
+        enabled: true,
+        name: 'Multi',
+        action: 'keep',
+        focus: { conditionId: 'cond-lp', spanIndex: 0 },
+        conditions: [
+          {
+            kind: 'range',
+            id: 'cond-bp',
+            reference: 'scene',
+            reductionPeriod: null,
+            spans: [{ lo: { unit: 'cents', value: -600 }, hi: { unit: 'cents', value: 600 } }],
+            softness: { value: 300, unit: 'cents' },
+          },
+          {
+            kind: 'range',
+            id: 'cond-lp',
+            reference: 'absolute',
+            reductionPeriod: null,
+            spans: [{ lo: null, hi: { unit: 'd', value: 1.5 } }],
+            softness: { value: 0.5, unit: 'd' },
+          },
+          {
+            kind: 'range',
+            id: 'cond-hp',
+            reference: 'absolute',
+            reductionPeriod: null,
+            spans: [{ lo: { unit: 'd', value: -1.0 }, hi: null }],
+            softness: { value: 0.25, unit: 'd' },
+          },
+          {
+            kind: 'cycle',
+            id: 'cond-cyc',
+            divisions: 8,
+            slotWeights: [1, 0, 1, 0, 1, 0, 1, 0],
+            rotation: 0,
+            tolerance: 0.2,
+            offGridMatch: 0,
+            supercycle: null,
+          },
+        ],
+      };
+
+      const lpView = getFocusedSpanView(multiCondFilter);
+      expect(lpView?.mode).toBe('low-pass');
+      expect(lpView?.centreD).toBeCloseTo(1.5, 5);
+
+      const patchedLp = patchFocusedSpan(multiCondFilter, { centreD: 2.25, softnessD: 0.75 });
+      const lpCond = patchedLp.conditions.find((c) => c.id === 'cond-lp');
+      expect(lpCond?.kind).toBe('range');
+      if (lpCond?.kind === 'range') {
+        expect(lpCond.spans[0].lo).toBeNull();
+        expect(lpCond.spans[0].hi).toEqual({ unit: 'd', value: 2.25 });
+        expect(lpCond.softness).toEqual({ value: 0.75, unit: 'd' });
+      }
+
+      const hpFocused: Filter = { ...multiCondFilter, focus: { conditionId: 'cond-hp', spanIndex: 0 } };
+      const hpView = getFocusedSpanView(hpFocused);
+      expect(hpView?.mode).toBe('high-pass');
+      expect(hpView?.centreD).toBeCloseTo(-1.0, 5);
+
+      const patchedHp = patchFocusedSpan(hpFocused, { centreD: -0.5 });
+      const hpCond = patchedHp.conditions.find((c) => c.id === 'cond-hp');
+      expect(hpCond?.kind).toBe('range');
+      if (hpCond?.kind === 'range') {
+        expect(hpCond.spans[0].hi).toBeNull();
+        expect(hpCond.spans[0].lo).toEqual({ unit: 'd', value: -0.5 });
+      }
+
+      const cycFocused: Filter = { ...multiCondFilter, focus: { conditionId: 'cond-cyc', spanIndex: 0 } };
+      expect(getFocusedSpanView(cycFocused)).toBeNull();
+      const patchedCyc = patchFocusedSpan(cycFocused, { centreD: 1.0 });
+      expect(patchedCyc.conditions.find((c) => c.id === 'cond-cyc')?.kind).toBe('cycle');
     });
   });
 });

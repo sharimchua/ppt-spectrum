@@ -139,14 +139,15 @@ export function useCanvasFilterGestures({
     (e: React.WheelEvent<HTMLCanvasElement>): boolean => {
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
-      const view = getFocusedSpanView(scene.filter) || {
-        centreD: 0,
-        widthD: 4,
-        softnessD: 1,
-      };
+      const view = getFocusedSpanView(scene.filter);
+      if (!view) {
+        return isFilterEditMode;
+      }
+
+      const isCutoffOnly = view.mode === 'low-pass' || view.mode === 'high-pass';
 
       if (isFilterEditMode && onUpdateFilterParams) {
-        if (filterControlParam === 'centre') {
+        if (filterControlParam === 'centre' || (isCutoffOnly && filterControlParam === 'width')) {
           const deltaFilter = e.deltaY > 0 ? 0.08 : -0.08;
           onUpdateFilterParams({ centreD: Math.max(-7, Math.min(7, view.centreD + deltaFilter)) });
         } else if (filterControlParam === 'width') {
@@ -167,8 +168,9 @@ export function useCanvasFilterGestures({
       }
 
       if (isShift) {
-        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-          const deltaFilter = e.deltaX > 0 ? 0.08 : -0.08;
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || isCutoffOnly) {
+          const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+          const deltaFilter = delta > 0 ? 0.08 : -0.08;
           const targetFilterD = Math.max(-7, Math.min(7, view.centreD + deltaFilter));
           if (onUpdateFilterParams) {
             onUpdateFilterParams({ centreD: targetFilterD });

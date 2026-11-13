@@ -4,7 +4,7 @@
  * Australian English spelling conventions maintained.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, SlidersHorizontal, ChevronsDown, ChevronsUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SpanView, Filter } from '../core/types';
 import { FilterControlParam } from './hooks/useFilters';
@@ -32,9 +32,26 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
 }) => {
   const [dockPosition, setDockPosition] = useState<'top' | 'bottom'>('top');
 
-  const isRelative = filter?.trackingMode === 'relative' || filter?.conditions.some(
-    (c) => c.kind === 'range' && c.reference !== 'absolute'
+  const conditions = filter?.conditions ?? [];
+  const focusedIdx = Math.max(
+    0,
+    conditions.findIndex((c) => c.id === filter?.focus?.conditionId)
   );
+  const focusedCond = conditions[focusedIdx];
+  const isCycle = focusedCond?.kind === 'cycle';
+  const spanMode = spanView?.mode ?? filter?.mode ?? 'band-pass';
+  const isBoundedBand = !isCycle && spanMode === 'band-pass';
+  const isCutoffOnly = !isCycle && (spanMode === 'low-pass' || spanMode === 'high-pass');
+
+  useEffect(() => {
+    if (isCutoffOnly && controlParam === 'width') {
+      onSelectParam('centre');
+    }
+  }, [isCutoffOnly, controlParam, onSelectParam]);
+
+  const isRelative = focusedCond?.kind === 'range'
+    ? focusedCond.reference !== 'absolute'
+    : (spanView?.trackingMode === 'relative' || filter?.trackingMode === 'relative');
 
   const centreLabel = spanView
     ? isRelative
@@ -46,14 +63,12 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
 
   const widthVal = spanView?.widthD ?? filter?.widthD ?? 4.0;
   const skirtVal = spanView?.softnessD ?? filter?.softnessD ?? 1.0;
-  const modeLabel = filter?.action === 'remove' ? 'REJECT' : (filter?.mode ?? 'band-pass');
+  const modeLabel = isCycle
+    ? (filter?.action === 'remove' ? 'cycle reject' : 'cycle')
+    : filter?.action === 'remove'
+      ? (spanMode === 'band-pass' ? 'band-reject' : `${spanMode} reject`)
+      : spanMode;
 
-  const conditions = filter?.conditions ?? [];
-  const focusedIdx = Math.max(
-    0,
-    conditions.findIndex((c) => c.id === filter?.focus?.conditionId)
-  );
-  const focusedCond = conditions[focusedIdx];
   const stepCondition = (delta: -1 | 1) => {
     if (conditions.length === 0 || !onFocusCondition) return;
     const nextIdx = (focusedIdx + delta + conditions.length) % conditions.length;
@@ -122,44 +137,56 @@ export const FilterEditHud: React.FC<FilterEditHudProps> = ({
       )}
 
       {/* Parameter Selector Pills */}
-      <div className="flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          onClick={() => onSelectParam('centre')}
-          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-            controlParam === 'centre'
-              ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-              : 'bg-slate-800/80 text-slate-300 hover:text-white'
-          }`}
-          title="Scrub Filter Centre Frequency (Drag on cells)"
-        >
-          Centre ({centreLabel})
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelectParam('width')}
-          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-            controlParam === 'width'
-              ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-              : 'bg-slate-800/80 text-slate-300 hover:text-white'
-          }`}
-          title="Scrub Filter Bandwidth (Drag on cells)"
-        >
-          Width ({widthVal.toFixed(1)})
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelectParam('skirt')}
-          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
-            controlParam === 'skirt'
-              ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
-              : 'bg-slate-800/80 text-slate-300 hover:text-white'
-          }`}
-          title="Scrub Filter Skirt Softness (Drag on cells)"
-        >
-          Skirt ({skirtVal.toFixed(1)})
-        </button>
-      </div>
+      {isCycle && focusedCond ? (
+        <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded bg-amber-950/50 border border-amber-500/30 text-[10px] text-amber-200">
+          <span>{focusedCond.divisions} slots</span>
+          <span className="text-amber-500/60">·</span>
+          <span>rot {focusedCond.rotation}</span>
+          <span className="text-amber-500/60">·</span>
+          <span>tol {Math.round(focusedCond.tolerance * 100)}%</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => onSelectParam('centre')}
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+              controlParam === 'centre'
+                ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                : 'bg-slate-800/80 text-slate-300 hover:text-white'
+            }`}
+            title={isCutoffOnly ? 'Scrub Filter Cutoff Frequency (Drag on cells)' : 'Scrub Filter Centre Frequency (Drag on cells)'}
+          >
+            {isCutoffOnly ? 'Cutoff' : 'Centre'} ({centreLabel})
+          </button>
+          {isBoundedBand && (
+            <button
+              type="button"
+              onClick={() => onSelectParam('width')}
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                controlParam === 'width'
+                  ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white'
+              }`}
+              title="Scrub Filter Bandwidth (Drag on cells)"
+            >
+              Width ({widthVal.toFixed(1)})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onSelectParam('skirt')}
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+              controlParam === 'skirt'
+                ? 'bg-sky-500 text-slate-950 shadow-[0_0_8px_#38bdf8]'
+                : 'bg-slate-800/80 text-slate-300 hover:text-white'
+            }`}
+            title="Scrub Filter Skirt Softness (Drag on cells)"
+          >
+            Skirt ({skirtVal.toFixed(1)})
+          </button>
+        </div>
+      )}
 
       <div className="h-4 w-px bg-slate-700 mx-0.5 shrink-0 hidden xs:block" />
 
