@@ -515,7 +515,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             onShareClick={onShareLayout ? handleShareClick : undefined}
             onOpenBundles={onOpenBundles} onOpenMidiModal={onOpenMidiModal}
             onOpenInfo={onOpenInfo} onToggleSettings={onToggleSettings}
-            onToggleFullscreen={onToggleFullscreen} onOpenRadialMenu={onOpenRadialMenu}
+            onToggleFullscreen={onToggleFullscreen}
           />
         </div>
       </div>

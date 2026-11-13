@@ -87,7 +87,7 @@ export const FiltersSheet: React.FC<FiltersSheetProps> = ({
             {onEnterFilterEditMode && (
               <button
                 type="button"
-                onClick={onEnterFilterEditMode}
+                onClick={() => onEnterFilterEditMode()}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold border border-sky-500/40 bg-sky-950/50 text-sky-300 hover:bg-sky-900/60 transition cursor-pointer"
                 title="Scrub Spectral Filter on Canvas (E)"
               >

@@ -94,8 +94,10 @@ export function useFilters({ scene, updateScene }: UseFiltersOptions): UseFilter
   );
 
   const handleEnterFilterEditMode = useCallback(
-    (param: FilterControlParam = 'centre') => {
-      setFilterControlParam(param);
+    (param?: FilterControlParam) => {
+      const safeParam: FilterControlParam =
+        param === 'centre' || param === 'width' || param === 'skirt' ? param : 'centre';
+      setFilterControlParam(safeParam);
       setIsFilterEditMode(true);
       updateScene((prev) => setFilterEnabled(prev, true));
     },

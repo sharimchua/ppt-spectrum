@@ -8,7 +8,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowRightLeft,
   Check,
-  Compass,
   HelpCircle,
   Keyboard,
   Layers,
@@ -44,7 +43,6 @@ export interface ToolbarOverflowMenuProps {
   onOpenInfo: () => void;
   onToggleSettings?: () => void;
   onToggleFullscreen?: () => void;
-  onOpenRadialMenu?: () => void;
 }
 
 export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
@@ -66,7 +64,6 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
   onOpenInfo,
   onToggleSettings,
   onToggleFullscreen,
-  onOpenRadialMenu,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLayouts, setShowLayouts] = useState(false);
@@ -266,19 +263,6 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
               <span className="flex items-center gap-2">
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-slate-400" />}
                 <span>{copiedLink ? 'Layout Link Copied' : 'Share Layout Link'}</span>
-              </span>
-            </button>
-          )}
-
-          {onOpenRadialMenu && (
-            <button
-              type="button"
-              onClick={() => act(onOpenRadialMenu)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
-            >
-              <span className="flex items-center gap-2">
-                <Compass className="w-3.5 h-3.5 text-ppt-do" />
-                <span>Radial Compass Menu</span>
               </span>
             </button>
           )}
