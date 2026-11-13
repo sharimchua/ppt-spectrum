@@ -298,10 +298,15 @@ export class WebGLPostProcessingPipeline {
   private lightColorsArray = new Float32Array(16 * 3);
   private shockwavesArray = new Float32Array(4 * 4);
   private shockwaveColorsArray = new Float32Array(4 * 3);
+  private isCleared: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.initWebGL();
+  }
+
+  public isActive(): boolean {
+    return this.isSupported && this.gl !== null && this.program !== null;
   }
 
   private initWebGL() {
@@ -404,10 +409,18 @@ export class WebGLPostProcessingPipeline {
   ) {
     if (!this.isSupported || !this.gl || !this.program) return;
     if (config.performanceProfile === 'eco' || config.performanceProfile === 'none' || !config.webglEnabled) {
-      this.gl.clearColor(0, 0, 0, 0);
-      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+      if (!this.isCleared) {
+        this.gl.clearColor(0, 0, 0, 0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        this.isCleared = true;
+      }
       return;
     }
+    this.isCleared = false;
+
+    const isBalanced = config.performanceProfile === 'balanced';
+    const maxLights = isBalanced ? 6 : 16;
+    const maxShockwaves = isBalanced ? 2 : 4;
 
     const gl = this.gl;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
@@ -476,12 +489,18 @@ export class WebGLPostProcessingPipeline {
     gl.uniform1f(this.uLensFlareLoc, config.lensFlareEnabled ? config.lensFlareIntensity : 0.0);
     gl.uniform1i(
       this.uFlareStyleLoc,
-      config.lensFlareStyle === 'anamorphic' ? 0 : config.lensFlareStyle === 'starburst' ? 1 : 2
+      isBalanced
+        ? 0
+        : config.lensFlareStyle === 'anamorphic'
+        ? 0
+        : config.lensFlareStyle === 'starburst'
+        ? 1
+        : 2
     );
     gl.uniform2f(this.uOpticalCenterLoc, this.canvas.width * 0.5, this.canvas.height * 0.5);
 
     // Populate lights (mapped from CSS coordinates to actual WebGL drawing buffer coordinates)
-    const count = Math.min(lights.length, 16);
+    const count = Math.min(lights.length, maxLights);
     gl.uniform1i(this.uLightCountLoc, count);
     for (let i = 0; i < count; i++) {
       const l = lights[i];
@@ -500,7 +519,7 @@ export class WebGLPostProcessingPipeline {
     }
 
     // Populate shockwaves (mapped from CSS coordinates to actual WebGL drawing buffer coordinates)
-    const swCount = Math.min(shockwaves.length, 4);
+    const swCount = Math.min(shockwaves.length, maxShockwaves);
     gl.uniform1i(this.uShockwaveCountLoc, swCount);
     for (let i = 0; i < swCount; i++) {
       const sw = shockwaves[i];

@@ -9,6 +9,7 @@ The `src/renderers` domain contains all high-performance 2D Canvas and WebGL gra
 - `src/renderers/cosmetics.ts` — Preallocated GPU particle streaming buffers (`Float32Array(2048 * 8)`), kinetic note sparks physics, fluid droplet fountains, and expanding shockwave rings.
 - `src/renderers/webgl-post-processing.ts` — GPU WebGL shader pipeline: Point Sprite particle engine (`gl.POINTS`), analytical expanding shockwaves, CRT scanlines, 24fps procedural film grain, and 16 dynamic optical light sources driving halation and lens flares.
 - `src/renderers/render-coordinator.ts` — Central 60 FPS `requestAnimationFrame` loop, cached viewport client bounds, real-time focus auto-mute, frame-time governor, and WCAG 2.2 Three-Flashes safety logic.
+- `src/renderers/performance-profile.ts` — Platform-aware performance bands, iOS/mobile touch detection, DPR caps, and particle budgets.
 - `src/renderers/ruler-lens.ts` — DuPeriod horizontal axis ($x = -d$), TPL transition zone ($10\text{--}40\text{ Hz}$), shape partial markers, and BandFilter window.
 - `src/renderers/ring-clock-lens.ts` — Concentric DuPeriod spiral clock extending polar pitch representations across the limen.
 - `src/renderers/cycle-wheel-lens.ts` — Circular polyrhythmic cycle wheel with spokes at coincidences, sample-accurate sweep playhead, and ghost fundamental cycle boundaries.

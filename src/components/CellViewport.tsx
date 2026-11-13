@@ -14,6 +14,7 @@ import { SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { getFocusedSpanView } from '../core/scene-ops';
 import { useCanvasFilterGestures } from './hooks/useCanvasFilterGestures';
 import { RenderCoordinator, RegisteredLensRenderer } from '../renderers/render-coordinator';
+import { getCanvasDprCaps } from '../renderers/performance-profile';
 import { RulerLensRenderer } from '../renderers/ruler-lens';
 import { RingClockLensRenderer } from '../renderers/ring-clock-lens';
 import { CycleWheelLensRenderer } from '../renderers/cycle-wheel-lens';
@@ -205,8 +206,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       const container = containerRef.current;
       if (!canvas || !container) return;
 
-      // Cap DPR to 2.0 on 2D lens canvases to keep retina-crisp rendering without burning GPU fill-rate on 3x screens
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+      // Calibrate 2D lens DPR by platform & profile to avoid burning mobile/iOS fill-rate
+      const dpr = getCanvasDprCaps(scene.cosmetics.performanceProfile).lensDpr;
       const rect = container.getBoundingClientRect();
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
@@ -225,7 +226,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [coordinator]);
+  }, [coordinator, scene.cosmetics.performanceProfile]);
 
   // Mouse drag scrubbing on desktop canvas (Shift + Drag scrubs Band Filter centreD & widthD, Ctrl+Shift scrubs skirt)
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {

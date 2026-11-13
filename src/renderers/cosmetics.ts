@@ -79,6 +79,7 @@ export class CosmeticsEngine {
   private static readonly GRAIN_PATTERN_SIZE = 160;
 
   private grainCanvases: HTMLCanvasElement[] = [];
+  private grainPatterns: (CanvasPattern | null)[] = [];
   private currentPatternIndex: number = 0;
   private grainFrame: number = 0;
 
@@ -297,8 +298,8 @@ export class CosmeticsEngine {
     }
   }
 
-  public populateGpuParticleBuffer(): { buffer: Float32Array; count: number } {
-    const count = Math.min(this.particles.length, CosmeticsEngine.MAX_GPU_PARTICLES);
+  public populateGpuParticleBuffer(maxParticles: number = CosmeticsEngine.MAX_GPU_PARTICLES): { buffer: Float32Array; count: number } {
+    const count = Math.min(this.particles.length, CosmeticsEngine.MAX_GPU_PARTICLES, Math.max(0, maxParticles));
     for (let i = 0; i < count; i++) {
       const p = this.particles[i];
       const offset = i * 8;
@@ -316,7 +317,13 @@ export class CosmeticsEngine {
     return { buffer: this.gpuParticleBuffer, count };
   }
 
-  public render2DFallback(ctx: CanvasRenderingContext2D, width: number, height: number, config: CosmeticsConfig): void {
+  public render2DFallback(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    config: CosmeticsConfig,
+    maxParticles: number = CosmeticsEngine.MAX_GPU_PARTICLES
+  ): void {
     if (config.performanceProfile === 'eco' || config.performanceProfile === 'none') return;
 
     // Render 2D shockwaves
@@ -335,9 +342,11 @@ export class CosmeticsEngine {
     }
 
     // Render 2D particles
-    if (config.sparksEnabled && this.particles.length > 0) {
+    if (config.sparksEnabled && this.particles.length > 0 && maxParticles > 0) {
+      const limit = Math.min(this.particles.length, maxParticles);
       ctx.save();
-      for (const p of this.particles) {
+      for (let i = 0; i < limit; i++) {
+        const p = this.particles[i];
         ctx.fillStyle = p.color;
         ctx.globalAlpha = p.alpha;
         ctx.beginPath();
@@ -366,8 +375,12 @@ export class CosmeticsEngine {
       if (this.grainFrame % 2 === 0) {
         this.currentPatternIndex = (this.currentPatternIndex + 1) % this.grainCanvases.length;
       }
-      const grainCanvas = this.grainCanvases[this.currentPatternIndex];
-      const pattern = ctx.createPattern(grainCanvas, 'repeat');
+      const idx = this.currentPatternIndex;
+      let pattern = this.grainPatterns[idx];
+      if (pattern === undefined) {
+        pattern = ctx.createPattern(this.grainCanvases[idx], 'repeat');
+        this.grainPatterns[idx] = pattern;
+      }
       if (pattern) {
         ctx.save();
         ctx.globalAlpha = config.filmGrainIntensity * 0.25;

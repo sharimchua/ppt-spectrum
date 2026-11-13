@@ -2,7 +2,8 @@ import { Scene, PerformanceProfile, CosmeticsConfig } from '../core/types';
 import { dToFreq } from '../core/axis';
 import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
-import { WebGLPostProcessingPipeline, PostProcessingLight } from './webgl-post-processing';
+import { WebGLPostProcessingPipeline, PostProcessingLight, PostProcessingShockwave } from './webgl-post-processing';
+import { isMobileTouchDevice, getMaxParticlesForProfile } from './performance-profile';
 
 export interface CachedRect {
   left: number;
@@ -67,6 +68,8 @@ export class RenderCoordinator {
   private throttledProfile: PerformanceProfile | null = null;
   private isFocused: boolean = true;
   private edgeGlowAlpha: number = 0;
+  private idleFrameToggle: boolean = false;
+  private shockwaveBuffer: PostProcessingShockwave[] = [];
 
   // Cached DOM Rects to eliminate per-frame layout reflow
   private cachedPpRect: CachedRect | null = null;
@@ -196,20 +199,26 @@ export class RenderCoordinator {
     const now = performance.now();
     const elapsedMs = now - this.lastFrameTime;
 
-    // Detect handheld mobile touch devices vs desktop environments with precision pointers
-    const hasFinePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
-    const isMobile = !hasFinePointer && typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    const minFrameInterval = isMobile ? 15.5 : 7.5; // ~60 FPS mobile, ~120 FPS desktop
-
-    // Throttle idle frame rate to ~30 FPS only on mobile touch devices when audio is paused to keep battery cool;
-    // on desktop with GPU, maintain high refresh responsiveness
+    // On mobile touch devices in Eco/None mode when idle, halve refresh rate (~30 FPS) to keep battery cool;
+    // otherwise pace naturally to VSync so WebGL (preserveDrawingBuffer: false) never skips a compositor frame.
+    const isMobile = isMobileTouchDevice();
     const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
     const hasActiveShockwaves = this.cosmeticsEngine.getActiveShockwaves().length > 0;
-    const targetInterval = (isMobile && !isAudioActive && !hasActiveShockwaves) ? 31.0 : minFrameInterval;
+    const effectiveProfile = this.getEffectivePerformanceProfile();
+    const isMobileIdle =
+      isMobile &&
+      !isAudioActive &&
+      !hasActiveShockwaves &&
+      (effectiveProfile === 'eco' || effectiveProfile === 'none');
 
-    if (elapsedMs < targetInterval) {
-      this.animId = requestAnimationFrame(this.loop);
-      return;
+    if (isMobileIdle) {
+      this.idleFrameToggle = !this.idleFrameToggle;
+      if (this.idleFrameToggle && elapsedMs < 30.0) {
+        this.animId = requestAnimationFrame(this.loop);
+        return;
+      }
+    } else {
+      this.idleFrameToggle = false;
     }
 
     const dtMs = Math.min(100, elapsedMs);
@@ -313,8 +322,15 @@ export class RenderCoordinator {
     const effectiveCosmetics: CosmeticsConfig = effectiveProfile !== this.scene.cosmetics.performanceProfile
       ? { ...this.scene.cosmetics, performanceProfile: effectiveProfile }
       : this.scene.cosmetics;
+    const maxParticles = getMaxParticlesForProfile(effectiveProfile);
+    const useWebGL = Boolean(
+      this.webglPipeline?.isActive() &&
+        effectiveCosmetics.webglEnabled &&
+        effectiveProfile !== 'eco' &&
+        effectiveProfile !== 'none'
+    );
 
-    // Render 2D effects fallback
+    // Render 2D effects fallback (only when WebGL is inactive/disabled) + edge glow
     if (this.effectsCanvas && this.effectsCtx) {
       const ppW = this.cachedPpRect?.width || this.effectsCanvas.clientWidth || this.effectsCanvas.width;
       const ppH = this.cachedPpRect?.height || this.effectsCanvas.clientHeight || this.effectsCanvas.height;
@@ -323,22 +339,31 @@ export class RenderCoordinator {
       this.effectsCtx.save();
       this.effectsCtx.scale(effScaleX, effScaleY);
       this.effectsCtx.clearRect(0, 0, ppW, ppH);
-      this.cosmeticsEngine.render2DFallback(this.effectsCtx, ppW, ppH, effectiveCosmetics);
-      this.renderViewportEdgeGlow(this.effectsCtx, ppW, ppH, d, audioPhase, f0, isAudioActive, dtMs, transportTime);
+      if (!useWebGL) {
+        this.cosmeticsEngine.render2DFallback(this.effectsCtx, ppW, ppH, effectiveCosmetics, maxParticles);
+      }
+      if (effectiveProfile !== 'none') {
+        this.renderViewportEdgeGlow(this.effectsCtx, ppW, ppH, d, audioPhase, f0, isAudioActive, dtMs, transportTime);
+      }
       this.effectsCtx.restore();
     }
 
     // Render WebGL Post-processing Shader
     if (this.webglPipeline) {
-      const sw = this.cosmeticsEngine.getActiveShockwaves().map((s) => ({
-        x: s.x,
-        y: s.y,
-        radius: s.currentRadius,
-        alpha: s.alpha,
-        colorHex: s.color,
-      }));
-      const particleBufferData = this.cosmeticsEngine.populateGpuParticleBuffer();
-      this.webglPipeline.render(effectiveCosmetics, dynamicLights, sw, particleBufferData);
+      const activeSw = this.cosmeticsEngine.getActiveShockwaves();
+      this.shockwaveBuffer.length = 0;
+      for (let i = 0; i < activeSw.length; i++) {
+        const s = activeSw[i];
+        this.shockwaveBuffer.push({
+          x: s.x,
+          y: s.y,
+          radius: s.currentRadius,
+          alpha: s.alpha,
+          colorHex: s.color,
+        });
+      }
+      const particleBufferData = this.cosmeticsEngine.populateGpuParticleBuffer(maxParticles);
+      this.webglPipeline.render(effectiveCosmetics, dynamicLights, this.shockwaveBuffer, particleBufferData);
     }
   }
 

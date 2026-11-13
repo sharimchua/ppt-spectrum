@@ -341,6 +341,7 @@ export const App: React.FC = () => {
       <SpectrumViewport
         coordinator={coordinator}
         layout={layout}
+        performanceProfile={scene.cosmetics.performanceProfile}
         isEditMode={isEditMode}
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
         onAddCell={handleAddCell}

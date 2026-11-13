@@ -5,9 +5,10 @@
 
 import { useState, useRef, useEffect, useCallback, MutableRefObject } from 'react';
 import { Scene } from '../../core/types';
-import { DEFAULT_SCENE, loadSavedScene, saveScene } from '../../core/config';
+import { DEFAULT_SCENE, STORAGE_KEY_GRAPHICS_PROFILE, loadSavedScene, saveScene } from '../../core/config';
 import { setPrimaryPlacementD } from '../../core/scene-ops';
 import { RenderCoordinator } from '../../renderers/render-coordinator';
+import { getDefaultPerformanceProfileForDevice } from '../../renderers/performance-profile';
 import { AudioEngine } from '../../audio/audio-engine';
 
 export interface UseSceneEngineResult {
@@ -21,7 +22,22 @@ export interface UseSceneEngineResult {
 }
 
 export function useSceneEngine(isOscillating: boolean): UseSceneEngineResult {
-  const [initialScene] = useState<Scene>(() => loadSavedScene() || DEFAULT_SCENE);
+  const [initialScene] = useState<Scene>(() => {
+    const loaded = loadSavedScene() || DEFAULT_SCENE;
+    const hasSavedProfile =
+      typeof window !== 'undefined' &&
+      Boolean(window.localStorage?.getItem(STORAGE_KEY_GRAPHICS_PROFILE));
+    if (!hasSavedProfile) {
+      return {
+        ...loaded,
+        cosmetics: {
+          ...loaded.cosmetics,
+          performanceProfile: getDefaultPerformanceProfileForDevice(),
+        },
+      };
+    }
+    return loaded;
+  });
   const [scene, setScene] = useState<Scene>(initialScene);
 
   // Singletons initialised once with initial scene state

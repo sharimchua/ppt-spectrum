@@ -5,12 +5,15 @@ import {
   SpectrumLensType,
   getAllCellNodes,
 } from '../core/layout-models';
+import { PerformanceProfile } from '../core/types';
 import { RenderCoordinator } from '../renderers/render-coordinator';
+import { getCanvasDprCaps } from '../renderers/performance-profile';
 import { Plus, RotateCcw, Share2, Check } from 'lucide-react';
 
 interface SpectrumViewportProps {
   coordinator: RenderCoordinator;
   layout: LayoutDefinition;
+  performanceProfile?: PerformanceProfile;
   isEditMode?: boolean;
   onToggleEditMode?: () => void;
   onAddCell?: (direction: LayoutFlexDirection, module: SpectrumLensType) => void;
@@ -22,6 +25,7 @@ interface SpectrumViewportProps {
 export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
   coordinator,
   layout,
+  performanceProfile = 'balanced',
   isEditMode = false,
   onToggleEditMode,
   onAddCell,
@@ -53,12 +57,7 @@ export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
       const container = containerRef.current;
       if (!container) return;
 
-      const rawDpr = window.devicePixelRatio || 1;
-      const hasFinePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
-      const isMobile = !hasFinePointer && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-      // Cap WebGL post-processing DPR to 1.25 on mobile to eliminate GPU overheating while maintaining crisp glow
-      const ppDpr = isMobile ? Math.min(rawDpr, 1.25) : Math.min(rawDpr, 1.5);
-      const bgDpr = Math.min(rawDpr, 1.5);
+      const { bgDpr, webglDpr: ppDpr } = getCanvasDprCaps(performanceProfile);
 
       const rect = container.getBoundingClientRect();
       const wPp = Math.round(rect.width * ppDpr);
@@ -99,7 +98,7 @@ export const SpectrumViewport: React.FC<SpectrumViewportProps> = ({
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [coordinator]);
+  }, [coordinator, performanceProfile]);
 
   const allCells = getAllCellNodes(layout.root);
   const totalCells = allCells.length;
