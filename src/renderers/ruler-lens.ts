@@ -1,5 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape, evaluatePartialAdsr } from '../core/shape';
+import { evaluateRhythmEnvelopeGain } from '../core/envelope-presets';
 import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
@@ -24,8 +25,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     width: number,
     height: number,
     scene: Scene,
-    _transportTime: number = 0,
-    _audioPhase: number = 0,
+    transportTime: number = 0,
+    audioPhase: number = 0,
     isAudioActive: boolean = false,
     labelMode: LensLabelMode = 'duperiod',
     _configOverrides?: Record<string, unknown>,
@@ -322,7 +323,13 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       }
 
       const inPitchSpace = f0 > 25.8;
-      const adsr = shape?.adsr;
+      const envEnabled = scene.envelope ? scene.envelope.enabled : true;
+      const adsr = envEnabled ? (scene.envelope?.adsr ?? shape?.adsr) : undefined;
+      const isRhythmSupercycle =
+        !inPitchSpace &&
+        envEnabled &&
+        scene.envelope?.rhythmMode === 'supercycle';
+      const envTurns = audioPhase > 0 ? audioPhase : transportTime * f0;
       const labelledDs: number[] = [];
 
       for (const p of partials) {
@@ -375,14 +382,21 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         ctx.arc(px, py, 3.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // 4. Dynamic Level Overlay Effect (simulating ADSR curve in pitch space when actively sounding)
+        // 4. Dynamic Level Overlay Effect (Pitch ADSR or Rhythm Supercycle Envelope when actively sounding)
         let activeLightY = py;
         let activeLightVelocity = ceilingBarH / maxH;
 
-        if (inPitchSpace && adsr && isAudioActive) {
-          const adsrMultiplier = evaluatePartialAdsr(adsr, p.ratioValue, noteAge);
-          if (adsrMultiplier > 0.005) {
-            const dynamicBarH = ceilingBarH * adsrMultiplier;
+        const envMultiplier = isAudioActive
+          ? inPitchSpace && adsr
+            ? evaluatePartialAdsr(adsr, p.ratioValue, noteAge)
+            : isRhythmSupercycle
+            ? evaluateRhythmEnvelopeGain(scene.envelope, envTurns, p.ratioValue)
+            : -1
+          : -1;
+
+        if (envMultiplier >= 0) {
+          if (envMultiplier > 0.005) {
+            const dynamicBarH = ceilingBarH * envMultiplier;
             const pyLevel = baselineY - dynamicBarH;
             activeLightY = pyLevel;
             activeLightVelocity = dynamicBarH / maxH;
