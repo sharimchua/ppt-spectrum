@@ -7,7 +7,7 @@
 import React from 'react';
 import { Volume2, VolumeX, Trash2 } from 'lucide-react';
 import { PartialComponent } from '../../core/types';
-import { ratioToValue } from '../../core/rational';
+import { RatioScrubber } from './RatioScrubber';
 
 export interface AnchorPartialRowProps {
   partial: PartialComponent;
@@ -28,68 +28,23 @@ export const AnchorPartialRow: React.FC<AnchorPartialRowProps> = ({
   onTogglePartialMute,
   onRemovePartial,
 }) => {
-  const pRatioVal = ratioToValue(partial.ratio);
   const isMuted = partial.amp <= 0.0001;
 
   return (
     <div
-      className={`p-2 rounded-lg border transition space-y-1.5 sm:space-y-0 sm:flex sm:items-center sm:gap-2.5 ${
+      className={`p-2.5 rounded-lg border transition space-y-2 ${
         isMuted
           ? 'bg-slate-950/40 border-slate-900 opacity-50'
           : 'bg-slate-950/80 border-slate-800/90 hover:border-slate-700'
       }`}
     >
-      {/* TIER 1 (Mobile): Header & Actions / Left cluster on Desktop */}
-      <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="w-5 text-[10px] font-mono text-slate-500 font-bold shrink-0">
-            .{partialIdx + 1}
-          </span>
+      {/* TIER 1: Header & Mute/Remove Actions */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-mono text-slate-400 font-bold">
+          Partial .{partialIdx + 1}
+        </span>
 
-          {/* Partial Ratio Selector */}
-          <div className="w-24 sm:w-20 min-w-0">
-            <select
-              value={
-                partial.ratio.kind === 'rational' && partial.ratio.den === 1
-                  ? `${partial.ratio.num}/1`
-                  : partial.ratio.kind === 'rational'
-                  ? `${partial.ratio.num}/${partial.ratio.den}`
-                  : pRatioVal.toFixed(2)
-              }
-              onChange={(e) => {
-                const parts = e.target.value.split('/');
-                if (parts.length === 2) {
-                  onUpdatePartial(anchorIdx, partialIdx, {
-                    ratio: {
-                      kind: 'rational',
-                      num: parseInt(parts[0], 10) || 1,
-                      den: parseInt(parts[1], 10) || 1,
-                    },
-                  });
-                }
-              }}
-              className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] font-mono font-semibold text-ppt-do focus:outline-none cursor-pointer"
-              title="Partial Harmonic Multiple relative to this Voice Anchor"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
-                <option key={h} value={`${h}/1`}>
-                  {h}x {h === 1 ? '(Fund)' : h === 2 ? '(Oct)' : h === 3 ? '(P5)' : ''}
-                </option>
-              ))}
-              {partial.ratio.kind === 'rational' && partial.ratio.den !== 1 && (
-                <option value={`${partial.ratio.num}/${partial.ratio.den}`}>
-                  {partial.ratio.num}/{partial.ratio.den}x
-                </option>
-              )}
-              {partial.ratio.kind === 'real' && (
-                <option value={pRatioVal.toFixed(2)}>{pRatioVal.toFixed(2)}x</option>
-              )}
-            </select>
-          </div>
-        </div>
-
-        {/* Action Buttons for Mobile */}
-        <div className="flex items-center gap-1 sm:hidden shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => onTogglePartialMute(anchorIdx, partialIdx)}
@@ -117,6 +72,15 @@ export const AnchorPartialRow: React.FC<AnchorPartialRowProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Continuous DuMetric Octave Scrubber + Autocomplete Ratio Pills */}
+      <RatioScrubber
+        ratio={partial.ratio}
+        onChange={(ratio) => onUpdatePartial(anchorIdx, partialIdx, { ratio })}
+        minOctaves={0}
+        maxOctaves={4}
+        label="Frequency Ratio"
+      />
 
       {/* TIER 2: Amplitude & Phase Sliders */}
       <div className="flex-1 grid grid-cols-2 sm:flex sm:items-center gap-2 min-w-0">

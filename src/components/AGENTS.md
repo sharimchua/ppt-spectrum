@@ -70,7 +70,9 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `PartialsTab.tsx` — Voice anchor cards container, overtone macros, and add-anchor controls.
 - `OvertoneMacros.tsx` — Inharmonicity stretch coefficient (B) and spectral damping macro buttons.
 - `VoiceAnchorCard.tsx` — Voice anchor card with ratio, DuMetric offset, percussion voice, gain, and nested partial rows.
-- `AnchorPartialRow.tsx` — Single harmonic partial row with ratio selector, amplitude slider, phase offset, and mute/delete controls.
+- `AnchorPartialRow.tsx` — Single harmonic partial editor with DuMetric octave scrubber, autocomplete snap pills, amplitude/phase sliders, and mute/delete controls.
+- `RatioScrubber.tsx` — Continuous DuMetric octave scrubber (horizontal linear on desktop, rotary pitch-clock dial on mobile) with rational snap pills.
+- `ShapeRulerPreview.tsx` — Interactive Ruler-style spectrum preview for selecting Voice Anchors and Partials visually.
 - `EnvelopeTab.tsx` — Acoustic ADSR envelope tab with interactive curve, instrument presets, and parameter sliders.
 - `AdsrCurve.tsx` — SVG ADSR curve visualiser with high-harmonic damping overlay and phase labels.
 - `adsr-curve-geometry.ts` — Pure mathematical calculation of SVG bezier curve geometry and anchor coordinates.

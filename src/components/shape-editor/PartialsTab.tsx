@@ -3,11 +3,12 @@
  * Displays overtone macros, list of voice anchor cards, and add-anchor action buttons.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { VoiceAnchor, PartialComponent } from '../../core/types';
 import { OvertoneMacros } from './OvertoneMacros';
 import { VoiceAnchorCard } from './VoiceAnchorCard';
+import { ShapeRulerPreview } from './ShapeRulerPreview';
 
 export interface PartialsTabProps {
   anchors: VoiceAnchor[];
@@ -38,6 +39,15 @@ export const PartialsTab: React.FC<PartialsTabProps> = ({
   onAddPartial,
   onRemovePartial,
 }) => {
+  const [selectedAnchorIdx, setSelectedAnchorIdx] = useState(0);
+  const [selectedPartialIdx, setSelectedPartialIdx] = useState(0);
+
+  const safeAnchorIdx = Math.min(selectedAnchorIdx, Math.max(0, anchors.length - 1));
+  const activeAnchor = anchors[safeAnchorIdx];
+  const safePartialIdx = activeAnchor
+    ? Math.min(selectedPartialIdx, Math.max(0, activeAnchor.partials.length - 1))
+    : 0;
+
   return (
     <div className="space-y-3">
       {/* Harmonic Inharmonicity & Damping Macros */}
@@ -46,25 +56,63 @@ export const PartialsTab: React.FC<PartialsTabProps> = ({
         onApplyDamping={onApplyDamping}
       />
 
-      {/* Hierarchical Voice Anchors List */}
-      <div className="space-y-2.5 max-h-72 sm:max-h-80 overflow-y-auto overflow-x-hidden pr-1">
-        {anchors.map((anchor, aIdx) => (
-          <VoiceAnchorCard
-            key={anchor.id || aIdx}
-            anchor={anchor}
-            anchorIdx={aIdx}
-            totalAnchors={anchors.length}
-            onUpdateAnchor={onUpdateAnchor}
-            onToggleAnchorMute={onToggleAnchorMute}
-            onRemoveAnchor={onRemoveAnchor}
-            onSetAnchorOvertonePreset={onSetAnchorOvertonePreset}
-            onUpdatePartial={onUpdatePartial}
-            onTogglePartialMute={onTogglePartialMute}
-            onAddPartial={onAddPartial}
-            onRemovePartial={onRemovePartial}
-          />
-        ))}
-      </div>
+      {/* Interactive Ruler-Style Shape Preview */}
+      <ShapeRulerPreview
+        anchors={anchors}
+        selectedAnchorIdx={safeAnchorIdx}
+        selectedPartialIdx={safePartialIdx}
+        onSelect={(aIdx, pIdx) => {
+          setSelectedAnchorIdx(aIdx);
+          setSelectedPartialIdx(pIdx);
+        }}
+      />
+
+      {/* Anchor Selector Tabs */}
+      {anchors.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {anchors.map((a, idx) => (
+            <button
+              key={a.id || idx}
+              type="button"
+              onClick={() => {
+                setSelectedAnchorIdx(idx);
+                setSelectedPartialIdx(0);
+              }}
+              className={`px-2.5 py-1 rounded text-[10px] font-mono border shrink-0 cursor-pointer transition ${
+                idx === safeAnchorIdx
+                  ? 'bg-red-950/70 border-red-500/60 text-red-200 font-bold'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              {idx === 0 ? 'ROOT' : `#${idx + 1}`} {a.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Focused Voice Anchor & Partial Inspector */}
+      {activeAnchor && (
+        <VoiceAnchorCard
+          key={activeAnchor.id || safeAnchorIdx}
+          anchor={activeAnchor}
+          anchorIdx={safeAnchorIdx}
+          totalAnchors={anchors.length}
+          selectedPartialIdx={safePartialIdx}
+          onSelectPartial={setSelectedPartialIdx}
+          onUpdateAnchor={onUpdateAnchor}
+          onToggleAnchorMute={onToggleAnchorMute}
+          onRemoveAnchor={(idx) => {
+            onRemoveAnchor(idx);
+            setSelectedAnchorIdx(Math.max(0, idx - 1));
+            setSelectedPartialIdx(0);
+          }}
+          onSetAnchorOvertonePreset={onSetAnchorOvertonePreset}
+          onUpdatePartial={onUpdatePartial}
+          onTogglePartialMute={onTogglePartialMute}
+          onAddPartial={onAddPartial}
+          onRemovePartial={onRemovePartial}
+        />
+      )}
 
       {/* Add Voice Anchor Buttons */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800">

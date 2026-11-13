@@ -17,6 +17,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/ppt-constants.ts` — Theory constants ($f_{\text{TPL}} = 25.8\text{ Hz}$, $T_{\text{TPL}} \approx 38.76\text{ ms}$), canonical Solfège palette, Prime palette, and Hann window decay.
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
+- `src/core/ratio-suggestions.ts` — DuMetric octave conversions (`ratioToOctaves`, `octavesToRatio`) and nearby rational ratio snap suggestions.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
 - `src/core/alignment.ts` — Ghost fundamental, coincidence counting, Plomp-Levelt roughness curves, and Tenney complexity.
 - `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Duple 1:2, Quadruple 1:4, Hemiola 3:2, Polyrhythms 4:3 & 5:4, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar).
@@ -41,6 +42,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
 - `library-models.test.ts` — Library bundle slug round-trips, idempotent re-imports, and collision-safe non-destructive merging.
 - `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
+- `ratio-suggestions.test.ts` — DuMetric octave conversions and nearby rational ratio snap suggestions.
 - `scene-ops.test.ts` — Scene placement coordinate stepping, filter mode cycling, shape capture, upsert, and duplication.
 - `shape-editing.test.ts` — VoiceAnchor and partial addition/removal guards, mute/unmute restoration, overtone presets, inharmonicity, and damping.
 - `shape-history.test.ts` — Shape history stack initialisation, push with redo truncation, bounded stepping, and shape removal.

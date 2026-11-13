@@ -9,13 +9,16 @@ import { Volume2, VolumeX, Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-r
 import { VoiceAnchor, VoiceId, PartialComponent } from '../../core/types';
 import { ratioToValue } from '../../core/rational';
 import { DU_METRIC_OFFSETS, resolveDuMetricOffsetToken } from '../../core/shape';
-import { ANCHOR_INTERVAL_PRESETS, VOICE_OPTIONS } from './shape-editor-data';
+import { VOICE_OPTIONS } from './shape-editor-data';
 import { AnchorPartialRow } from './AnchorPartialRow';
+import { RatioScrubber } from './RatioScrubber';
 
 export interface VoiceAnchorCardProps {
   anchor: VoiceAnchor;
   anchorIdx: number;
   totalAnchors: number;
+  selectedPartialIdx?: number;
+  onSelectPartial?: (partialIdx: number) => void;
   onUpdateAnchor: (anchorIdx: number, patch: Partial<VoiceAnchor>) => void;
   onToggleAnchorMute: (anchorIdx: number) => void;
   onRemoveAnchor: (anchorIdx: number) => void;
@@ -30,6 +33,8 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
   anchor,
   anchorIdx,
   totalAnchors,
+  selectedPartialIdx = 0,
+  onSelectPartial,
   onUpdateAnchor,
   onToggleAnchorMute,
   onRemoveAnchor,
@@ -161,33 +166,19 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
             </div>
           </div>
 
+          {/* Anchor Interval Ratio Scrubber (vs Root) */}
+          <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70">
+            <RatioScrubber
+              ratio={anchor.ratio}
+              onChange={(ratio) => onUpdateAnchor(anchorIdx, { ratio })}
+              minOctaves={-1}
+              maxOctaves={3}
+              label="Anchor Interval Ratio (vs Root)"
+            />
+          </div>
+
           {/* Anchor Parameters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70 text-[10px]">
-            {/* 1. Interval Ratio */}
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-400 font-mono block">Interval Ratio (vs Root):</span>
-              <select
-                value={anchorRatioStr}
-                onChange={(e) => {
-                  const parts = e.target.value.split('/');
-                  if (parts.length === 2) {
-                    const num = parseInt(parts[0], 10) || 1;
-                    const den = parseInt(parts[1], 10) || 1;
-                    onUpdateAnchor(anchorIdx, { ratio: { kind: 'rational', num, den } });
-                  }
-                }}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs font-mono text-ppt-do font-semibold focus:outline-none cursor-pointer"
-              >
-                {!ANCHOR_INTERVAL_PRESETS.some((pr) => `${pr.num}/${pr.den}` === anchorRatioStr) && (
-                  <option value={anchorRatioStr}>{anchorRatioStr} (Custom)</option>
-                )}
-                {ANCHOR_INTERVAL_PRESETS.map((pr) => (
-                  <option key={`${pr.num}/${pr.den}`} value={`${pr.num}/${pr.den}`}>
-                    {pr.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/70 text-[10px]">
 
             {/* 2. DuMetric Solfège Phase Offset */}
             <div className="space-y-1">
@@ -264,30 +255,56 @@ export const VoiceAnchorCard: React.FC<VoiceAnchorCardProps> = ({
             </div>
           </div>
 
-          {/* Nested Partials inside this Voice Anchor */}
-          <div className="pl-2 sm:pl-3 border-l-2 border-slate-800 space-y-1.5">
-            {anchor.partials.map((p, pIdx) => (
+          {/* Focused Partial Editor with Quick Partial Chips */}
+          <div className="pl-2 sm:pl-3 border-l-2 border-slate-800 space-y-2">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+              {anchor.partials.map((p, pIdx) => (
+                <button
+                  key={p.id || pIdx}
+                  type="button"
+                  onClick={() => onSelectPartial?.(pIdx)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono border shrink-0 cursor-pointer transition ${
+                    pIdx === selectedPartialIdx
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-bold'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  .{pIdx + 1}{' '}
+                  {p.ratio.kind === 'rational'
+                    ? p.ratio.den === 1
+                      ? `${p.ratio.num}x`
+                      : `${p.ratio.num}/${p.ratio.den}`
+                    : `${p.ratio.value.toFixed(2)}x`}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  onAddPartial(anchorIdx);
+                  onSelectPartial?.(anchor.partials.length);
+                }}
+                className="px-2 py-0.5 rounded border border-dashed border-slate-700 text-[10px] font-mono text-slate-400 hover:text-white shrink-0 cursor-pointer flex items-center gap-1"
+                title="Add Harmonic Partial to this Anchor"
+              >
+                <Plus className="w-3 h-3 text-red-400" /> Add
+              </button>
+            </div>
+
+            {anchor.partials[selectedPartialIdx] && (
               <AnchorPartialRow
-                key={p.id || pIdx}
-                partial={p}
-                partialIdx={pIdx}
+                key={anchor.partials[selectedPartialIdx].id || selectedPartialIdx}
+                partial={anchor.partials[selectedPartialIdx]}
+                partialIdx={selectedPartialIdx}
                 anchorIdx={anchorIdx}
                 totalPartialsInAnchor={anchor.partials.length}
                 onUpdatePartial={onUpdatePartial}
                 onTogglePartialMute={onTogglePartialMute}
-                onRemovePartial={onRemovePartial}
+                onRemovePartial={(aIdx, pIdx) => {
+                  onRemovePartial(aIdx, pIdx);
+                  onSelectPartial?.(Math.max(0, pIdx - 1));
+                }}
               />
-            ))}
-
-            {/* Add Partial Button */}
-            <button
-              type="button"
-              onClick={() => onAddPartial(anchorIdx)}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border border-dashed border-slate-800 hover:border-slate-600 bg-slate-950/40 hover:bg-slate-900 text-xs text-slate-400 hover:text-white transition cursor-pointer active:scale-98"
-            >
-              <Plus className="w-3.5 h-3.5 text-red-400" />
-              <span>Add Harmonic Partial to this Anchor</span>
-            </button>
+            )}
           </div>
         </div>
       )}
