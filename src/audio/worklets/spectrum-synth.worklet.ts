@@ -106,18 +106,35 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       } else if (type === 'MIDI_NOTE_ON') {
         const { midiNote, targetD, velocity } = payload || {};
         if (midiNote !== undefined) {
-          this.midiVoices.set(midiNote, {
-            midiNote,
-            targetD: targetD !== undefined ? targetD : 0,
-            velocity: velocity !== undefined ? Math.max(0.05, Math.min(1.0, velocity)) : 0.8,
-            masterPhase: 0.0,
-            noteAge: 0.0,
-            isKeyDown: true,
-            isSustained: false,
-            isReleased: false,
-            releaseAge: 0.0,
-            currentAmp: 0.0,
-          });
+          const existing = this.midiVoices.get(midiNote);
+          const nextVel = velocity !== undefined ? Math.max(0.05, Math.min(1.0, velocity)) : 0.8;
+          const nextD = targetD !== undefined ? targetD : 0;
+          if (existing && existing.currentAmp > 0.0005) {
+            // Preserve phase and ramp from current amplitude to avoid re-strike clicks
+            existing.targetD = nextD;
+            existing.velocity = nextVel;
+            existing.attackStartAmp = existing.currentAmp;
+            existing.noteAge = 0.0;
+            existing.isKeyDown = true;
+            existing.isSustained = false;
+            existing.isReleased = false;
+            existing.releaseAge = 0.0;
+          } else {
+            this.midiVoices.set(midiNote, {
+              midiNote,
+              targetD: nextD,
+              velocity: nextVel,
+              masterPhase: 0.0,
+              noteAge: 0.0,
+              isKeyDown: true,
+              isSustained: false,
+              isReleased: false,
+              releaseAge: 0.0,
+              attackStartAmp: 0.0,
+              currentAmp: 0.0,
+              gateSmooths: [],
+            });
+          }
         }
       } else if (type === 'MIDI_NOTE_OFF') {
         const { midiNote } = payload || {};
@@ -621,42 +638,62 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 else if (voiceId === 'hihat') { decaySec = 0.038; pitchHz = 3800; }
                 else if (voiceId === 'triangle') { decaySec = 0.11; pitchHz = 2400; }
                 else { decaySec = 0.035; pitchHz = 1100; }
-                vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0 };
+                vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0, lastSample: 0.0, tailAmp: 0.0 };
                 this.voiceStates.set(voiceKey, vState);
               }
 
               if (wrapped) {
                 if (curGateTarget > 0.001) {
+                  if (vState.active) {
+                    // Carry decaying tail across fast retriggers to prevent waveform discontinuity
+                    vState.tailAmp = vState.lastSample || 0.0;
+                  }
                   vState.active = true;
                   vState.sampleIndex = 0;
                   vState.gate = curGateTarget;
                 }
               }
 
-              if (vState.active) {
-                const tSec = vState.sampleIndex / sampleRate;
-                const vEnv = Math.pow(Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples), 1.6);
-                let clickOsc = 0;
-                if (voiceId === 'kick') {
-                  // Punchy pitch-drop bass drum
-                  const instPhase = 2.0 * Math.PI * (55 * tSec + 4.5 * (1.0 - Math.exp(-tSec * 45)));
-                  clickOsc = Math.sin(instPhase) * 1.25;
-                } else if (voiceId === 'snare') {
-                  // Snare body + metallic rattle
-                  const body = Math.sin(2.0 * Math.PI * 195 * tSec);
-                  const rattle = Math.sin(2.0 * Math.PI * 1187 * tSec + Math.sin(2.0 * Math.PI * 3511 * tSec) * 2.5);
-                  clickOsc = body * 0.65 + rattle * 0.55;
-                } else if (voiceId === 'hihat') {
-                  // Crisp FM metallic hi-hat
-                  clickOsc = Math.sin(2.0 * Math.PI * 3840 * tSec + Math.sin(2.0 * Math.PI * 5410 * tSec) * 3.8) * 0.75;
+              if (vState.active || Math.abs(vState.tailAmp) > 0.0001) {
+                let retriggerTail = 0.0;
+                if (Math.abs(vState.tailAmp) > 0.0001) {
+                  retriggerTail = vState.tailAmp;
+                  vState.tailAmp *= 0.94;
                 } else {
-                  clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
+                  vState.tailAmp = 0.0;
                 }
-                const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
-                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult * rhythmEnv;
-                vState.sampleIndex++;
-                if (vState.sampleIndex >= vState.decaySamples) {
-                  vState.active = false;
+
+                if (vState.active) {
+                  const tSec = vState.sampleIndex / sampleRate;
+                  const attackSamples = Math.max(1, Math.floor(sampleRate * 0.0015));
+                  const vAttack = vState.sampleIndex < attackSamples ? vState.sampleIndex / attackSamples : 1.0;
+                  const vEnv = Math.pow(Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples), 1.6) * vAttack;
+                  let clickOsc = 0;
+                  if (voiceId === 'kick') {
+                    // Punchy pitch-drop bass drum
+                    const instPhase = 2.0 * Math.PI * (55 * tSec + 4.5 * (1.0 - Math.exp(-tSec * 45)));
+                    clickOsc = Math.sin(instPhase) * 1.25;
+                  } else if (voiceId === 'snare') {
+                    // Snare body + metallic rattle
+                    const body = Math.sin(2.0 * Math.PI * 195 * tSec);
+                    const rattle = Math.sin(2.0 * Math.PI * 1187 * tSec + Math.sin(2.0 * Math.PI * 3511 * tSec) * 2.5);
+                    clickOsc = body * 0.65 + rattle * 0.55;
+                  } else if (voiceId === 'hihat') {
+                    // Crisp FM metallic hi-hat
+                    clickOsc = Math.sin(2.0 * Math.PI * 3840 * tSec + Math.sin(2.0 * Math.PI * 5410 * tSec) * 3.8) * 0.75;
+                  } else {
+                    clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
+                  }
+                  const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
+                  eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult * rhythmEnv + retriggerTail;
+                  vState.lastSample = eventSample;
+                  vState.sampleIndex++;
+                  if (vState.sampleIndex >= vState.decaySamples) {
+                    vState.active = false;
+                  }
+                } else {
+                  eventSample = retriggerTail;
+                  vState.lastSample = eventSample;
                 }
               }
             }
@@ -695,12 +732,16 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           totalAmpSum += primaryShape.partials[pIdx].amp;
         }
         const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
+        const voiceCount = this.midiVoices.size;
+        const polyHeadroom = voiceCount > 1 ? 1.0 / Math.sqrt(voiceCount) : 1.0;
         const sampleDt = 1.0 / sampleRate;
 
         for (const [midiNote, mv] of this.midiVoices.entries()) {
           const f0 = this.tplHz * Math.pow(2, -mv.targetD);
           let mvPhase = mv.masterPhase;
           let finished = false;
+          const startAmp = mv.attackStartAmp || 0.0;
+          if (!mv.gateSmooths) mv.gateSmooths = [];
 
           for (let s = 0; s < numSamples; s++) {
             mvPhase += f0 * sampleDt;
@@ -727,7 +768,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 const rel = Math.max(0.04, adsr.release);
                 if (mv.noteAge < att) {
                   const aRatio = mv.noteAge / att;
-                  env = aRatio * aRatio * (3.0 - 2.0 * aRatio);
+                  const hermite = aRatio * aRatio * (3.0 - 2.0 * aRatio);
+                  env = startAmp + (1.0 - startAmp) * hermite;
                 } else {
                   const decayElapsed = mv.noteAge - att;
                   const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
@@ -737,9 +779,17 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                   const relProgress = Math.min(1.0, mv.releaseAge / rel);
                   env *= (1.0 - relProgress);
                 }
-              } else if (mv.isReleased) {
-                const relProgress = Math.min(1.0, mv.releaseAge / 0.15);
-                env = Math.max(0.0, 1.0 - relProgress);
+              } else {
+                const minAtt = 0.004;
+                if (mv.noteAge < minAtt) {
+                  const aRatio = mv.noteAge / minAtt;
+                  const hermite = aRatio * aRatio * (3.0 - 2.0 * aRatio);
+                  env = startAmp + (1.0 - startAmp) * hermite;
+                }
+                if (mv.isReleased) {
+                  const relProgress = Math.min(1.0, mv.releaseAge / 0.15);
+                  env *= Math.max(0.0, 1.0 - relProgress);
+                }
               }
 
               if (pIdx === 0) {
@@ -749,11 +799,18 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                 }
               }
 
-              const gateGain = (this.filter && this.filter.enabled)
+              const curGateTarget = (this.filter && this.filter.enabled)
                 ? this.evalOnsetGain(p.rangeMatches, mvPhase)
                 : 1.0;
+              let gateGain = mv.gateSmooths[pIdx];
+              if (gateGain === undefined) {
+                gateGain = curGateTarget;
+              } else {
+                gateGain += (curGateTarget - gateGain) * 0.06;
+              }
+              mv.gateSmooths[pIdx] = gateGain;
 
-              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom;
+              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom * polyHeadroom;
               const pan = Math.sin(pIdx * 1.2) * 0.35;
               sampleValL += sig * (0.5 - pan * 0.5);
               sampleValR += sig * (0.5 + pan * 0.5);
