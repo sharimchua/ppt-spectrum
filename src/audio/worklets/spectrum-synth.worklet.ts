@@ -298,7 +298,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
 
     const total = rawA + rawD + rawR;
-    const scale = total > 0.9 ? 0.9 / total : 1.0;
+    const scale = total > 1.0 ? 1.0 / total : 1.0;
     const attFrac = rawA * scale;
     const decFrac = rawD * scale;
     const relFrac = rawR * scale;

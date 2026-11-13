@@ -9,10 +9,11 @@ import { calculateAdsrGeometry } from './adsr-curve-geometry';
 
 export interface AdsrCurveProps {
   adsr: ADSREnvelope;
+  periodMode?: 'pitch' | 'rhythm';
 }
 
-export const AdsrCurve: React.FC<AdsrCurveProps> = ({ adsr }) => {
-  const geo = calculateAdsrGeometry(adsr);
+export const AdsrCurve: React.FC<AdsrCurveProps> = ({ adsr, periodMode = 'pitch' }) => {
+  const geo = calculateAdsrGeometry(adsr, 320, periodMode);
 
   return (
     <>

@@ -30,6 +30,18 @@ describe('Envelope Presets & Rhythm Supercycle Evaluation', () => {
     // Periodic wrap across supercycleLength = 4
     expect(evaluateRhythmEnvelopeGain(swell, 4.01)).toBeCloseTo(atStart, 4);
   });
+
+  it('supports supercycleLength = 1 (envelope over one root rotation)', () => {
+    const oneRot = {
+      ...PRESET_ENVELOPES.find((e) => e.id === 'env-rhythm-gate-2')!,
+      supercycleLength: 1,
+      adsr: { attack: 0.2, decay: 0.3, sustain: 0.5, release: 0.3, damping: 0 },
+    };
+    expect(evaluateRhythmEnvelopeGain(oneRot, 0.0)).toBeCloseTo(0, 4);
+    expect(evaluateRhythmEnvelopeGain(oneRot, 0.2)).toBeCloseTo(1.0, 2);
+    expect(evaluateRhythmEnvelopeGain(oneRot, 0.6)).toBeCloseTo(0.5, 2);
+    expect(evaluateRhythmEnvelopeGain(oneRot, 1.0)).toBeCloseTo(0, 4);
+  });
 });
 
 describe('Envelope Library Scene Operations', () => {

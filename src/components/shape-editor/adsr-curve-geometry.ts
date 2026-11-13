@@ -34,25 +34,48 @@ export interface AdsrGeometry {
  */
 export function calculateAdsrGeometry(
   adsr: ADSREnvelope,
-  baseW: number = 320
+  baseW: number = 320,
+  periodMode: 'pitch' | 'rhythm' = 'pitch'
 ): AdsrGeometry {
   const x0 = 20;
   const yBase = 68;
   const yPeak = 15;
   const hSpan = yBase - yPeak;
 
-  // Segment widths (normalised)
-  const wA = Math.max(12, Math.min(60, (adsr.attack / 0.3) * 60));
-  const wD = Math.max(25, Math.min(100, (adsr.decay / 3.0) * 100));
-  const wS = 65;
-  const wR = Math.max(20, Math.min(80, (adsr.release / 2.0) * 80));
-  const totalW = wA + wD + wS + wR;
-  const scale = (baseW - 10) / Math.max(1, totalW);
+  let swA: number;
+  let swD: number;
+  let swS: number;
+  let swR: number;
 
-  const swA = wA * scale;
-  const swD = wD * scale;
-  const swS = wS * scale;
-  const swR = wR * scale;
+  if (periodMode === 'rhythm') {
+    const rawA = Math.max(0.005, adsr.attack);
+    const rawD = Math.max(0.01, adsr.decay);
+    const rawR = Math.max(0.01, adsr.release);
+    const total = rawA + rawD + rawR;
+    const scale = total > 1.0 ? 1.0 / total : 1.0;
+    const attFrac = rawA * scale;
+    const decFrac = rawD * scale;
+    const relFrac = rawR * scale;
+    const susFrac = Math.max(0, 1.0 - (attFrac + decFrac + relFrac));
+    const usableW = baseW - 10;
+    swA = attFrac * usableW;
+    swD = decFrac * usableW;
+    swS = susFrac * usableW;
+    swR = relFrac * usableW;
+  } else {
+    // Pitch-space normalised segment widths (1 Period = 1 second)
+    const wA = Math.max(12, Math.min(60, (adsr.attack / 0.3) * 60));
+    const wD = Math.max(25, Math.min(100, (adsr.decay / 3.0) * 100));
+    const wS = 65;
+    const wR = Math.max(20, Math.min(80, (adsr.release / 2.0) * 80));
+    const totalW = wA + wD + wS + wR;
+    const scale = (baseW - 10) / Math.max(1, totalW);
+
+    swA = wA * scale;
+    swD = wD * scale;
+    swS = wS * scale;
+    swR = wR * scale;
+  }
 
   const p0x = x0;
   const p1x = p0x + swA;

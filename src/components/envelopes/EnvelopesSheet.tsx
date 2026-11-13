@@ -254,7 +254,12 @@ export const EnvelopesSheet: React.FC<EnvelopesSheetProps> = ({
 
             {envelope.rhythmMode === 'supercycle' && (
               <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                <span className="text-[11px] font-mono text-slate-300">Supercycle Length (bars):</span>
+                <div>
+                  <span className="text-[11px] font-mono text-slate-300 block">Supercycle Period (rotations):</span>
+                  <span className="text-[9px] font-mono text-slate-500">
+                    1 Period = {envelope.supercycleLength || 4} root rotation{(envelope.supercycleLength || 4) === 1 ? '' : 's'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -292,46 +297,80 @@ export const EnvelopesSheet: React.FC<EnvelopesSheetProps> = ({
           </div>
 
           {/* Interactive SVG Envelope Curve */}
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-            <div className="flex justify-between text-[10px] font-mono text-slate-400">
-              <span className="text-amber-400 font-semibold">Contour</span>
-              <span>
-                A: {(envelope.adsr.attack * 1000).toFixed(0)}ms · D: {envelope.adsr.decay.toFixed(2)}s · S:{' '}
-                {(envelope.adsr.sustain * 100).toFixed(0)}% · R: {envelope.adsr.release.toFixed(2)}s
-              </span>
-            </div>
-            <AdsrCurve adsr={envelope.adsr} />
-          </div>
-
-          {/* ADSR Sliders */}
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-            {[
-              { label: 'Attack (A)', key: 'attack' as const, min: 0.001, max: 1.0, step: 0.005, fmt: (v: number) => `${(v * 1000).toFixed(0)} ms` },
-              { label: 'Decay (D)', key: 'decay' as const, min: 0.05, max: 4.0, step: 0.05, fmt: (v: number) => `${v.toFixed(2)} s` },
-              { label: 'Sustain (S)', key: 'sustain' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
-              { label: 'Release (R)', key: 'release' as const, min: 0.04, max: 3.0, step: 0.05, fmt: (v: number) => `${v.toFixed(2)} s` },
-              { label: 'Harmonic Damping', key: 'damping' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
-            ].map((s) => {
-              const val = envelope.adsr[s.key] ?? 0;
-              return (
-                <div key={s.key} className="space-y-1">
-                  <div className="flex justify-between text-[11px] font-mono">
-                    <span className="text-slate-300">{s.label}</span>
-                    <span className="text-amber-400 font-semibold">{s.fmt(val)}</span>
+          {(() => {
+            const isRhythm = envelope.rhythmMode === 'supercycle';
+            const L = Math.max(1, envelope.supercycleLength || 4);
+            const adrTotal = envelope.adsr.attack + envelope.adsr.decay + envelope.adsr.release;
+            return (
+              <>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex justify-between text-[10px] font-mono text-slate-400">
+                    <span className="text-amber-400 font-semibold">
+                      {isRhythm ? `Supercycle Contour (${L} rot)` : 'Pitch Contour (1P = 1.0s)'}
+                    </span>
+                    <span>
+                      {isRhythm
+                        ? `A: ${(envelope.adsr.attack * 100).toFixed(0)}% · D: ${(envelope.adsr.decay * 100).toFixed(0)}% · S: ${(envelope.adsr.sustain * 100).toFixed(0)}% · R: ${(envelope.adsr.release * 100).toFixed(0)}%`
+                        : `A: ${(envelope.adsr.attack * 1000).toFixed(0)}ms · D: ${envelope.adsr.decay.toFixed(2)}s · S: ${(envelope.adsr.sustain * 100).toFixed(0)}% · R: ${envelope.adsr.release.toFixed(2)}s`}
+                    </span>
                   </div>
-                  <input
-                    type="range"
-                    min={s.min}
-                    max={s.max}
-                    step={s.step}
-                    value={val}
-                    onChange={(e) => handlePatchAdsr({ [s.key]: parseFloat(e.target.value) })}
-                    className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
-                  />
+                  <AdsrCurve adsr={envelope.adsr} periodMode={isRhythm ? 'rhythm' : 'pitch'} />
+                  {isRhythm && (
+                    <div className="text-[9px] font-mono text-slate-400 flex justify-between">
+                      <span>
+                        {adrTotal > 1.0
+                          ? 'A+D+R > 100%: scaled proportionally to fit 1 period'
+                          : `Sustain hold: ${((1 - adrTotal) * 100).toFixed(0)}% (${((1 - adrTotal) * L).toFixed(2)} rot)`}
+                      </span>
+                      <span className="text-amber-400/90">1.00 P = {L} rot</span>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+
+                {/* ADSR Sliders */}
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+                  {(isRhythm
+                    ? [
+                        { label: 'Attack (A)', key: 'attack' as const, min: 0.005, max: 1.0, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}% (${(v * L).toFixed(2)} rot)` },
+                        { label: 'Decay (D)', key: 'decay' as const, min: 0.01, max: 1.0, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}% (${(v * L).toFixed(2)} rot)` },
+                        { label: 'Sustain (S)', key: 'sustain' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
+                        { label: 'Release (R)', key: 'release' as const, min: 0.01, max: 1.0, step: 0.01, fmt: (v: number) => `${(v * 100).toFixed(0)}% (${(v * L).toFixed(2)} rot)` },
+                        { label: 'Harmonic Damping', key: 'damping' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
+                      ]
+                    : [
+                        { label: 'Attack (A)', key: 'attack' as const, min: 0.001, max: 1.0, step: 0.005, fmt: (v: number) => `${(v * 1000).toFixed(0)} ms` },
+                        { label: 'Decay (D)', key: 'decay' as const, min: 0.05, max: 4.0, step: 0.05, fmt: (v: number) => `${v.toFixed(2)} s` },
+                        { label: 'Sustain (S)', key: 'sustain' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
+                        { label: 'Release (R)', key: 'release' as const, min: 0.04, max: 3.0, step: 0.05, fmt: (v: number) => `${v.toFixed(2)} s` },
+                        { label: 'Harmonic Damping', key: 'damping' as const, min: 0, max: 1, step: 0.02, fmt: (v: number) => `${(v * 100).toFixed(0)}%` },
+                      ]
+                  ).map((s) => {
+                    const rawVal = envelope.adsr[s.key] ?? 0;
+                    const val = isRhythm && (s.key === 'attack' || s.key === 'decay' || s.key === 'release')
+                      ? Math.min(1.0, rawVal)
+                      : rawVal;
+                    return (
+                      <div key={s.key} className="space-y-1">
+                        <div className="flex justify-between text-[11px] font-mono">
+                          <span className="text-slate-300">{s.label}</span>
+                          <span className="text-amber-400 font-semibold">{s.fmt(val)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={s.min}
+                          max={s.max}
+                          step={s.step}
+                          value={val}
+                          onChange={(e) => handlePatchAdsr({ [s.key]: parseFloat(e.target.value) })}
+                          className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500 block"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
