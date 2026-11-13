@@ -16,6 +16,7 @@ export interface MidiDeviceState {
   selectedInputId: string;
   isConnected: boolean;
   permissionStatus: MidiPermissionStatus;
+  lastError?: string | null;
 }
 
 export type NoteOnCallback = (midi: number, velocity: number) => void;
@@ -42,6 +43,7 @@ export class MidiManager {
     selectedInputId: 'all',
     isConnected: false,
     permissionStatus: 'prompt',
+    lastError: null,
   };
 
   private boundMessageHandler = (event: Event) => {
@@ -158,6 +160,7 @@ export class MidiManager {
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
       this.state.isConnected = false;
       this.state.permissionStatus = 'unsupported';
+      this.state.lastError = 'Web MIDI API is not supported in this browser or context (requires HTTPS or localhost).';
       this.notifyState();
       return false;
     }
@@ -165,6 +168,7 @@ export class MidiManager {
     try {
       this.midiAccess = await navigator.requestMIDIAccess({ sysex: false });
       this.state.permissionStatus = 'granted';
+      this.state.lastError = null;
       this.updateInputs();
 
       this.midiAccess.onstatechange = () => {
@@ -172,9 +176,10 @@ export class MidiManager {
       };
 
       return true;
-    } catch {
+    } catch (err) {
       this.state.isConnected = false;
       this.state.permissionStatus = 'denied';
+      this.state.lastError = err instanceof Error ? err.message : 'MIDI permission was denied by the browser.';
       this.notifyState();
       return false;
     }

@@ -3,9 +3,9 @@
  * Mirrors the ppt-visualiser MIDI permission dialogue with Australian English spelling.
  */
 
-import React, { useEffect } from 'react';
-import { Keyboard } from 'lucide-react';
-import { midiManagerInstance } from '../audio/midi-manager';
+import React, { useEffect, useState } from 'react';
+import { Keyboard, RefreshCw } from 'lucide-react';
+import { midiManagerInstance, MidiDeviceState } from '../audio/midi-manager';
 
 export interface MidiPermissionModalProps {
   isOpen: boolean;
@@ -16,8 +16,12 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [midiState, setMidiState] = useState<MidiDeviceState>(midiManagerInstance.state);
+  const [isConnecting, setIsConnecting] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
+    const unsub = midiManagerInstance.onStateChange(setMidiState);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -26,14 +30,24 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      unsub();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleConnect = async () => {
-    onClose();
-    await midiManagerInstance.requestAccess();
+    setIsConnecting(true);
+    try {
+      const ok = await midiManagerInstance.requestAccess();
+      if (ok && midiManagerInstance.state.inputs.length > 0) {
+        onClose();
+      }
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -79,26 +93,72 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
           <p className="text-xs text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
             This app only reads incoming notes and velocities as you play them. It cannot alter anything on your instrument, install software, or modify device settings.
           </p>
-          <p className="text-xs text-slate-400">
-            Click <strong className="text-slate-200">Connect MIDI</strong> below, then choose <strong className="text-slate-200">Allow</strong> when your browser prompts you.
-          </p>
+
+          {midiState.isConnected && (
+            <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3 space-y-2">
+              <div className="text-xs font-semibold text-emerald-300">
+                Connected ({midiState.inputs.length} input{midiState.inputs.length === 1 ? '' : 's'})
+              </div>
+              <select
+                value={midiState.selectedInputId}
+                onChange={(e) => midiManagerInstance.selectInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Select MIDI Input Device"
+              >
+                <option value="all">All MIDI Inputs ({midiState.inputs.length})</option>
+                {midiState.inputs.map((inp) => (
+                  <option key={inp.id} value={inp.id}>
+                    {inp.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!midiState.isConnected && midiState.permissionStatus === 'granted' && (
+            <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/40 rounded-xl p-3">
+              MIDI permission is granted, but no MIDI input devices were detected. Plug in or power on your keyboard and click Refresh.
+            </div>
+          )}
+
+          {(midiState.permissionStatus === 'denied' || midiState.lastError) && (
+            <div className="text-xs text-red-300 bg-red-950/40 border border-red-500/40 rounded-xl p-3">
+              {midiState.lastError || 'MIDI permission was denied. Check your browser site permissions for MIDI devices.'}
+            </div>
+          )}
+
+          {midiState.permissionStatus === 'prompt' && !midiState.lastError && (
+            <p className="text-xs text-slate-400">
+              Click <strong className="text-slate-200">Connect MIDI</strong> below, then choose <strong className="text-slate-200">Allow</strong> when your browser prompts you.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
           <button
             type="button"
+            disabled={isConnecting}
             onClick={() => void handleConnect()}
-            className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-red-950/40 text-center flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-red-950/40 text-center flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Connect MIDI</span>
-            <span>→</span>
+            {midiState.permissionStatus === 'granted' ? (
+              <>
+                <RefreshCw className={`w-4 h-4 ${isConnecting ? 'animate-spin' : ''}`} />
+                <span>{isConnecting ? 'Scanning…' : 'Refresh MIDI Devices'}</span>
+              </>
+            ) : (
+              <>
+                <span>{isConnecting ? 'Connecting…' : 'Connect MIDI'}</span>
+                <span>→</span>
+              </>
+            )}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium text-sm transition text-center cursor-pointer"
           >
-            Cancel
+            {midiState.isConnected ? 'Done' : 'Cancel'}
           </button>
         </div>
       </div>
