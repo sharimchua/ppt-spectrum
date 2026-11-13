@@ -22,7 +22,9 @@ import {
   SlidersHorizontal,
   Filter,
   Compass,
+  Keyboard,
 } from 'lucide-react';
+import { MidiDeviceState } from '../audio/midi-manager';
 
 interface ControlToolbarProps {
   scene: Scene;
@@ -50,6 +52,8 @@ interface ControlToolbarProps {
   onOpenCapture: () => void;
   onOpenInfo: () => void;
   onOpenRadialMenu?: () => void;
+  midiState?: MidiDeviceState;
+  onOpenMidiModal?: () => void;
 }
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
@@ -77,6 +81,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onOpenCapture,
   onOpenInfo,
   onOpenRadialMenu,
+  midiState,
+  onOpenMidiModal,
 }) => {
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -426,6 +432,29 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">
                 {scene.filter?.enabled ? 'ON' : 'OFF'}
               </span>
+            </button>
+          )}
+
+          {/* MIDI Keyboard Connection Button */}
+          {onOpenMidiModal && midiState?.permissionStatus !== 'unsupported' && (
+            <button
+              onClick={onOpenMidiModal}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+                midiState?.isConnected
+                  ? 'border-emerald-500/70 bg-emerald-950/60 text-emerald-300'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
+              }`}
+              title={
+                midiState?.isConnected
+                  ? `MIDI Connected (${midiState.inputs.length} device${midiState.inputs.length === 1 ? '' : 's'})`
+                  : 'Connect MIDI Keyboard'
+              }
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">MIDI</span>
+              {midiState?.isConnected && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              )}
             </button>
           )}
 

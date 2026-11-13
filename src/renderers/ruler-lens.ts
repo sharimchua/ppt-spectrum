@@ -4,7 +4,7 @@ import { calculateGhostFundamental } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq, dToBpm, freqToPitchRegister } from '../core/axis';
 import { LensLabelMode } from '../core/layout-models';
-import { RegisteredLensRenderer } from './render-coordinator';
+import { RegisteredLensRenderer, HeldMidiNote } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { getApertureColours, endpointToRulerD } from './filter-render-utils';
 import { evaluateDutyGain } from '../core/filter-eval';
@@ -459,6 +459,64 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           velocity: activeLightVelocity,
           colorHex: neonCol,
         });
+      }
+    }
+
+    // 5. Polyphonic Held MIDI Note Ghosts (earlier keys still held while a newer key is primary)
+    const ghostMidiNotes = _configOverrides?.ghostMidiNotes as HeldMidiNote[] | undefined;
+    if (ghostMidiNotes && ghostMidiNotes.length > 0) {
+      const primaryShape = scene.shapes.find((s) => s.id === scene.placements[0]?.shapeId);
+      for (const gn of ghostMidiNotes) {
+        if (gn.isPrimary) continue;
+        const gx = dToX(gn.d);
+        if (gx < 10 || gx > width - 10) continue;
+
+        const gAddr = resolveDuPeriodAddress(gn.d);
+        const gCol = SOLFEGE_NEON_COLORS[gAddr.semitoneIndex] || SOLFEGE_COLORS[gAddr.semitoneIndex] || '#38bdf8';
+        const gFreq = dToFreq(gn.d, scene.anchors.tplFrequencyHz);
+        const gPitch = freqToPitchRegister(gFreq, scene.anchors.tuningA4Hz);
+        const ghostH = Math.max(24, height * 0.42 * gn.velocity);
+
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        ctx.strokeStyle = gCol;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(gx, baselineY);
+        ctx.lineTo(gx, baselineY - ghostH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Ghost partial markers if primary shape has overtones
+        if (primaryShape) {
+          for (let i = 1; i < primaryShape.partials.length; i++) {
+            const p = primaryShape.partials[i];
+            if (p.amp <= 0.01) continue;
+            const rVal = p.ratio.kind === 'rational' ? p.ratio.num / p.ratio.den : p.ratio.value;
+            const pd = gn.d - Math.log2(Math.max(0.01, rVal));
+            const px = dToX(pd);
+            if (px < 10 || px > width - 10) continue;
+            const ph = Math.max(12, ghostH * p.amp);
+            ctx.beginPath();
+            ctx.moveTo(px, baselineY);
+            ctx.lineTo(px, baselineY - ph);
+            ctx.strokeStyle = gCol;
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          }
+        }
+
+        ctx.fillStyle = gCol;
+        ctx.beginPath();
+        ctx.arc(gx, baselineY - ghostH, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.75;
+        ctx.font = 'bold 8.5px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${gPitch.note}${gPitch.octave}`, gx, Math.max(12, baselineY - ghostH - 6));
+        ctx.restore();
       }
     }
   }

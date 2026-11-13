@@ -11,6 +11,13 @@ export interface CachedRect {
   height: number;
 }
 
+export interface HeldMidiNote {
+  midi: number;
+  d: number;
+  velocity: number;
+  isPrimary: boolean;
+}
+
 export interface RegisteredLensRenderer {
   id: string;
   render: (
@@ -33,6 +40,7 @@ export class RenderCoordinator {
   private webglPipeline: WebGLPostProcessingPipeline | null = null;
 
   private scene: Scene;
+  private heldMidiNotes: HeldMidiNote[] = [];
   private isRunning: boolean = false;
   private animId: number | null = null;
   private lastFrameTime: number = performance.now();
@@ -179,6 +187,10 @@ export class RenderCoordinator {
     }
   }
 
+  public setHeldMidiNotes(notes: HeldMidiNote[]): void {
+    this.heldMidiNotes = notes;
+  }
+
   private loop = (): void => {
     if (!this.isRunning) return;
     const now = performance.now();
@@ -271,7 +283,10 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(scaleX, scaleY);
       ctx.clearRect(0, 0, w, h);
-      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, configOverrides, noteAge);
+      const effectiveOverrides = this.heldMidiNotes.length > 0
+        ? { ...configOverrides, ghostMidiNotes: this.heldMidiNotes }
+        : configOverrides;
+      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, effectiveOverrides, noteAge);
       ctx.restore();
 
       if (renderer.getDynamicLights) {

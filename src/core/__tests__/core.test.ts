@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister } from '../axis';
+import { freqToD, dToFreq, bpmToD, resolveDuPeriodAddress, freqToPitchRegister, midiToFreq, midiToD } from '../axis';
 import { gcd, lcm, reduceRational, rationalise, primeFactors, primeLimit, ratioToValue } from '../rational';
 import {
   calculateGhostFundamental,
@@ -84,6 +84,13 @@ describe('Axis Mathematics', () => {
     expect(micro.note).toBe('A');
     expect(micro.octave).toBe(4);
     expect(micro.cents).toBeGreaterThan(15);
+  });
+
+  it('converts MIDI note numbers to frequency and DuPeriod d', () => {
+    expect(midiToFreq(69, 440)).toBeCloseTo(440, 6);
+    expect(midiToFreq(57, 440)).toBeCloseTo(220, 6);
+    expect(midiToD(69, 440)).toBeCloseTo(freqToD(440), 6);
+    expect(midiToD(60, 440)).toBeCloseTo(freqToD(261.625565), 4);
   });
 });
 

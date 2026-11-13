@@ -451,6 +451,49 @@ export class AudioEngine {
   }
 
   /**
+   * Triggers a polyphonic MIDI note-on at a specific DuPeriod coordinate d.
+   */
+  public async midiNoteOn(
+    midiNote: number,
+    velocity: number,
+    targetD: number,
+    sceneOverride?: Scene
+  ): Promise<void> {
+    if (sceneOverride) {
+      this.scene = sceneOverride;
+    }
+    this.isMutedForFocus = false;
+    const ok = await this.unlock();
+    if (!ok || !this.hasSynthNode()) return;
+    this.applyMasterGain();
+    this.syncSceneToWorklet();
+
+    this.postToSynth({
+      type: 'MIDI_NOTE_ON',
+      payload: { midiNote, targetD, velocity },
+    });
+  }
+
+  /**
+   * Releases a polyphonic MIDI note.
+   */
+  public midiNoteOff(midiNote: number): void {
+    if (!this.hasSynthNode()) return;
+    this.postToSynth({
+      type: 'MIDI_NOTE_OFF',
+      payload: { midiNote },
+    });
+  }
+
+  /**
+   * Releases all held MIDI notes.
+   */
+  public releaseAllMidiNotes(): void {
+    if (!this.hasSynthNode()) return;
+    this.postToSynth({ type: 'MIDI_RELEASE_ALL' });
+  }
+
+  /**
    * Triggers an acoustic note envelope strike.
    */
   public async triggerNote(shapeId?: string, sceneOverride?: Scene): Promise<void> {

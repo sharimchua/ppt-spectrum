@@ -24,6 +24,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
+- `src/components/MidiPermissionModal.tsx` — Web MIDI permission request dialogue.
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
@@ -81,6 +82,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useCanvasFilterGestures.ts` — Canvas gesture interactions for filter aperture scrubbing (drag, wheel, touch).
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
+- `useMidi.ts` — Web MIDI input lifecycle, polyphonic voice dispatch, scene frequency updates, and ruler ghost note syncing.
 - `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
 
 ### Tests (`src/components/__tests__/`)

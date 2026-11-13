@@ -10,6 +10,7 @@ import { ShapeQuickSearchModal } from './ShapeQuickSearchModal';
 import { FilterQuickSearchModal } from './FilterQuickSearchModal';
 import { RadialMenuOverlay } from './RadialMenuOverlay';
 import { FiltersSheet } from './filters/FiltersSheet';
+import { MidiPermissionModal } from './MidiPermissionModal';
 
 export interface AppModalsProps {
   // Capture Modal
@@ -94,6 +95,10 @@ export interface AppModalsProps {
   removeFilterCondition: (id: string) => void;
   moveFilterCondition: (id: string, direction: 'up' | 'down') => void;
   focusCondition: (id: string) => void;
+
+  // MIDI Modal
+  isMidiModalOpen: boolean;
+  onCloseMidiModal: () => void;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -164,6 +169,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
   removeFilterCondition,
   moveFilterCondition,
   focusCondition,
+  isMidiModalOpen,
+  onCloseMidiModal,
 }) => {
   return (
     <>
@@ -275,6 +282,11 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onRemoveCondition={removeFilterCondition}
         onMoveCondition={moveFilterCondition}
         onFocusCondition={focusCondition}
+      />
+
+      <MidiPermissionModal
+        isOpen={isMidiModalOpen}
+        onClose={onCloseMidiModal}
       />
     </>
   );

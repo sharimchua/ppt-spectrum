@@ -16,6 +16,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     // Poetic voice envelopes & triggers
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz, gate }
     this.noteStates = new Map(); // shapeId -> { noteAge, lastD, isKeyDown, isAuditioning, isReleased, releaseAge, releaseStartAmp, rhythmTurnsElapsed }
+    this.midiVoices = new Map(); // midiNote -> { midiNote, targetD, velocity, masterPhase, noteAge, isKeyDown, isReleased, releaseAge, currentAmp }
     this.isPlaying = false; // Transport playback state
 
     // Message throttle counter (~30-60 Hz telemetry back to render thread)
@@ -86,6 +87,36 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         }
         for (const v of this.voiceStates.values()) {
           v.active = false;
+        }
+        this.midiVoices.clear();
+      } else if (type === 'MIDI_NOTE_ON') {
+        const { midiNote, targetD, velocity } = payload || {};
+        if (midiNote !== undefined) {
+          this.midiVoices.set(midiNote, {
+            midiNote,
+            targetD: targetD !== undefined ? targetD : 0,
+            velocity: velocity !== undefined ? Math.max(0.05, Math.min(1.0, velocity)) : 0.8,
+            masterPhase: 0.0,
+            noteAge: 0.0,
+            isKeyDown: true,
+            isReleased: false,
+            releaseAge: 0.0,
+            currentAmp: 0.0,
+          });
+        }
+      } else if (type === 'MIDI_NOTE_OFF') {
+        const { midiNote } = payload || {};
+        const v = this.midiVoices.get(midiNote);
+        if (v) {
+          v.isKeyDown = false;
+          v.isReleased = true;
+          v.releaseAge = 0.0;
+        }
+      } else if (type === 'MIDI_RELEASE_ALL') {
+        for (const v of this.midiVoices.values()) {
+          v.isKeyDown = false;
+          v.isReleased = true;
+          v.releaseAge = 0.0;
         }
       } else if (type === 'SET_TARGET_D') {
         const { shapeId, targetD } = payload;
@@ -559,6 +590,93 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         noteAge: nState.noteAge,
         isAuditioning: nState.isAuditioning,
       };
+    }
+
+    // Polyphonic MIDI Voices (rendered using primary shape partials, ADSR & filter)
+    if (this.midiVoices.size > 0 && this.shapes.length > 0) {
+      const primaryShape = this.shapes[0];
+      if (!primaryShape.mute && primaryShape.gain > 0.0001) {
+        const adsr = primaryShape.adsr;
+        let totalAmpSum = 0;
+        for (let pIdx = 0; pIdx < primaryShape.partials.length; pIdx++) {
+          totalAmpSum += primaryShape.partials[pIdx].amp;
+        }
+        const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
+        const sampleDt = 1.0 / sampleRate;
+
+        for (const [midiNote, mv] of this.midiVoices.entries()) {
+          const f0 = this.tplHz * Math.pow(2, -mv.targetD);
+          let mvPhase = mv.masterPhase;
+          let finished = false;
+
+          for (let s = 0; s < numSamples; s++) {
+            mvPhase += f0 * sampleDt;
+            if (mvPhase > 9369360) mvPhase -= 9369360;
+            mv.noteAge += sampleDt;
+            if (mv.isReleased) mv.releaseAge += sampleDt;
+
+            let sampleValL = 0;
+            let sampleValR = 0;
+
+            for (let pIdx = 0; pIdx < primaryShape.partials.length; pIdx++) {
+              const p = primaryShape.partials[pIdx];
+              if (p.amp <= 0.0001) continue;
+
+              const ratioVal = p.ratio;
+              const partialPhase = ((mvPhase * ratioVal + p.phaseOffset) % 1.0 + 1.0) % 1.0;
+
+              let env = 1.0;
+              if (adsr) {
+                const att = Math.max(0.004, adsr.attack);
+                const dec = Math.max(0.01, adsr.decay);
+                const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
+                const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
+                const rel = Math.max(0.04, adsr.release);
+                if (mv.noteAge < att) {
+                  const aRatio = mv.noteAge / att;
+                  env = aRatio * aRatio * (3.0 - 2.0 * aRatio);
+                } else {
+                  const decayElapsed = mv.noteAge - att;
+                  const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
+                  env = sus + (1.0 - sus) * Math.exp(-decayElapsed / Math.max(0.005, tau));
+                }
+                if (mv.isReleased) {
+                  const relProgress = Math.min(1.0, mv.releaseAge / rel);
+                  env *= (1.0 - relProgress);
+                }
+              } else if (mv.isReleased) {
+                const relProgress = Math.min(1.0, mv.releaseAge / 0.15);
+                env = Math.max(0.0, 1.0 - relProgress);
+              }
+
+              if (pIdx === 0) {
+                mv.currentAmp = env;
+                if (mv.isReleased && env <= 0.0008) {
+                  finished = true;
+                }
+              }
+
+              const gateGain = (this.filter && this.filter.enabled)
+                ? this.evalOnsetGain(p.rangeMatches, mvPhase)
+                : 1.0;
+
+              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom;
+              const pan = Math.sin(pIdx * 1.2) * 0.35;
+              sampleValL += sig * (0.5 - pan * 0.5);
+              sampleValR += sig * (0.5 + pan * 0.5);
+            }
+
+            channelLeft[s] += sampleValL * this.masterGain;
+            channelRight[s] += sampleValR * this.masterGain;
+            if (finished) break;
+          }
+
+          mv.masterPhase = mvPhase;
+          if (finished) {
+            this.midiVoices.delete(midiNote);
+          }
+        }
+      }
     }
 
     // Transparent soft-knee saturation prevents harsh digital DAC hard-clipping

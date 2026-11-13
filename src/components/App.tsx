@@ -20,6 +20,7 @@ import { useShapeLibrary } from './hooks/useShapeLibrary';
 import { useFilters } from './hooks/useFilters';
 import { useKeyboardShortcuts, KeyboardActions } from './hooks/useKeyboardShortcuts';
 import { useFullscreen } from './hooks/useFullscreen';
+import { useMidi } from './hooks/useMidi';
 import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
@@ -83,6 +84,19 @@ export const App: React.FC = () => {
     handleTriggerNote,
     handleTogglePlay: rawHandleTogglePlay,
   } = useTransport({ coordinator, audioEngine, sceneRef });
+
+  // Web MIDI keyboard input (polyphonic play + ruler ghosting)
+  const {
+    midiState,
+    isMidiModalOpen,
+    openMidiModal,
+    closeMidiModal,
+  } = useMidi({
+    coordinator,
+    audioEngine,
+    sceneRef,
+    onUpdatePlacementD: handleUpdatePlacementD,
+  });
 
   // Musical bookmarks and continuum sweep oscillation
   const {
@@ -299,6 +313,8 @@ export const App: React.FC = () => {
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenRadialMenu={handleOpenRadialMenu}
+        midiState={midiState}
+        onOpenMidiModal={openMidiModal}
       />
 
       {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
@@ -423,6 +439,8 @@ export const App: React.FC = () => {
         removeFilterCondition={removeFilterCondition}
         moveFilterCondition={moveFilterCondition}
         focusCondition={focusCondition}
+        isMidiModalOpen={isMidiModalOpen}
+        onCloseMidiModal={closeMidiModal}
       />
     </div>
   );
