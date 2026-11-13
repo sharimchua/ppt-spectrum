@@ -171,7 +171,7 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
             <kbd className="text-[10px] font-mono text-slate-500">P</kbd>
           </button>
 
-          {onOpenMidiModal && midiState?.permissionStatus !== 'unsupported' && (
+          {onOpenMidiModal && (
             <button
               type="button"
               onClick={() => act(onOpenMidiModal)}

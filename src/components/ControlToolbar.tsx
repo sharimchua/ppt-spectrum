@@ -458,7 +458,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           )}
 
           {/* MIDI Keyboard Connection Button (2xl+, otherwise in More menu) */}
-          {onOpenMidiModal && midiState?.permissionStatus !== 'unsupported' && (
+          {onOpenMidiModal && (
             <button
               onClick={onOpenMidiModal}
               className={`hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${

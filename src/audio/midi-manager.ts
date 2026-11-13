@@ -217,6 +217,9 @@ export class MidiManager {
 
   private bindInput(input: MIDIInput): void {
     input.onmidimessage = this.boundMessageHandler;
+    if (typeof input.open === 'function' && input.connection === 'closed') {
+      void input.open().catch(() => {});
+    }
   }
 
   public selectInput(id: string): void {
