@@ -98,7 +98,7 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
   const hasBadge = Boolean(isOscillating || isEditMode || midiState?.isConnected);
 
   return (
-    <div ref={containerRef} className="relative flex 2xl:hidden items-center">
+    <div ref={containerRef} className="relative flex min-[1900px]:hidden items-center">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -165,7 +165,7 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
           <button
             type="button"
             onClick={() => act(onOpenCapture)}
-            className="xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+            className="2xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Radio className="w-3.5 h-3.5 text-red-400" />
@@ -178,7 +178,7 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
             <button
               type="button"
               onClick={() => act(onOpenMidiModal)}
-              className="xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+              className="2xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <Keyboard className={`w-3.5 h-3.5 ${midiState?.isConnected ? 'text-emerald-400' : 'text-slate-400'}`} />
@@ -288,7 +288,7 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
           <button
             type="button"
             onClick={() => act(onOpenInfo)}
-            className="xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <HelpCircle className="w-3.5 h-3.5 text-slate-400" />

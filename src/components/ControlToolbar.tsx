@@ -192,11 +192,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Musical Bookmarks Anchor Modal Button (Desktop 2xl+, otherwise in More menu) */}
+          {/* Musical Bookmarks Anchor Modal Button (Ultrawide 1900px+, otherwise in More menu) */}
           {onOpenBookmarks && (
             <button
               onClick={onOpenBookmarks}
-              className="hidden 2xl:flex h-8 sm:h-9 px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink-0"
+              className="hidden min-[1900px]:flex h-8 sm:h-9 px-2.5 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer shadow-md text-xs font-semibold whitespace-nowrap shrink-0"
               title="Configure Musical Bookmarks (M)"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
@@ -245,7 +245,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         </div>
 
         {/* Center: Continuum Timeline Slider & Parameter Readouts (Desktop: >= 768px) */}
-        <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 min-w-[230px] lg:min-w-[290px] xl:min-w-[340px] max-w-2xl px-2">
+        <div className="hidden md:flex items-center gap-2 sm:gap-4 flex-1 min-w-[220px] lg:min-w-[260px] xl:min-w-[300px] 2xl:min-w-[340px] max-w-2xl px-2">
           <div className="flex-1 space-y-1">
             <div className="relative flex justify-between items-center text-[10px] font-mono leading-none select-none">
               <span className="text-slate-300">
@@ -300,14 +300,14 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
         {/* Desktop Right Tools Group (>= md): Primary Live Controls + Responsive Overflow */}
         <div className="hidden md:flex items-center gap-1.5 shrink-0">
-          {/* Capture Pad / Mic Pitch Modal (xl+, otherwise in More menu) */}
+          {/* Capture Pad / Mic Pitch Modal (2xl+, otherwise in More menu) */}
           <button
             onClick={onOpenCapture}
-            className="hidden xl:flex items-center gap-1 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
+            className="hidden 2xl:flex items-center gap-1 rounded-md border border-red-500/40 bg-red-600/20 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-600/30 transition cursor-pointer"
             title="Capture / Mic Sampling (P)"
           >
             <Radio className="h-3.5 w-3.5" />
-            <span className="hidden 2xl:inline">Sample</span>
+            <span>Sample</span>
           </button>
 
           {/* Layout Presets Dropdown (xl+, otherwise in More menu) */}
@@ -396,11 +396,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Share Layout & Deep Link Button (2xl+, otherwise in More menu) */}
+          {/* Share Layout & Deep Link Button (1900px+, otherwise in More menu) */}
           {onShareLayout && (
             <button
               onClick={handleShareClick}
-              className={`hidden 2xl:flex p-1.5 rounded-md border transition cursor-pointer ${
+              className={`hidden min-[1900px]:flex p-1.5 rounded-md border transition cursor-pointer ${
                 copiedLink
                   ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
@@ -411,11 +411,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Library Bundles & Sharing Launcher (2xl+, otherwise in More menu) */}
+          {/* Library Bundles & Sharing Launcher (1900px+, otherwise in More menu) */}
           {onOpenBundles && (
             <button
               onClick={onOpenBundles}
-              className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
+              className="hidden min-[1900px]:flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
               title="Library Bundles (Shape + Filter + Envelope) & Slug Sharing (U)"
             >
               <Package className="w-3.5 h-3.5 text-purple-400" />
@@ -457,11 +457,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* MIDI Keyboard Connection Button (xl+, otherwise in More menu) */}
+          {/* MIDI Keyboard Connection Button (2xl+, otherwise in More menu) */}
           {onOpenMidiModal && midiState?.permissionStatus !== 'unsupported' && (
             <button
               onClick={onOpenMidiModal}
-              className={`hidden xl:flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
+              className={`hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 midiState?.isConnected
                   ? 'border-emerald-500/70 bg-emerald-950/60 text-emerald-300'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
@@ -469,15 +469,15 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               title={midiState?.isConnected ? `MIDI Connected (${midiState.inputs.length})` : 'Connect MIDI Keyboard'}
             >
               <Keyboard className="w-3.5 h-3.5" />
-              <span className="hidden 2xl:inline">MIDI</span>
+              <span>MIDI</span>
               {midiState?.isConnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
             </button>
           )}
 
-          {/* Help / Primer (xl+, otherwise in More menu) */}
+          {/* Help / Primer (1900px+, otherwise in More menu) */}
           <button
             onClick={onOpenInfo}
-            className="hidden xl:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+            className="hidden min-[1900px]:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
             title="Theory Primer & Walkthrough"
           >
             <HelpCircle className="w-3.5 h-3.5" />
@@ -494,11 +494,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Fullscreen Toggle (2xl+, otherwise in More menu) */}
+          {/* Fullscreen Toggle (1900px+, otherwise in More menu) */}
           {onToggleFullscreen && (
             <button
               onClick={onToggleFullscreen}
-              className="hidden 2xl:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+              className="hidden min-[1900px]:flex p-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
               title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Mode'}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
