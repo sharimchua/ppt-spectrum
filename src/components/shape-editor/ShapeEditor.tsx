@@ -1,14 +1,13 @@
 /**
  * Shape Editor main container.
- * Coordinates shape library header, tab switching, and partial/envelope inspectors.
+ * Coordinates shape library header and hierarchical voice anchor / partial inspectors.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Shape } from '../../core/types';
 import { useShapeEditing } from './useShapeEditing';
 import { ShapeLibraryHeader } from './ShapeLibraryHeader';
 import { PartialsTab } from './PartialsTab';
-import { EnvelopeTab } from './EnvelopeTab';
 
 export interface ShapeEditorProps {
   shape: Shape;
@@ -31,16 +30,10 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
   onDuplicateShape,
   onDeleteShape,
   onCreateShape,
-  onTriggerNote,
-  onNoteOn,
-  onNoteOff,
 }) => {
-  const [activeTab, setActiveTab] = useState<'partials' | 'envelope'>('partials');
-
   const {
     isPreset,
     anchors,
-    adsr,
     handleUpdateAnchor,
     handleToggleAnchorMute,
     handleAddAnchor,
@@ -52,7 +45,6 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
     handleSetAnchorOvertonePreset,
     handleApplyInharmonicity,
     handleApplyDamping,
-    handleUpdateAdsr,
     handleDuplicateCurrentShape,
     handleCreateNewShape,
   } = useShapeEditing({
@@ -68,10 +60,6 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         shape={shape}
         allShapes={allShapes}
         isPreset={isPreset}
-        anchorsCount={anchors.length}
-        partialsCount={shape.partials.length}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
         onSelectShape={onSelectShape}
         onUpdateShapeName={(name) => onUpdateShape({ ...shape, name })}
         onForkShape={handleDuplicateCurrentShape}
@@ -80,32 +68,20 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         onCreateNewShape={handleCreateNewShape}
       />
 
-      {activeTab === 'partials' && (
-        <PartialsTab
-          anchors={anchors}
-          onApplyInharmonicity={handleApplyInharmonicity}
-          onApplyDamping={handleApplyDamping}
-          onAddAnchor={handleAddAnchor}
-          onUpdateAnchor={handleUpdateAnchor}
-          onToggleAnchorMute={handleToggleAnchorMute}
-          onRemoveAnchor={handleRemoveAnchor}
-          onSetAnchorOvertonePreset={handleSetAnchorOvertonePreset}
-          onUpdatePartial={handleUpdateAnchorPartial}
-          onTogglePartialMute={handleToggleAnchorPartialMute}
-          onAddPartial={handleAddAnchorPartial}
-          onRemovePartial={handleRemoveAnchorPartial}
-        />
-      )}
-
-      {activeTab === 'envelope' && (
-        <EnvelopeTab
-          adsr={adsr}
-          onUpdateAdsr={handleUpdateAdsr}
-          onTriggerNote={onTriggerNote}
-          onNoteOn={onNoteOn}
-          onNoteOff={onNoteOff}
-        />
-      )}
+      <PartialsTab
+        anchors={anchors}
+        onApplyInharmonicity={handleApplyInharmonicity}
+        onApplyDamping={handleApplyDamping}
+        onAddAnchor={handleAddAnchor}
+        onUpdateAnchor={handleUpdateAnchor}
+        onToggleAnchorMute={handleToggleAnchorMute}
+        onRemoveAnchor={handleRemoveAnchor}
+        onSetAnchorOvertonePreset={handleSetAnchorOvertonePreset}
+        onUpdatePartial={handleUpdateAnchorPartial}
+        onTogglePartialMute={handleToggleAnchorPartialMute}
+        onAddPartial={handleAddAnchorPartial}
+        onRemovePartial={handleRemoveAnchorPartial}
+      />
     </div>
   );
 };

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Layers, Activity, Lock, User } from 'lucide-react';
+import { Lock, User } from 'lucide-react';
 import { Shape } from '../../core/types';
 import { ShapePicker } from './ShapePicker';
 import { ShapeActionsMenu } from './ShapeActionsMenu';
@@ -14,10 +14,6 @@ export interface ShapeLibraryHeaderProps {
   shape: Shape;
   allShapes: Shape[];
   isPreset: boolean;
-  anchorsCount: number;
-  partialsCount: number;
-  activeTab: 'partials' | 'envelope';
-  onSelectTab: (tab: 'partials' | 'envelope') => void;
   onSelectShape?: (shapeId: string) => void;
   onUpdateShapeName: (name: string) => void;
   onForkShape: () => void;
@@ -30,10 +26,6 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
   shape,
   allShapes,
   isPreset,
-  anchorsCount,
-  partialsCount,
-  activeTab,
-  onSelectTab,
   onSelectShape,
   onUpdateShapeName,
   onForkShape,
@@ -78,36 +70,6 @@ export const ShapeLibraryHeader: React.FC<ShapeLibraryHeaderProps> = ({
           onDeleteShape={onDeleteShape}
           onCreateNewShape={onCreateNewShape}
         />
-      </div>
-
-      {/* ROW 3: Responsive Navigation Tabs */}
-      <div className="grid grid-cols-2 gap-1.5 bg-slate-900/90 p-1 rounded-lg border border-slate-800">
-        <button
-          type="button"
-          onClick={() => onSelectTab('partials')}
-          className={`py-1.5 px-2 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 truncate ${
-            activeTab === 'partials'
-              ? 'bg-red-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-          }`}
-          title="Hierarchical Voice Anchors & Nested Harmonic Partials"
-        >
-          <Layers className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Anchors ({anchorsCount} · {partialsCount}p)</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelectTab('envelope')}
-          className={`py-1.5 px-2 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 truncate ${
-            activeTab === 'envelope'
-              ? 'bg-amber-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-          }`}
-          title="Acoustic ADSR Envelope & Harmonic Damping"
-        >
-          <Activity className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Envelope</span>
-        </button>
       </div>
     </div>
   );

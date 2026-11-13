@@ -19,9 +19,12 @@ export interface RadialMenuOverlayProps {
   onToggleFilter: () => void;
   onCycleFilterMode: () => void;
   onOpenLibrary: () => void;
+  onOpenBundles?: () => void;
   onOpenCapture: () => void;
   onOpenSettings: () => void;
   onOpenFilters?: () => void;
+  onOpenEnvelopes?: () => void;
+  onToggleEnvelope?: () => void;
   isOscillating: boolean;
   onToggleOscillate: () => void;
   bookmarks: BookmarkSettings;
@@ -35,7 +38,7 @@ export interface RadialMenuOverlayProps {
   onEnterFilterEditMode?: (param?: FilterControlParam) => void;
 }
 
-type SubMenuDirection = 'none' | 'north' | 'east' | 'west';
+type SubMenuDirection = 'none' | 'north' | 'east' | 'west' | 'envelope';
 
 /**
  * Generates an SVG path string for an annular sector (radial pie wedge)
@@ -82,9 +85,12 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onToggleFilter,
   onCycleFilterMode,
   onOpenLibrary,
+  onOpenBundles,
   onOpenCapture,
   onOpenSettings,
   onOpenFilters,
+  onOpenEnvelopes,
+  onToggleEnvelope,
   isOscillating,
   onToggleOscillate,
   bookmarks,
@@ -191,9 +197,12 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     bookmarks,
     onSelectSubMenu: (sub) => setActiveSubMenu(sub),
     onOpenLibrary,
+    onOpenBundles,
     onOpenCapture,
     onOpenSettings,
     onOpenFilters,
+    onOpenEnvelopes,
+    onToggleEnvelope,
     onTogglePlay,
     onToggleOscillate,
     onJumpBookmarkA,
@@ -231,9 +240,11 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
             {activeSubMenu === 'none'
               ? 'Radial Menu'
               : activeSubMenu === 'north'
-              ? 'Library & Mic Sampling'
+              ? 'Library, Bundles & Mic'
               : activeSubMenu === 'east'
               ? 'Playback & Bookmarks'
+              : activeSubMenu === 'envelope'
+              ? 'Envelope Studio'
               : 'Filter & Bookmarks'}
           </span>
         </div>

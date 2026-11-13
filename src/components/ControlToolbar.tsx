@@ -52,6 +52,7 @@ interface ControlToolbarProps {
   onToggleFilter?: () => void;
   onOpenFilters?: () => void;
   onOpenEnvelopes?: () => void;
+  onToggleEnvelope?: () => void;
   onOpenBundles?: () => void;
   onOpenCapture: () => void;
   onOpenInfo: () => void;
@@ -83,6 +84,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleFilter,
   onOpenFilters,
   onOpenEnvelopes,
+  onToggleEnvelope,
   onOpenBundles,
   onOpenCapture,
   onOpenInfo,
@@ -427,7 +429,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             <button
               onClick={onOpenBundles}
               className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-purple-500/50 text-[10px] font-mono font-semibold transition cursor-pointer"
-              title="Library Bundles (Shape + Filter + Envelope) & Slug Sharing"
+              title="Library Bundles (Shape + Filter + Envelope) & Slug Sharing (U)"
             >
               <Package className="w-3.5 h-3.5 text-purple-400" />
               <span className="hidden lg:inline">Bundles</span>
@@ -440,13 +442,14 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               onClick={onOpenEnvelopes}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
                 scene.envelope?.enabled !== false
-                  ? 'border-amber-500/70 bg-amber-950/60 text-amber-300'
+                  ? 'border-amber-500/70 bg-amber-950/60 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
                   : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
               }`}
-              title="Envelope Studio (Pitch ADSR & Rhythm Supercycle)"
+              title="Envelope Studio — Pitch ADSR & Rhythm Supercycle (Shift+V to open, V to toggle)"
             >
               <Activity className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden md:inline">Envelope</span>
+              <span onClick={onToggleEnvelope ? (e) => { e.stopPropagation(); onToggleEnvelope(); } : undefined} className="text-[9px] px-1 rounded bg-slate-900/80 font-bold hover:bg-slate-800" title="Toggle Envelope Bypass (V)">{scene.envelope?.enabled !== false ? 'ON' : 'OFF'}</span>
             </button>
           )}
 
@@ -463,9 +466,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             >
               <Filter className="w-3.5 h-3.5 text-sky-400" />
               <span className="hidden md:inline">Filters</span>
-              <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">
-                {scene.filter?.enabled ? 'ON' : 'OFF'}
-              </span>
+              <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">{scene.filter?.enabled ? 'ON' : 'OFF'}</span>
             </button>
           )}
 

@@ -28,6 +28,9 @@ export interface KeyboardActions {
   onToggleFilter: () => void;
   onToggleFiltersOpen?: () => void;
   onToggleFilterQuickSearch?: () => void;
+  onToggleEnvelope?: () => void;
+  onToggleEnvelopesOpen?: () => void;
+  onToggleBundlesOpen?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
   onJumpBookmarkA: () => void;
@@ -137,6 +140,16 @@ export function useKeyboardShortcuts({
         } else {
           actionsRef.current.onToggleFilter();
         }
+      } else if (e.code === 'KeyV' || e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          actionsRef.current.onToggleEnvelopesOpen?.();
+        } else {
+          actionsRef.current.onToggleEnvelope?.();
+        }
+      } else if (e.code === 'KeyU' || e.key === 'u' || e.key === 'U') {
+        e.preventDefault();
+        actionsRef.current.onToggleBundlesOpen?.();
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         if (!e.repeat) {

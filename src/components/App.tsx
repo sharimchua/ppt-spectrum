@@ -245,22 +245,15 @@ export const App: React.FC = () => {
       onStepPrimaryD: handleStepPrimaryD,
       onHistoryBack: historyBack,
       onHistoryForward: historyForward,
+      onToggleEnvelope: envelopes.handleToggleEnvelopeEnabled,
+      onToggleEnvelopesOpen: () => (envelopes.isEnvelopesOpen ? envelopes.closeEnvelopes() : envelopes.openEnvelopes()),
+      onToggleBundlesOpen: () => (bundlesApi.isBundleModalOpen ? bundlesApi.closeBundleModal() : bundlesApi.openBundleModal()),
     }),
     [
-      handleTogglePlay,
-      closeFilters,
-      toggleOscillating,
-      toggleFilterEditMode,
-      toggleFilter,
-      toggleFiltersOpen,
-      handleNoteOn,
-      handleNoteOff,
-      handleJumpBookmarkA,
-      handleJumpBookmarkB,
-      setBookmarkFromCurrent,
-      handleStepPrimaryD,
-      historyBack,
-      historyForward,
+      handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode,
+      toggleFilter, toggleFiltersOpen, handleNoteOn, handleNoteOff,
+      handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
+      handleStepPrimaryD, historyBack, historyForward, envelopes, bundlesApi,
     ]
   );
 
@@ -312,6 +305,7 @@ export const App: React.FC = () => {
         onToggleFilter={toggleFilter}
         onOpenFilters={openFilters}
         onOpenEnvelopes={envelopes.openEnvelopes}
+        onToggleEnvelope={envelopes.handleToggleEnvelopeEnabled}
         onOpenBundles={bundlesApi.openBundleModal}
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}

@@ -10,6 +10,8 @@ import {
   Bookmark,
   ArrowLeft,
   Sliders,
+  Activity,
+  Package,
 } from 'lucide-react';
 import { Scene } from '../core/types';
 import { BookmarkSettings } from './bookmarks-storage';
@@ -29,18 +31,23 @@ export interface RadialWedgeSegment {
   onSelect: () => void;
 }
 
+export type RadialSubMenu = 'none' | 'north' | 'east' | 'west' | 'envelope';
+
 export interface BuildRadialSegmentsOptions {
-  activeSubMenu: 'none' | 'north' | 'east' | 'west';
+  activeSubMenu: RadialSubMenu;
   scene: Scene;
   isPlaying: boolean;
   isOscillating: boolean;
   currentD: number;
   bookmarks: BookmarkSettings;
-  onSelectSubMenu: (sub: 'none' | 'north' | 'east' | 'west') => void;
+  onSelectSubMenu: (sub: RadialSubMenu) => void;
   onOpenLibrary: () => void;
+  onOpenBundles?: () => void;
   onOpenCapture: () => void;
   onOpenSettings: () => void;
   onOpenFilters?: () => void;
+  onOpenEnvelopes?: () => void;
+  onToggleEnvelope?: () => void;
   onTogglePlay: () => void;
   onToggleOscillate: () => void;
   onJumpBookmarkA: () => void;
@@ -55,27 +62,11 @@ export interface BuildRadialSegmentsOptions {
 
 export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWedgeSegment[] {
   const {
-    activeSubMenu,
-    scene,
-    isPlaying,
-    isOscillating,
-    currentD,
-    bookmarks,
-    onSelectSubMenu,
-    onOpenLibrary,
-    onOpenCapture,
-    onOpenSettings,
-    onOpenFilters,
-    onTogglePlay,
-    onToggleOscillate,
-    onJumpBookmarkA,
-    onJumpBookmarkB,
-    onSetBookmarkA,
-    onSetBookmarkB,
-    onToggleFilter,
-    onCycleFilterMode,
-    onEnterFilterEditMode,
-    onClose,
+    activeSubMenu, scene, isPlaying, isOscillating, currentD, bookmarks, onSelectSubMenu,
+    onOpenLibrary, onOpenBundles, onOpenCapture, onOpenSettings, onOpenFilters,
+    onOpenEnvelopes, onToggleEnvelope, onTogglePlay, onToggleOscillate,
+    onJumpBookmarkA, onJumpBookmarkB, onSetBookmarkA, onSetBookmarkB,
+    onToggleFilter, onCycleFilterMode, onEnterFilterEditMode, onClose,
   } = opts;
 
   const activePlacement = scene.placements[0];
@@ -90,10 +81,10 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
     return [
       {
         id: 'north-lib-mic',
-        startDeg: -135,
-        endDeg: -45,
+        startDeg: -126,
+        endDeg: -54,
         title: 'LIBRARY & MIC',
-        subtitle: activeShape ? activeShape.name : 'Shapes • Sample',
+        subtitle: activeShape ? activeShape.name : 'Shapes • Bundles',
         icon: (
           <div className="flex items-center gap-1">
             <SlidersHorizontal className="w-4 h-4 text-red-400" />
@@ -107,8 +98,8 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
       },
       {
         id: 'east-playback',
-        startDeg: -45,
-        endDeg: 45,
+        startDeg: -54,
+        endDeg: 18,
         title: 'PLAYBACK ►',
         subtitle: isPlaying ? 'Playing • A/B' : 'Play • A/B • Sweep',
         icon: isPlaying ? (
@@ -124,8 +115,8 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
       },
       {
         id: 'south-settings',
-        startDeg: 45,
-        endDeg: 135,
+        startDeg: 18,
+        endDeg: 90,
         title: 'SETTINGS',
         subtitle: 'Audio • Visuals',
         icon: <Settings className="w-4 h-4 text-purple-400" />,
@@ -138,9 +129,22 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
         },
       },
       {
+        id: 'sw-envelope',
+        startDeg: 90,
+        endDeg: 162,
+        title: 'ENVELOPE ▾',
+        subtitle: scene.envelope?.enabled !== false ? 'Active' : 'Bypassed',
+        icon: <Activity className="w-4 h-4 text-amber-400" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 24, 14, 0.92)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.35)',
+        isActive: scene.envelope?.enabled !== false,
+        onSelect: () => onSelectSubMenu('envelope'),
+      },
+      {
         id: 'west-filter',
-        startDeg: 135,
-        endDeg: 225,
+        startDeg: 162,
+        endDeg: 234,
         title: '◄ FILTERS',
         subtitle: filterSub,
         icon: <Filter className="w-4 h-4 text-sky-400" />,
@@ -157,38 +161,90 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
     return [
       {
         id: 'sub-shape-library',
-        startDeg: -150,
-        endDeg: -30,
+        startDeg: -135,
+        endDeg: -45,
         title: 'SHAPE LIBRARY',
         subtitle: 'Presets & Synth',
         icon: <SlidersHorizontal className="w-4 h-4 text-red-400" />,
         accentHex: '#ef4444',
         fillRgba: 'rgba(36, 18, 26, 0.94)',
         activeFillRgba: 'rgba(239, 68, 68, 0.4)',
-        onSelect: () => {
-          onOpenLibrary();
-          onClose();
-        },
+        onSelect: () => { onOpenLibrary(); onClose(); },
+      },
+      {
+        id: 'sub-bundles',
+        startDeg: -45,
+        endDeg: 45,
+        title: 'BUNDLES',
+        subtitle: 'Share & Import',
+        icon: <Package className="w-4 h-4 text-purple-400" />,
+        accentHex: '#a855f7',
+        fillRgba: 'rgba(28, 18, 40, 0.94)',
+        activeFillRgba: 'rgba(168, 85, 247, 0.4)',
+        onSelect: () => { onOpenBundles?.(); onClose(); },
       },
       {
         id: 'sub-mic-sampling',
-        startDeg: -30,
-        endDeg: 90,
+        startDeg: 45,
+        endDeg: 135,
         title: 'MIC SAMPLING',
         subtitle: 'Pitch & Rhythm',
         icon: <Radio className="w-4 h-4 text-amber-400" />,
         accentHex: '#f59e0b',
         fillRgba: 'rgba(34, 24, 16, 0.94)',
         activeFillRgba: 'rgba(245, 158, 11, 0.4)',
+        onSelect: () => { onOpenCapture(); onClose(); },
+      },
+      {
+        id: 'sub-north-back',
+        startDeg: 135,
+        endDeg: 225,
+        title: '◄ BACK',
+        subtitle: 'Main Compass',
+        icon: <ArrowLeft className="w-4 h-4 text-slate-300" />,
+        accentHex: '#94a3b8',
+        fillRgba: 'rgba(20, 26, 38, 0.94)',
+        activeFillRgba: 'rgba(148, 163, 184, 0.35)',
+        onSelect: () => onSelectSubMenu('none'),
+      },
+    ];
+  }
+
+  if (activeSubMenu === 'envelope') {
+    const envEnabled = scene.envelope?.enabled !== false;
+    return [
+      {
+        id: 'sub-envelope-open',
+        startDeg: -135,
+        endDeg: -15,
+        title: 'OPEN ENVELOPE',
+        subtitle: 'Pitch & Rhythm',
+        icon: <Activity className="w-4 h-4 text-amber-400" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 24, 14, 0.94)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
         onSelect: () => {
-          onOpenCapture();
+          onOpenEnvelopes?.();
           onClose();
         },
       },
       {
-        id: 'sub-north-back',
-        startDeg: 90,
-        endDeg: 210,
+        id: 'sub-envelope-bypass',
+        startDeg: -15,
+        endDeg: 105,
+        title: envEnabled ? 'BYPASS ENV' : 'ENABLE ENV',
+        subtitle: envEnabled ? 'Disable ADSR & Rhythm' : 'Activate Envelope',
+        icon: <Activity className="w-4 h-4 text-amber-400" />,
+        accentHex: '#f59e0b',
+        fillRgba: 'rgba(34, 24, 14, 0.94)',
+        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
+        isActive: envEnabled,
+        onSelect: () => onToggleEnvelope?.(),
+      },
+      {
+        id: 'sub-envelope-back',
+        startDeg: 105,
+        endDeg: 225,
         title: '◄ BACK',
         subtitle: 'Main Compass',
         icon: <ArrowLeft className="w-4 h-4 text-slate-300" />,
