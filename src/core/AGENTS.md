@@ -20,6 +20,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/ratio-suggestions.ts` — DuMetric octave conversions (`ratioToOctaves`, `octavesToRatio`) and nearby rational ratio snap suggestions.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
 - `src/core/alignment.ts` — Ghost fundamental, coincidence counting, Plomp-Levelt roughness curves, and Tenney complexity.
+- `src/core/coupling.ts` — Cross-Limen Coupling resolution (`Pitch Carrier` in Rhythm Space and `Rhythm Container` in Pitch Space), automatic complexity gating (`isShapeRhythmEligible`), carrier partial normalisation, and envelope-paced container cycle periods.
 - `src/core/presets.ts` — Canonical teaching shapes (Pure tone, Duple 1:2, Quadruple 1:4, Hemiola 3:2, Polyrhythms 4:3 & 5:4, Saw, Square, Clarinet, Plucked string, Piano, Bell, Free-free bar, Marimba bar).
 - `src/core/config.ts` — Default application configuration, sanitisation, and localStorage persistence.
 - `src/core/layout-models.ts` — Modular layout tree models, tree split/remove/duplicate/add operations, presets, and URL-safe base64 slug serialisation for deep linking.
@@ -33,6 +34,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 ### Tests (`src/core/__tests__/`)
 
 - `core.test.ts` — Axis maths, rational algebra and prime limits, alignment and ghost fundamental, BandFilter, presets and piano inharmonicity, graphics profile persistence.
+- `coupling.test.ts` — Cross-Limen Coupling resolution (`resolvePitchCarrier`, `resolveRhythmContainer`), complexity gating (`isShapeRhythmEligible`), carrier partial extraction, and container cycle pacing.
 - `decompose.test.ts` — Rhythm decomposer and 11-limit quantiser.
 - `endpoint-parse.test.ts` — Range endpoint string parsing across all supported units and display formatting.
 - `envelope.test.ts` — Rhythm-space Supercycle envelope evaluation and Envelope library scene operations.

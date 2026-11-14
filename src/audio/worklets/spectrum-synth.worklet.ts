@@ -2,17 +2,18 @@ export const SPECTRUM_WORKLET_CODE = `
 class SpectrumSynthProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.shapes = []; // Array of { shapeId, placementD, targetD, gain, mute, partials: [{ ratio, amp, phaseOffset, voice, staticMatch }] }
+    this.shapes = []; // Array of { shapeId, placementD, targetD, gain, mute, partials, carrierSpec, containerSpec }
     this.masterPhases = new Map(); // shapeId -> phase in [0, 1)
+    this.containerPhases = new Map(); // shapeId -> unwrapped rhythm container phase
     this.smoothedD = new Map(); // shapeId -> smoothed coordinate
-    this.audioMode = 'poetic'; // 'poetic' | 'literal'
+    this.audioMode = 'poetic';
     this.masterGain = 0.75;
     this.tplHz = 25.8;
 
-    // Filter state & pre-allocated gate buffers
+    // Filter state & pre-allocated gate/container buffers
     this.filter = null;
     this.envelope = null;
-    this.filterBuffers = new Map(); // shapeId -> { gateTarget: Float32Array, gateSmooth: Float32Array, lastOnsetIdx: Float64Array }
+    this.filterBuffers = new Map(); // shapeId -> { gateTarget, gateSmooth, lastOnsetIdx, pNoteAge, pAttackStartAmp, pCurrentAmp }
 
     // Poetic voice envelopes & triggers
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz, gate }
@@ -48,18 +49,30 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               gateTarget: new Float32Array(pCount).fill(1.0),
               gateSmooth: new Float32Array(pCount).fill(1.0),
               lastOnsetIdx: new Float64Array(pCount).fill(-999999),
+              pNoteAge: new Float32Array(pCount).fill(0.0),
+              pAttackStartAmp: new Float32Array(pCount).fill(0.0),
+              pCurrentAmp: new Float32Array(pCount).fill(0.0),
             };
             this.filterBuffers.set(sh.shapeId, buf);
           } else if (buf.gateTarget.length < pCount) {
             const nextTarget = new Float32Array(pCount).fill(1.0);
             const nextSmooth = new Float32Array(pCount).fill(1.0);
             const nextOnset = new Float64Array(pCount).fill(-999999);
+            const nextAge = new Float32Array(pCount).fill(0.0);
+            const nextStart = new Float32Array(pCount).fill(0.0);
+            const nextCur = new Float32Array(pCount).fill(0.0);
             nextTarget.set(buf.gateTarget);
             nextSmooth.set(buf.gateSmooth);
             nextOnset.set(buf.lastOnsetIdx);
+            if (buf.pNoteAge) nextAge.set(buf.pNoteAge);
+            if (buf.pAttackStartAmp) nextStart.set(buf.pAttackStartAmp);
+            if (buf.pCurrentAmp) nextCur.set(buf.pCurrentAmp);
             buf.gateTarget = nextTarget;
             buf.gateSmooth = nextSmooth;
             buf.lastOnsetIdx = nextOnset;
+            buf.pNoteAge = nextAge;
+            buf.pAttackStartAmp = nextStart;
+            buf.pCurrentAmp = nextCur;
           }
         }
 
@@ -85,6 +98,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             this.noteStates.delete(id);
             this.smoothedD.delete(id);
             this.masterPhases.delete(id);
+            this.containerPhases.delete(id);
             this.filterBuffers.delete(id);
           }
         }
@@ -202,6 +216,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           }
           if (!this.isPlaying) {
             this.masterPhases.set(id, 0.0);
+            this.containerPhases.set(id, 0.0);
           }
         }
       } else if (type === 'NOTE_OFF') {
@@ -240,6 +255,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           }
           if (!this.isPlaying) {
             this.masterPhases.set(id, 0.0);
+            this.containerPhases.set(id, 0.0);
           }
         }
       }
@@ -440,7 +456,12 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       const isPitchGliding = Math.abs(targetD - currentD) > 1e-6;
       let f0 = this.tplHz * Math.pow(2, -currentD);
       let masterPhase = this.masterPhases.get(shapeId) || 0.0;
+      let containerPhase = this.containerPhases.get(shapeId) || 0.0;
       const adsr = shape.adsr;
+      const carrierSpec = shape.carrierSpec || null;
+      const containerSpec = shape.containerSpec || null;
+      const isContainerGated = Boolean(containerSpec && containerSpec.mode !== 'static');
+      const containerCycleFreq = containerSpec && containerSpec.cycleFreqHz ? containerSpec.cycleFreqHz : 0.45;
 
       // Idiomatic ADSR playback in pitch space:
       // Percussive / plucked decaying shapes (piano, pluck, bell, vibraphone with sustain <= 0.25)
@@ -476,14 +497,21 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const cyclePhase = masterPhase % 1.0;
         const prevCyclePhase = prevPhase % 1.0;
 
+        const prevContainerPhase = containerPhase;
+        containerPhase += containerCycleFreq * sampleDt;
+        if (containerPhase > 9369360) {
+          containerPhase -= 9369360;
+        }
+
         nState.noteAge += sampleDt;
 
         if (nState.isReleased) {
           nState.releaseAge += sampleDt;
         }
 
-        // In continuous transport playback, percussive decaying instruments auto-restrike smoothly:
-        if (this.isPlaying && isPitchSpace && isDecayingShape && nState.noteAge >= autoStrikePeriod) {
+        // In continuous transport playback, percussive decaying instruments auto-restrike smoothly
+        // when Rhythm Container is 'static':
+        if (this.isPlaying && isPitchSpace && !isContainerGated && isDecayingShape && nState.noteAge >= autoStrikePeriod) {
           nState.attackStartAmp = nState.currentAmp || 0.0;
           nState.noteAge = 0;
           nState.isReleased = false;
@@ -506,6 +534,21 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         let sampleValL = 0;
         let sampleValR = 0;
         const fBuf = this.filterBuffers.get(shapeId);
+
+        // If Container Mode is 'shape' with globalStreams, check if any stream wrapped on this sample
+        let globalContainerWrapped = isFirstSampleTrigger;
+        if (isPitchSpace && isContainerGated && containerSpec.mode === 'shape' && containerSpec.globalStreams) {
+          const streams = containerSpec.globalStreams;
+          for (let gIdx = 0; gIdx < streams.length; gIdx++) {
+            const st = streams[gIdx];
+            const gCur = (((containerPhase - (st.phase || 0)) * st.ratio) % 1.0 + 1.0) % 1.0;
+            const gPrev = (((prevContainerPhase - (st.phase || 0)) * st.ratio) % 1.0 + 1.0) % 1.0;
+            if (gCur < gPrev && (gPrev - gCur) > 0.5) {
+              globalContainerWrapped = true;
+              break;
+            }
+          }
+        }
 
         for (let pIdx = 0; pIdx < shape.partials.length; pIdx++) {
           const p = shape.partials[pIdx];
@@ -556,24 +599,58 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
           // Compute ADSR acoustic envelope in tone regime
           let env = 1.0;
-          if (adsr && toneWeight > 0.001) {
-            const att = Math.max(0.004, adsr.attack);
-            const dec = Math.max(0.01, adsr.decay);
-            const sus = Math.max(0.0, Math.min(1.0, adsr.sustain));
-            const damp = adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.0;
-            const rel = Math.max(0.04, adsr.release);
-            const startAmp = nState.attackStartAmp || 0.0;
+          if (toneWeight > 0.001 && (adsr || isContainerGated)) {
+            const att = adsr ? Math.max(0.004, adsr.attack) : 0.015;
+            const dec = adsr ? Math.max(0.01, adsr.decay) : 0.45;
+            // When Rhythm Container ('self' or 'shape') is active in Pitch Space, use a plucked sustain floor (<= 0.18)
+            // so each rhythmic pulse articulates clearly even on sustained chord shapes!
+            const rawSus = adsr ? Math.max(0.0, Math.min(1.0, adsr.sustain)) : 0.15;
+            const sus = isContainerGated ? Math.min(0.18, rawSus) : rawSus;
+            const damp = adsr && adsr.damping !== undefined ? Math.max(0.0, adsr.damping) : 0.25;
+            const rel = adsr ? Math.max(0.04, adsr.release) : 0.25;
 
-            if (noteAge < att) {
-              const aRatio = noteAge / att;
+            let effectiveAge = noteAge;
+            let startAmp = nState.attackStartAmp || 0.0;
+
+            if (isContainerGated && fBuf && fBuf.pNoteAge) {
+              let partialWrapped = isFirstSampleTrigger;
+              if (!partialWrapped) {
+                if (containerSpec.mode === 'shape' && containerSpec.globalStreams) {
+                  partialWrapped = globalContainerWrapped;
+                } else {
+                  const gRatio = p.gateRatio !== undefined ? p.gateRatio : ratioVal;
+                  const gPhase = p.gatePhase !== undefined ? p.gatePhase : p.phaseOffset;
+                  const cCur = (((containerPhase - gPhase) * gRatio) % 1.0 + 1.0) % 1.0;
+                  const cPrev = (((prevContainerPhase - gPhase) * gRatio) % 1.0 + 1.0) % 1.0;
+                  if (cCur < cPrev && (cPrev - cCur) > 0.5) {
+                    partialWrapped = true;
+                  }
+                }
+              }
+              if (partialWrapped) {
+                fBuf.pAttackStartAmp[pIdx] = fBuf.pCurrentAmp[pIdx] || 0.0;
+                fBuf.pNoteAge[pIdx] = 0.0;
+              } else {
+                fBuf.pNoteAge[pIdx] += sampleDt;
+              }
+              effectiveAge = fBuf.pNoteAge[pIdx];
+              startAmp = fBuf.pAttackStartAmp[pIdx];
+            }
+
+            if (effectiveAge < att) {
+              const aRatio = effectiveAge / att;
               const hermite = aRatio * aRatio * (3.0 - 2.0 * aRatio); // smooth Hermite attack ramp
               env = startAmp + (1.0 - startAmp) * hermite;
             } else {
-              const decayElapsed = noteAge - att;
+              const decayElapsed = effectiveAge - att;
               // Higher partials decay faster via harmonic damping
               const tau = dec / (1.0 + damp * Math.max(0.0, ratioVal - 1.0));
               const expDecay = Math.exp(-decayElapsed / Math.max(0.005, tau));
               env = sus + (1.0 - sus) * expDecay;
+            }
+
+            if (isContainerGated && fBuf && fBuf.pCurrentAmp) {
+              fBuf.pCurrentAmp[pIdx] = env;
             }
 
             // Key release behaviour:
@@ -611,64 +688,91 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * toneWeight * curGateSmooth;
           }
 
-          // 2. Event / Pulse Component
+          // 2. Event / Pulse Component (Pitch Carrier in Rhythm Space)
           let eventSample = 0;
           if (eventWeight > 0.001) {
             const sceneTurnsForEnv = shape.isPrimary ? masterPhase : masterPhase * (shape.ratioToScene || 1.0);
             const rhythmEnv = this.evalRhythmEnvelope(sceneTurnsForEnv, ratioVal);
-            if (this.audioMode === 'literal') {
-              const pulseW = 0.08;
-              if (eventPhase < pulseW) {
-                eventSample = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * (eventPhase / pulseW))) * p.amp * eventWeight * curGateTarget * rhythmEnv;
-              }
-            } else {
-              // Poetic Mode: voice-specific pitched percussion synthesis on eventPhase wrap
-              const wrapped = (eventPhase < prevEventPhase && (prevEventPhase - eventPhase) > 0.5) ||
-                (isFirstSampleTrigger && eventPhase < 0.04);
-              const voiceKey = shapeId + '_' + pIdx;
-              const voiceId = p.voice || 'woodblock';
-              let vState = this.voiceStates.get(voiceKey);
-              if (!vState || vState.voiceId !== voiceId) {
-                let decaySec = 0.065;
-                let pitchHz = 220;
-                if (voiceId === 'kick') { decaySec = 0.095; pitchHz = 62; }
-                else if (voiceId === 'snare') { decaySec = 0.075; pitchHz = 210; }
-                else if (voiceId === 'clave') { decaySec = 0.045; pitchHz = 1480; }
-                else if (voiceId === 'woodblock') { decaySec = 0.055; pitchHz = 780; }
-                else if (voiceId === 'hihat') { decaySec = 0.038; pitchHz = 3800; }
-                else if (voiceId === 'triangle') { decaySec = 0.11; pitchHz = 2400; }
-                else { decaySec = 0.035; pitchHz = 1100; }
-                vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0, lastSample: 0.0, tailAmp: 0.0 };
-                this.voiceStates.set(voiceKey, vState);
-              }
+            const wrapped = (eventPhase < prevEventPhase && (prevEventPhase - eventPhase) > 0.5) ||
+              (isFirstSampleTrigger && eventPhase < 0.04);
+            const voiceKey = shapeId + '_' + pIdx;
+            const useShapeCarrier = Boolean(
+              carrierSpec && carrierSpec.mode !== 'kit' && p.carrierPartials && p.carrierPartials.length > 0
+            );
+            const voiceId = useShapeCarrier ? ('carrier_' + carrierSpec.mode) : (p.voice || 'woodblock');
+            let vState = this.voiceStates.get(voiceKey);
+            if (!vState || vState.voiceId !== voiceId) {
+              let decaySec = 0.065;
+              let pitchHz = 220;
+              if (useShapeCarrier) {
+                const cAdsr = carrierSpec.adsr || { attack: 0.004, decay: 0.34 };
+                decaySec = Math.max(0.08, Math.min(0.65, (cAdsr.attack || 0.004) + (cAdsr.decay || 0.34) * 0.85));
+                pitchHz = (carrierSpec.baseFreqHz || 220) * ratioVal;
+              } else if (voiceId === 'kick') { decaySec = 0.095; pitchHz = 62; }
+              else if (voiceId === 'snare') { decaySec = 0.075; pitchHz = 210; }
+              else if (voiceId === 'clave') { decaySec = 0.045; pitchHz = 1480; }
+              else if (voiceId === 'woodblock') { decaySec = 0.055; pitchHz = 780; }
+              else if (voiceId === 'hihat') { decaySec = 0.038; pitchHz = 3800; }
+              else if (voiceId === 'triangle') { decaySec = 0.11; pitchHz = 2400; }
+              else { decaySec = 0.035; pitchHz = 1100; }
+              vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0, lastSample: 0.0, tailAmp: 0.0 };
+              this.voiceStates.set(voiceKey, vState);
+            } else if (useShapeCarrier) {
+              vState.pitchHz = (carrierSpec.baseFreqHz || 220) * ratioVal;
+            }
 
-              if (wrapped) {
-                if (curGateTarget > 0.001) {
-                  if (vState.active) {
-                    // Carry decaying tail across fast retriggers to prevent waveform discontinuity
-                    vState.tailAmp = vState.lastSample || 0.0;
-                  }
-                  vState.active = true;
-                  vState.sampleIndex = 0;
-                  vState.gate = curGateTarget;
-                }
-              }
-
-              if (vState.active || Math.abs(vState.tailAmp) > 0.0001) {
-                let retriggerTail = 0.0;
-                if (Math.abs(vState.tailAmp) > 0.0001) {
-                  retriggerTail = vState.tailAmp;
-                  vState.tailAmp *= 0.94;
-                } else {
-                  vState.tailAmp = 0.0;
-                }
-
+            if (wrapped) {
+              if (curGateTarget > 0.001) {
                 if (vState.active) {
-                  const tSec = vState.sampleIndex / sampleRate;
+                  // Carry decaying tail across fast retriggers to prevent waveform discontinuity
+                  vState.tailAmp = vState.lastSample || 0.0;
+                }
+                vState.active = true;
+                vState.sampleIndex = 0;
+                vState.gate = curGateTarget;
+              }
+            }
+
+            if (vState.active || Math.abs(vState.tailAmp) > 0.0001) {
+              let retriggerTail = 0.0;
+              if (Math.abs(vState.tailAmp) > 0.0001) {
+                retriggerTail = vState.tailAmp;
+                vState.tailAmp *= 0.94;
+              } else {
+                vState.tailAmp = 0.0;
+              }
+
+              if (vState.active) {
+                const tSec = vState.sampleIndex / sampleRate;
+                let clickOsc = 0;
+                let vEnv = 1.0;
+
+                if (useShapeCarrier) {
+                  const cAdsr = carrierSpec.adsr || { attack: 0.004, decay: 0.34, damping: 0.45 };
+                  const attSec = Math.max(0.002, cAdsr.attack || 0.004);
+                  const decSec = Math.max(0.04, cAdsr.decay || 0.34);
+                  const damp = cAdsr.damping !== undefined ? cAdsr.damping : 0.45;
+                  const vAttack = tSec < attSec ? (tSec / attSec) : 1.0;
+                  const fadeOut = Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples);
+                  const cPartials = p.carrierPartials;
+                  let cSum = 0;
+                  let cAmpNorm = 0;
+                  for (let cIdx = 0; cIdx < cPartials.length; cIdx++) {
+                    const cp = cPartials[cIdx];
+                    const cFreq = vState.pitchHz * cp.ratio;
+                    if (cFreq >= sampleRate * 0.46) continue;
+                    const tau = decSec / (1.0 + damp * Math.max(0.0, cp.ratio - 1.0));
+                    const pDecay = Math.exp(-Math.max(0, tSec - attSec) / Math.max(0.008, tau));
+                    cSum += Math.sin(2.0 * Math.PI * cFreq * tSec) * cp.amp * pDecay;
+                    cAmpNorm += cp.amp;
+                  }
+                  const normFactor = cAmpNorm > 1.0 ? 1.0 / Math.sqrt(cAmpNorm) : 1.0;
+                  clickOsc = cSum * normFactor * 0.9;
+                  vEnv = vAttack * fadeOut;
+                } else {
                   const attackSamples = Math.max(1, Math.floor(sampleRate * 0.0015));
                   const vAttack = vState.sampleIndex < attackSamples ? vState.sampleIndex / attackSamples : 1.0;
-                  const vEnv = Math.pow(Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples), 1.6) * vAttack;
-                  let clickOsc = 0;
+                  vEnv = Math.pow(Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples), 1.6) * vAttack;
                   if (voiceId === 'kick') {
                     // Punchy pitch-drop bass drum
                     const instPhase = 2.0 * Math.PI * (55 * tSec + 4.5 * (1.0 - Math.exp(-tSec * 45)));
@@ -684,17 +788,17 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
                   } else {
                     clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
                   }
-                  const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
-                  eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult * rhythmEnv + retriggerTail;
-                  vState.lastSample = eventSample;
-                  vState.sampleIndex++;
-                  if (vState.sampleIndex >= vState.decaySamples) {
-                    vState.active = false;
-                  }
-                } else {
-                  eventSample = retriggerTail;
-                  vState.lastSample = eventSample;
                 }
+                const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
+                eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult * rhythmEnv + retriggerTail;
+                vState.lastSample = eventSample;
+                vState.sampleIndex++;
+                if (vState.sampleIndex >= vState.decaySamples) {
+                  vState.active = false;
+                }
+              } else {
+                eventSample = retriggerTail;
+                vState.lastSample = eventSample;
               }
             }
           }
@@ -711,6 +815,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
       this.smoothedD.set(shapeId, currentD);
       this.masterPhases.set(shapeId, masterPhase);
+      this.containerPhases.set(shapeId, containerPhase);
       if (sendTelemetry) {
         phaseTelemetry[shapeId] = {
           masterPhase,

@@ -180,6 +180,10 @@ export function useTeachingDemo({
         const rhythmBpm = baseDemo.rhythmBpm ?? 120;
         const pitchD = baseDemo.pitchD ?? -4.092;
         const pitchLabel = baseDemo.pitchLabel ?? 'A4 440 Hz (Pitch)';
+        const nextCarrier = customOverride?.pitchCarrier ?? baseDemo.pitchCarrier ?? 'auto';
+        const nextContainer = customOverride?.rhythmContainer ?? baseDemo.rhythmContainer ?? 'auto';
+        const isStaticPlace = baseDemo.mode === 'static-place';
+        const initialD = isStaticPlace ? pitchD : rhythmD;
 
         if (customOverride?.customPartials && customOverride.customPartials.length > 0) {
           const activePartials = customOverride.customPartials.filter((p) => p.amp > 0);
@@ -211,40 +215,59 @@ export function useTeachingDemo({
               ...prev,
               shapes: nextShapes,
               placements: prev.placements.map((pl, idx) =>
-                idx === 0 ? { ...pl, shapeId: customShape.id, d: rhythmD } : pl
+                idx === 0 ? { ...pl, shapeId: customShape.id, d: initialD } : pl
               ),
               filter: { ...prev.filter, enabled: false },
+              audio: {
+                ...prev.audio,
+                pitchCarrier: nextCarrier,
+                rhythmContainer: nextContainer,
+              },
             };
           });
         } else {
           handleSelectPreset(shapeId);
-          handleUpdatePlacementD(rhythmD);
+          handleUpdatePlacementD(initialD);
           if (scene.filter.enabled) {
             toggleFilter();
           }
+          updateScene((prev) => ({
+            ...prev,
+            audio: {
+              ...prev.audio,
+              pitchCarrier: nextCarrier,
+              rhythmContainer: nextContainer,
+            },
+          }));
         }
 
-        setBookmarks((prev) => ({
-          ...prev,
-          a: {
-            d: rhythmD,
-            label: `${rhythmBpm} BPM (Rhythm)`,
-            type: 'rhythm',
-            bpm: rhythmBpm,
-          },
-          b: {
-            d: pitchD,
-            label: pitchLabel,
-            type: 'pitch',
-            noteIndex: baseDemo.noteIndex ?? 9,
-            octave: baseDemo.octave ?? 4,
-          },
-          periodSec: 10,
-          dwellSec: 0.5,
-        }));
+        if (isStaticPlace) {
+          if (isOscillating) {
+            toggleOscillating();
+          }
+        } else {
+          setBookmarks((prev) => ({
+            ...prev,
+            a: {
+              d: rhythmD,
+              label: `${rhythmBpm} BPM (Rhythm)`,
+              type: 'rhythm',
+              bpm: rhythmBpm,
+            },
+            b: {
+              d: pitchD,
+              label: pitchLabel,
+              type: 'pitch',
+              noteIndex: baseDemo.noteIndex ?? 9,
+              octave: baseDemo.octave ?? 4,
+            },
+            periodSec: 10,
+            dwellSec: 0.5,
+          }));
 
-        if (!isOscillating) {
-          toggleOscillating();
+          if (!isOscillating) {
+            toggleOscillating();
+          }
         }
       }
 

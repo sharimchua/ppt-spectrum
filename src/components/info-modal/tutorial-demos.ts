@@ -4,6 +4,8 @@
  * with a context-aware "Back to Guide" return toast.
  */
 
+import { PitchCarrierMode, RhythmContainerMode } from '../../core/types';
+
 export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
 
 export type TutorialDemoId =
@@ -18,7 +20,10 @@ export type TutorialDemoId =
   | 'custom-timbre'
   | 'tresillo-sieve'
   | 'piano-comb'
-  | 'bowl-swell';
+  | 'bowl-swell'
+  | 'fractal-self-triad'
+  | 'neutral-limen-hemiola'
+  | 'cross-shape-clarinet-hemiola';
 
 export interface CustomTutorialDemoOverride {
   title?: string;
@@ -29,6 +34,8 @@ export interface CustomTutorialDemoOverride {
   customPartials?: { ratioVal: number; amp: number; label: string }[];
   /** Custom 8-slot cycle sieve toggled by the user in UnderTheHoodSection */
   customSieveSlots?: boolean[];
+  pitchCarrier?: PitchCarrierMode;
+  rhythmContainer?: RhythmContainerMode;
 }
 
 export interface TutorialDemoConfig {
@@ -39,7 +46,7 @@ export interface TutorialDemoConfig {
   summary: string;
   listenHint: string;
   fromSection: TutorialSectionId;
-  mode: 'sweep' | 'bundle';
+  mode: 'sweep' | 'bundle' | 'static-place';
   shapeId?: string;
   bundleId?: string;
   rhythmBpm?: number;
@@ -48,6 +55,8 @@ export interface TutorialDemoConfig {
   pitchD?: number;
   noteIndex?: number;
   octave?: number;
+  pitchCarrier?: PitchCarrierMode;
+  rhythmContainer?: RhythmContainerMode;
   /** Whether this demo appears in the main 6-demo tour cycle */
   featuredInTour?: boolean;
 }
@@ -258,6 +267,64 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     mode: 'bundle',
     bundleId: 'bundle-bowl-swell',
     featuredInTour: true,
+  },
+  {
+    id: 'fractal-self-triad',
+    title: 'Fractal Self Mirror: 4:5:6 Triad Across the Limen',
+    shortTitle: 'Fractal Self Triad',
+    badge: 'Carrier: Self · Container: Self',
+    summary: 'Hear a 4:5:6 Major Triad use itself as the chordal instrument in rhythm space and as the pulsing rhythm in pitch space.',
+    listenHint:
+      'In Self mode, each beat below 25.8 Hz strikes the triad transposed to that beat’s ratio, while above 25.8 Hz the root, 3rd, and 5th gently pulse in a 4:5:6 rhythm.',
+    fromSection: 'concepts',
+    mode: 'sweep',
+    shapeId: 'major-triad-4-5-6',
+    rhythmBpm: 90,
+    rhythmD: 4.104,
+    pitchLabel: 'C4 262 Hz (Pitch)',
+    pitchD: -3.344,
+    noteIndex: 0,
+    octave: 4,
+    pitchCarrier: 'self',
+    rhythmContainer: 'self',
+  },
+  {
+    id: 'neutral-limen-hemiola',
+    title: 'Neutral Crossover: Un-Pitched Drums → Continuous Fifth',
+    shortTitle: 'Neutral 3:2 Crossover',
+    badge: 'Carrier: Kit · Container: Static',
+    summary: 'Forces neutral drum voices below 25.8 Hz and a continuous chord above 25.8 Hz so you hear pure auditory fusion.',
+    listenHint:
+      'With Carrier set to Drum Kit and Container set to Static, you hear un-pitched drums below 25.8 Hz fuse directly into a steady Perfect Fifth above 25.8 Hz.',
+    fromSection: 'concepts',
+    mode: 'sweep',
+    shapeId: 'hemiola-3-2',
+    rhythmBpm: 120,
+    rhythmD: 3.689,
+    pitchLabel: 'A4 440 Hz (Pitch)',
+    pitchD: -4.092,
+    noteIndex: 9,
+    octave: 4,
+    pitchCarrier: 'kit',
+    rhythmContainer: 'static',
+  },
+  {
+    id: 'cross-shape-clarinet-hemiola',
+    title: 'Cross-Shape Coupling: Clarinet in a 3:2 Rhythm Container',
+    shortTitle: 'Clarinet + 3:2 Container',
+    badge: 'Container: Hemiola 3:2',
+    summary: 'A woody Clarinet tone placed in pitch space at A3 (220 Hz) articulated by a 3:2 Hemiola rhythm container.',
+    listenHint:
+      'The Clarinet stays locked at A3 (220 Hz) in Pitch Space while the Hemiola 3:2 Rhythm Container strums its envelope on the 2 and 3 beats.',
+    fromSection: 'concepts',
+    mode: 'static-place',
+    shapeId: 'clarinet-like',
+    pitchLabel: 'A3 220 Hz (Pitch)',
+    pitchD: -3.092,
+    noteIndex: 9,
+    octave: 3,
+    pitchCarrier: 'auto',
+    rhythmContainer: 'shape:hemiola-3-2',
   },
 ];
 

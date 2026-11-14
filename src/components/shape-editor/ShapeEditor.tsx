@@ -59,6 +59,7 @@ export const ShapeEditor: React.FC<ShapeEditorProps> = ({
         isPreset={isPreset}
         onSelectShape={onSelectShape}
         onUpdateShapeName={(name) => onUpdateShape({ ...shape, name })}
+        onUpdateShapeDefaults={(patch) => onUpdateShape({ ...shape, ...patch })}
         onForkShape={handleDuplicateCurrentShape}
         onDuplicateShape={handleDuplicateCurrentShape}
         onDeleteShape={onDeleteShape}

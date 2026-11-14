@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeft } from 'lucide-react';
-import { Scene, SpanView } from '../core/types';
+import { Scene, SpanView, PitchCarrierMode, RhythmContainerMode } from '../core/types';
 import { BookmarkSettings } from './bookmarks-storage';
 import { dToFreq, dToBpm, dToPeriodMs, freqToPitchRegister, resolveDuPeriodAddress } from '../core/axis';
 import { SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { buildRadialSegments, RadialWedgeSegment } from './radial-menu-segments';
 import { FilterControlParam } from './hooks/useFilters';
+import { CouplingSelectorPill } from './CouplingSelectorPill';
 
 export interface RadialMenuOverlayProps {
   isOpen: boolean;
@@ -36,6 +37,8 @@ export interface RadialMenuOverlayProps {
   anchorPos?: { x: number; y: number } | null;
   /** Switch to full-canvas Filter Edit mode (closing radial menu) */
   onEnterFilterEditMode?: (param?: FilterControlParam) => void;
+  onUpdatePitchCarrier?: (mode: PitchCarrierMode) => void;
+  onUpdateRhythmContainer?: (mode: RhythmContainerMode) => void;
 }
 
 type SubMenuDirection = 'none' | 'north' | 'east' | 'west' | 'envelope';
@@ -100,6 +103,8 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onJumpBookmarkB,
   anchorPos,
   onEnterFilterEditMode,
+  onUpdatePitchCarrier,
+  onUpdateRhythmContainer,
 }) => {
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuDirection>('none');
   const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
@@ -445,6 +450,28 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
             </>
           )}
         </button>
+
+        {/* Outer Top Bar: Cross-Limen Carrier & Container Selectors outside rotary dial */}
+        <div
+          className="absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-950/95 border border-slate-700/80 rounded-full px-2.5 py-1 shadow-xl z-30 whitespace-nowrap"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CouplingSelectorPill
+            kind="carrier"
+            scene={scene}
+            isActiveRegime={currentD > 0}
+            onUpdatePitchCarrier={onUpdatePitchCarrier}
+            compact
+          />
+          <span className="text-[9px] text-slate-600 font-mono">|</span>
+          <CouplingSelectorPill
+            kind="container"
+            scene={scene}
+            isActiveRegime={currentD <= 0}
+            onUpdateRhythmContainer={onUpdateRhythmContainer}
+            compact
+          />
+        </div>
 
         {/* Bottom Rim Scrub Instruction Pill */}
         <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/95 border border-slate-700/80 rounded-full px-3 py-0.5 text-[9px] font-mono font-semibold text-slate-300 shadow-lg pointer-events-none">

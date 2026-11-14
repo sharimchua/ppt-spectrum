@@ -311,6 +311,18 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onJumpBookmarkB={onJumpBookmarkB}
         anchorPos={radialMenuAnchor}
         onEnterFilterEditMode={onEnterFilterEditMode}
+        onUpdatePitchCarrier={(pitchCarrier) =>
+          onUpdateScene((prev) => ({
+            ...prev,
+            audio: { ...prev.audio, pitchCarrier },
+          }))
+        }
+        onUpdateRhythmContainer={(rhythmContainer) =>
+          onUpdateScene((prev) => ({
+            ...prev,
+            audio: { ...prev.audio, rhythmContainer },
+          }))
+        }
       />
 
       <FiltersSheet

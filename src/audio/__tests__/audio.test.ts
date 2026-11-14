@@ -131,4 +131,25 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     expect(payload[0].adsr?.sustain).toBe(0.22);
     expect(payload[0].adsr?.damping).toBe(0.6);
   });
+
+  it('compiles carrierSpec and containerSpec for Self, Kit, Static, and Library Shape coupling', () => {
+    const defaultPayload = buildAudioPayloadShapes(DEFAULT_SCENE);
+    expect(defaultPayload[0].carrierSpec?.mode).toBe('self');
+    expect(defaultPayload[0].containerSpec?.mode).toBe('self');
+    expect(defaultPayload[0].partials[0].carrierPartials?.length).toBeGreaterThan(0);
+
+    const crossScene: Scene = {
+      ...DEFAULT_SCENE,
+      placements: [{ ...DEFAULT_SCENE.placements[0], shapeId: 'clarinet-like', d: -3.0 }],
+      audio: {
+        ...DEFAULT_SCENE.audio,
+        pitchCarrier: 'kit',
+        rhythmContainer: 'shape:hemiola-3-2',
+      },
+    };
+    const crossPayload = buildAudioPayloadShapes(crossScene);
+    expect(crossPayload[0].carrierSpec?.mode).toBe('kit');
+    expect(crossPayload[0].containerSpec?.mode).toBe('shape');
+    expect(crossPayload[0].containerSpec?.globalStreams?.length).toBeGreaterThan(0);
+  });
 });

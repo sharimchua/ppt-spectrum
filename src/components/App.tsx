@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { PitchCarrierMode, RhythmContainerMode } from '../core/types';
 import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
@@ -198,16 +199,18 @@ export const App: React.FC = () => {
     handleRenameFilter,
   } = useFilters({ scene, updateScene, updateSceneFast });
 
-  // Audio mode toggle
-  const handleToggleAudioMode = useCallback(() => {
-    updateScene((prev) => ({
-      ...prev,
-      audio: {
-        ...prev.audio,
-        audioMode: prev.audio.audioMode === 'poetic' ? 'literal' : 'poetic',
-      },
-    }));
-  }, [updateScene]);
+  // Cross-Limen Coupling handlers (Pitch Carrier & Rhythm Container)
+  const handleUpdatePitchCarrier = useCallback(
+    (pitchCarrier: PitchCarrierMode) =>
+      updateScene((prev) => ({ ...prev, audio: { ...prev.audio, pitchCarrier } })),
+    [updateScene]
+  );
+
+  const handleUpdateRhythmContainer = useCallback(
+    (rhythmContainer: RhythmContainerMode) =>
+      updateScene((prev) => ({ ...prev, audio: { ...prev.audio, rhythmContainer } })),
+    [updateScene]
+  );
 
   // Radial menu opening handlers
   const handleOpenRadialMenu = useCallback(() => {
@@ -291,7 +294,8 @@ export const App: React.FC = () => {
         onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleUpdatePlacementD}
-        onToggleAudioMode={handleToggleAudioMode}
+        onUpdatePitchCarrier={handleUpdatePitchCarrier}
+        onUpdateRhythmContainer={handleUpdateRhythmContainer}
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
         onShareLayout={handleShareLayout}
         onToggleFullscreen={toggleFullscreen}

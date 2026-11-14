@@ -1,9 +1,28 @@
 import { Scene, VoiceId, ADSREnvelope, Filter, RangeCondition } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
-import { calculateFilterGain, getFilterablePartials } from '../core/shape';
+import { calculateFilterGain, getFilterablePartials, getShapeAnchors, getEffectivePartials } from '../core/shape';
 import { rangeCoordinate, evaluateRangeMatch, compileFilterForWorklet } from '../core/filter-eval';
+import {
+  resolvePitchCarrier,
+  resolveRhythmContainer,
+  computeContainerCyclePeriodSec,
+  buildCarrierPartialsForOnset,
+} from '../core/coupling';
 import { SPECTRUM_WORKLET_CODE } from './worklets/spectrum-synth.worklet';
+
+export interface WorkletCarrierSpec {
+  mode: 'kit' | 'self' | 'shape';
+  baseFreqHz: number;
+  adsr: ADSREnvelope;
+}
+
+export interface WorkletContainerSpec {
+  mode: 'static' | 'self' | 'shape';
+  cycleFreqHz: number;
+  /** Global rhythm streams when a Library Shape strums a unified instrument */
+  globalStreams?: { ratio: number; phase: number }[];
+}
 
 export interface WorkletPartialPayload {
   ratio: number;
@@ -11,6 +30,11 @@ export interface WorkletPartialPayload {
   phaseOffset: number;
   voice?: VoiceId;
   rangeMatches?: number[];
+  /** Carrier partial spectrum struck when this rhythm partial wraps (in 'self' or 'shape' carrier mode) */
+  carrierPartials?: { ratio: number; amp: number }[];
+  /** Rhythm container gate ratio & phase for this partial in Pitch Space */
+  gateRatio?: number;
+  gatePhase?: number;
 }
 
 export interface WorkletShapePayload {
@@ -22,11 +46,21 @@ export interface WorkletShapePayload {
   adsr?: ADSREnvelope;
   ratioToScene?: number;
   isPrimary?: boolean;
+  carrierSpec?: WorkletCarrierSpec;
+  containerSpec?: WorkletContainerSpec;
 }
+
+const DEFAULT_CARRIER_ADSR: ADSREnvelope = {
+  attack: 0.004,
+  decay: 0.34,
+  sustain: 0.0,
+  release: 0.16,
+  damping: 0.45,
+};
 
 /**
  * Pure function mapping Scene placements and shapes to AudioWorklet payloads,
- * calculating static filter matches and duty gain for partials.
+ * calculating static filter matches, duty gain, and cross-limen Carrier/Container specs.
  */
 export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
   const sceneD = scene.placements[0]?.d ?? 0;
@@ -42,6 +76,71 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
           (c): c is RangeCondition => c.kind === 'range' && c.enabled !== false
         )
       : [];
+
+    const activeAdsr =
+      scene.envelope && scene.envelope.enabled
+        ? scene.envelope.adsr
+        : scene.envelope && !scene.envelope.enabled
+        ? undefined
+        : shapeObj?.adsr;
+
+    const resolvedCarrier = shapeObj ? resolvePitchCarrier(scene, shapeObj) : null;
+    const resolvedContainer = shapeObj ? resolveRhythmContainer(scene, shapeObj) : null;
+
+    // 1. Build Pitch Carrier Spec (active when placement is in Rhythm Space)
+    const carrierSourceShape = resolvedCarrier?.carrierShape || shapeObj;
+    const rawCarrierAdsr = carrierSourceShape?.adsr || activeAdsr;
+    const carrierAdsr: ADSREnvelope =
+      rawCarrierAdsr && rawCarrierAdsr.sustain <= 0.65
+        ? rawCarrierAdsr
+        : DEFAULT_CARRIER_ADSR;
+    // Reference C4 (~261.63 Hz when A4 = 440 Hz), scaled so the lowest ratio sits comfortably in midrange
+    const minShapeRatio =
+      filterablePartials.length > 0
+        ? Math.max(0.5, Math.min(...filterablePartials.map((fp) => ratioToValue(fp.ratio))))
+        : 1.0;
+    const baseC4Hz = (scene.anchors.tuningA4Hz || 440) * Math.pow(2, -9 / 12);
+    const carrierBaseFreqHz = baseC4Hz / Math.min(2.0, minShapeRatio);
+
+    const carrierSpec: WorkletCarrierSpec = {
+      mode: resolvedCarrier?.mode || 'kit',
+      baseFreqHz: carrierBaseFreqHz,
+      adsr: carrierAdsr,
+    };
+
+    // 2. Build Rhythm Container Spec (active when placement is in Pitch Space)
+    const shapeAnchors = shapeObj ? getShapeAnchors(shapeObj) : [];
+    const hasMultiAnchorsWithOvertones =
+      shapeAnchors.length > 1 && shapeAnchors.some((a) => a.partials.length > 1);
+
+    let containerGlobalStreams: { ratio: number; phase: number }[] | undefined;
+    let containerRhythmRatios: number[] = [];
+
+    if (resolvedContainer?.mode === 'self' && shapeObj) {
+      if (hasMultiAnchorsWithOvertones) {
+        containerRhythmRatios = shapeAnchors
+          .filter((a) => !a.mute && a.gain > 0.0001)
+          .map((a) => ratioToValue(a.ratio));
+      } else {
+        containerRhythmRatios = filterablePartials
+          .filter((p) => p.amp > 0.0001)
+          .map((p) => ratioToValue(p.ratio));
+      }
+    } else if (resolvedContainer?.mode === 'shape' && resolvedContainer.containerShape) {
+      const cEff = getEffectivePartials(resolvedContainer.containerShape).filter((p) => p.amp > 0.0001);
+      containerGlobalStreams = cEff.map((p) => ({
+        ratio: ratioToValue(p.ratio),
+        phase: p.phase || 0,
+      }));
+      containerRhythmRatios = containerGlobalStreams.map((s) => s.ratio);
+    }
+
+    const cyclePeriodSec = computeContainerCyclePeriodSec(containerRhythmRatios, activeAdsr);
+    const containerSpec: WorkletContainerSpec = {
+      mode: resolvedContainer?.mode || 'static',
+      cycleFreqHz: 1.0 / cyclePeriodSec,
+      globalStreams: containerGlobalStreams,
+    };
 
     const partials = filterablePartials.map((p) => {
       const ratioVal = ratioToValue(p.ratio);
@@ -63,21 +162,29 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
         staticGain = calculateFilterGain(partialD, scene.filter, sceneD);
       }
 
+      const carrierPartials =
+        carrierSpec.mode !== 'kit' && carrierSourceShape
+          ? buildCarrierPartialsForOnset(carrierSourceShape, p.anchorIndex ?? 0, 6)
+          : undefined;
+
+      let gateRatio = ratioVal;
+      let gatePhase = p.phase;
+      if (containerSpec.mode === 'self' && hasMultiAnchorsWithOvertones && p.anchorRatio) {
+        gateRatio = ratioToValue(p.anchorRatio);
+        gatePhase = p.anchorPhaseOffset ?? 0;
+      }
+
       return {
         ratio: ratioVal,
         amp: p.amp * staticGain,
         phaseOffset: p.phase,
         voice: p.voice,
         rangeMatches,
+        carrierPartials,
+        gateRatio,
+        gatePhase,
       };
     });
-
-    const activeAdsr =
-      scene.envelope && scene.envelope.enabled
-        ? scene.envelope.adsr
-        : scene.envelope && !scene.envelope.enabled
-        ? undefined
-        : shapeObj?.adsr;
 
     return {
       shapeId: placement.shapeId,
@@ -88,6 +195,8 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
       adsr: activeAdsr,
       ratioToScene: Math.pow(2, sceneD - placement.d),
       isPrimary: placementIdx === 0,
+      carrierSpec,
+      containerSpec,
     };
   });
 }

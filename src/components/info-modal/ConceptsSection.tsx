@@ -4,7 +4,8 @@ import { PolyrhythmSamDiagram } from './PolyrhythmSamDiagram';
 import { OvertoneTimbreDiagram } from './OvertoneTimbreDiagram';
 import { DuMetricCycleDiagram } from './DuMetricCycleDiagram';
 import { PrimeFamiliesDiagram } from './PrimeFamiliesDiagram';
-import { BookOpen, Sparkles, Disc, Music } from 'lucide-react';
+import { FractalCouplingDiagram } from './FractalCouplingDiagram';
+import { BookOpen, Sparkles, Disc, Music, Repeat } from 'lucide-react';
 import {
   TutorialDemoId,
   TutorialSectionId,
@@ -35,12 +36,12 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
       <div className="rounded-xl border border-amber-500/25 bg-amber-950/20 p-4 text-xs leading-relaxed text-stone-300">
         <div className="flex items-center gap-2 font-semibold text-amber-300 mb-1">
           <BookOpen className="h-4 w-4" />
-          <span>Five Thought Experiments: Music as Amplitude Organised Across Time</span>
+          <span>Six Thought Experiments: Music as Amplitude Organised Across Time</span>
         </div>
         <p>
           Traditional music lessons teach rhythm, harmony, and instrument tone as completely separate subjects with separate
           vocabularies. Prime Period Theory (PPT) starts from a simpler truth: <strong>sound is air moving back and forth</strong>,
-          and <strong>amplitude</strong> is how big each push is. Test these five thought experiments right here with your own
+          and <strong>amplitude</strong> is how big each push is. Test these six thought experiments right here with your own
           ears and eyes.
         </p>
       </div>
@@ -243,6 +244,47 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
         </p>
 
         <PrimeFamiliesDiagram />
+      </div>
+
+      {/* Thought Experiment 6: The Fractal Mirror — Pitch Carrier & Rhythm Container */}
+      <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-800/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400 shrink-0">
+              6
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-stone-100">
+                The Fractal Mirror: Why Every Beat Needs a Sound, and Every Note Needs a Rhythm
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                How <span className="font-mono text-amber-300">Pitch Carrier</span> (Rhythm Space) and{' '}
+                <span className="font-mono text-cyan-300">Rhythm Container</span> (Pitch Space) reflect shapes across 25.8 Hz
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
+              UI Badge: Carrier &amp; Container (Self)
+            </span>
+            <Repeat className="h-4 w-4 text-emerald-400 hidden sm:block" />
+          </div>
+        </div>
+
+        <p className="text-xs text-stone-300 leading-relaxed">
+          Here is a fascinating puzzle about the speed continuum: you can never hear a pure rhythm in silence (each beat needs a{' '}
+          <strong>carrier sound</strong> to ring out), and you can never hear a musical note outside of time (every pitch lives inside a{' '}
+          <strong>rhythmic container</strong>). What happens when a shape provides <em>both</em>?
+        </p>
+        <p className="text-xs text-stone-300 leading-relaxed">
+          When you set the <strong>Carrier</strong> or <strong>Container</strong> to <strong>Self</strong> (the default for chords and
+          polyrhythms), the shape acts like a <strong>fractal mirror</strong> across the 25.8 Hz horizon: in Rhythm Space, each beat
+          strikes the shape&apos;s own chord transposed to that beat&apos;s ratio; in Pitch Space, each chord note pulses at its own
+          harmonic ratio! For complex instrument tones (like a Piano or Church Bell), <strong>Auto</strong> mode smartly switches the
+          Pitch Container to <strong>Static</strong> so all overtones stay fused as one realistic instrument.
+        </p>
+
+        <FractalCouplingDiagram onPlayDemo={handleTriggerDemo} />
       </div>
     </div>
   );

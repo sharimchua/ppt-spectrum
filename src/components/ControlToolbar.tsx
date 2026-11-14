@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Scene } from '../core/types';
+import { Scene, PitchCarrierMode, RhythmContainerMode } from '../core/types';
 import { dToFreq, dToBpm, dToPeriodMs, resolveDuPeriodAddress, freqToPitchRegister } from '../core/axis';
+import { resolvePitchCarrier, resolveRhythmContainer } from '../core/coupling';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
 import { BookmarkSettings } from './bookmarks-storage';
+import { CouplingSelectorPill } from './CouplingSelectorPill';
 import {
   Play,
   Pause,
@@ -44,7 +46,8 @@ interface ControlToolbarProps {
   onSelectLayout: (layout: LayoutDefinition) => void;
   onTogglePlay: () => void;
   onUpdatePlacementD: (d: number) => void;
-  onToggleAudioMode?: () => void;
+  onUpdatePitchCarrier?: (mode: PitchCarrierMode) => void;
+  onUpdateRhythmContainer?: (mode: RhythmContainerMode) => void;
   onToggleEditMode?: () => void;
   onShareLayout?: () => void;
   onToggleFullscreen?: () => void;
@@ -77,6 +80,8 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onSelectLayout,
   onTogglePlay,
   onUpdatePlacementD,
+  onUpdatePitchCarrier,
+  onUpdateRhythmContainer,
   onToggleEditMode,
   onShareLayout,
   onToggleFullscreen,
@@ -97,13 +102,15 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
 
   const activePlacement = scene.placements[0];
-  const activeShape = scene.shapes.find((s) => s.id === activePlacement?.shapeId);
+  const activeShape = scene.shapes.find((s) => s.id === activePlacement?.shapeId) || scene.shapes[0];
   const dVal = activePlacement ? activePlacement.d : 0;
   const freqHz = dToFreq(dVal, scene.anchors.tplFrequencyHz);
   const bpm = dToBpm(dVal, scene.anchors.tplFrequencyHz);
   const addr = resolveDuPeriodAddress(dVal);
   const solfegeColor = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || SOLFEGE_COLORS[addr.semitoneIndex] || '#FF4D4D';
   const pitchInfo = freqToPitchRegister(freqHz, scene.anchors.tuningA4Hz);
+  const mobileCarrierLabel = activeShape ? resolvePitchCarrier(scene, activeShape).shortLabel : 'Self';
+  const mobileContainerLabel = activeShape ? resolveRhythmContainer(scene, activeShape).shortLabel : 'Static';
 
   const handleShareClick = () => {
     if (onShareLayout) {
@@ -291,9 +298,9 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </div>
 
             <div className="relative flex justify-between items-center text-[8px] sm:text-[9px] text-slate-500 font-mono leading-none select-none">
-              <span>◄ Slower (Rhythm)</span>
-              <span className="absolute left-1/2 -translate-x-1/2 text-slate-400 font-medium text-center pointer-events-none">TPL (25.8 Hz)</span>
-              <span>Faster (Pitch) ►</span>
+              <CouplingSelectorPill kind="carrier" scene={scene} isActiveRegime={dVal > 0} onUpdatePitchCarrier={onUpdatePitchCarrier} />
+              <span className="hidden lg:inline absolute left-1/2 -translate-x-1/2 text-slate-400 font-medium text-center pointer-events-none">TPL (25.8 Hz)</span>
+              <CouplingSelectorPill kind="container" scene={scene} isActiveRegime={dVal <= 0} onUpdateRhythmContainer={onUpdateRhythmContainer} />
             </div>
           </div>
         </div>
@@ -529,13 +536,16 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               ({dVal > 0 ? `${dToPeriodMs(dVal).toFixed(0)}ms` : `${freqHz.toFixed(1)}Hz`})
             </span>
           </span>
-          <span
-            className="absolute left-1/2 -translate-x-1/2 font-bold text-center pointer-events-none transition-colors duration-150"
-            style={{ color: solfegeColor }}
-          >
+          <span className="absolute left-1/2 -translate-x-1/2 font-bold text-center pointer-events-none transition-colors duration-150" style={{ color: solfegeColor }}>
             {addr.formatted}
           </span>
-          <span className="text-cyan-400 font-mono text-[9px] font-semibold">d: {dVal.toFixed(2)}</span>
+          <span className="flex items-center gap-1.5 font-mono text-[9px] font-semibold">
+            <span className={dVal > 0 ? 'text-amber-300/90' : 'text-cyan-300/90'} title="Active Cross-Limen Coupling (Change in Radial Menu)">
+              {dVal > 0 ? `Carrier: ${mobileCarrierLabel}` : `Container: ${mobileContainerLabel}`}
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="text-cyan-400">d: {dVal.toFixed(2)}</span>
+          </span>
         </div>
         <div className="relative flex items-center h-4">
           {/* TPL tick */}

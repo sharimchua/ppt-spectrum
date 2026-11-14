@@ -7,7 +7,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 ## Ownership
 
 - `src/components/SpectrumViewport.tsx` — 4-layer canvas container (`bgCanvas`, lens layer, `effectsCanvas`, `postProcessingCanvas`) with high-DPI scaling, ResizeObserver, and docked top Layout Editor control banner.
-- `src/components/ControlToolbar.tsx` — Standardised top menu bar featuring unified branding logo, play/pause transport, Slower <-> Faster timeline slider ($x = -d$), preset selector, audio mode switcher, capture modal launcher, layout preset selector, layout edit mode toggle, share deeplink button, and fullscreen toggle.
+- `src/components/ControlToolbar.tsx` — Standardised top menu bar featuring unified branding logo, play/pause transport, Slower <-> Faster timeline slider ($x = -d$), interactive Cross-Limen Coupling selectors (`Carrier` & `Container`), preset selector, capture modal launcher, layout preset selector, layout edit mode toggle, share deeplink button, and fullscreen toggle.
+- `src/components/CouplingSelectorPill.tsx` — Interactive dropdown pill for selecting Cross-Limen `Pitch Carrier` (Rhythm Space) and `Rhythm Container` (Pitch Space) across `Auto`, `Self`, `Drum Kit` / `Static`, and `Library Shape` modes.
 - `src/components/ToolbarOverflowMenu.tsx` — Responsive desktop overflow menu (`More`) surfacing secondary workspace tools collapsed at narrower desktop breakpoints (`md`–`xl`).
 - `src/components/FlexLayoutRenderer.tsx` — Recursive multi-cell Flexbox layout renderer supporting nested containers and live cell splitting/reordering.
 - `src/components/CellViewport.tsx` — Modular lens cell wrapper providing canvas high-DPI binding and in-place layout editor controls (lens switcher, split row/col, duplicate, remove).
@@ -53,6 +54,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `OvertoneTimbreDiagram.tsx` — Interactive partial mixer (clickable 1×–8× bars) and waveform presets with live summed oscilloscope and dual Rhythm/Pitch perception cards.
 - `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove/chord overlays.
 - `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
+- `FractalCouplingDiagram.tsx` — Interactive Cross-Limen Coupling explorer (`Pitch Carrier` & `Rhythm Container`) comparing `Self` (Fractal Mirror), `Neutral` (Drum Kit / Static), and `Cross-Shape Coupling` with live demo launchers.
 
 ### Envelopes (`src/components/envelopes/`)
 

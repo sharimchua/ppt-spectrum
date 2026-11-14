@@ -3,7 +3,7 @@
  * Combines Shape, Filter, and Envelope into shareable configurations.
  */
 
-import { Shape, Filter, Envelope, PresetCategory, Scene } from './types';
+import { Shape, Filter, Envelope, PresetCategory, Scene, PitchCarrierMode, RhythmContainerMode } from './types';
 import { PRESET_SHAPES } from './presets';
 import { PRESET_FILTERS } from './filter-presets';
 import { PRESET_ENVELOPES } from './envelope-presets';
@@ -18,6 +18,8 @@ export interface LibraryBundle {
   filter?: Filter;
   envelope?: Envelope;
   placementD?: number;
+  pitchCarrier?: PitchCarrierMode;
+  rhythmContainer?: RhythmContainerMode;
 }
 
 export interface LibraryExportPayload {
@@ -106,6 +108,8 @@ export function buildSingleBundleExport(
     filter: scene.filter,
     envelope: scene.envelope,
     placementD: primary?.d,
+    pitchCarrier: scene.audio.pitchCarrier,
+    rhythmContainer: scene.audio.rhythmContainer,
   };
 
   return {
@@ -320,5 +324,10 @@ export function applyLibraryBundleToScene(scene: Scene, bundle: LibraryBundle): 
     placements: nextPlacements,
     filter: bundle.filter ? bundle.filter : scene.filter,
     envelope: bundle.envelope ? bundle.envelope : scene.envelope,
+    audio: {
+      ...scene.audio,
+      pitchCarrier: bundle.pitchCarrier ?? scene.audio.pitchCarrier ?? 'auto',
+      rhythmContainer: bundle.rhythmContainer ?? scene.audio.rhythmContainer ?? 'auto',
+    },
   };
 }

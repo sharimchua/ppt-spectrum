@@ -64,7 +64,11 @@ export function multiplyRatios(a: Ratio, b: Ratio): Ratio {
   return { kind: 'real', value: ratioToValue(a) * ratioToValue(b) };
 }
 
-export type ProvenancedPartial = PartialComponent & { anchorRatio: Ratio };
+export type ProvenancedPartial = PartialComponent & {
+  anchorRatio: Ratio;
+  anchorPhaseOffset?: number;
+  anchorIndex?: number;
+};
 
 /**
  * Flattens voice anchors without merging, preserving anchor ratio provenance.
@@ -72,7 +76,8 @@ export type ProvenancedPartial = PartialComponent & { anchorRatio: Ratio };
  */
 export function flattenAnchorsWithProvenance(anchors: VoiceAnchor[]): ProvenancedPartial[] {
   const list: ProvenancedPartial[] = [];
-  for (const anchor of anchors) {
+  for (let aIdx = 0; aIdx < anchors.length; aIdx++) {
+    const anchor = anchors[aIdx];
     const anchorGain = anchor.mute ? 0 : anchor.gain;
     for (const p of anchor.partials) {
       const combinedRatio = multiplyRatios(anchor.ratio, p.ratio);
@@ -92,6 +97,8 @@ export function flattenAnchorsWithProvenance(anchors: VoiceAnchor[]): Provenance
         voice: p.voice || anchor.voice || 'woodblock',
         label: p.label || `${anchor.name}${offsetInfo}`,
         anchorRatio: anchor.ratio,
+        anchorPhaseOffset: anchor.phaseOffset || 0,
+        anchorIndex: aIdx,
       });
     }
   }
@@ -149,6 +156,8 @@ export function getFilterablePartials(shape: Shape): ProvenancedPartial[] {
   return shape.partials.map((p) => ({
     ...p,
     anchorRatio: { kind: 'rational' as const, num: 1, den: 1 },
+    anchorPhaseOffset: 0,
+    anchorIndex: 0,
   }));
 }
 

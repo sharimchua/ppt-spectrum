@@ -68,6 +68,10 @@ export interface VoiceAnchor {
   partials: PartialComponent[];
 }
 
+export type PitchCarrierMode = 'auto' | 'self' | 'kit' | `shape:${string}`;
+
+export type RhythmContainerMode = 'auto' | 'self' | 'static' | `shape:${string}`;
+
 export interface Shape {
   id: string;
   name: string;
@@ -78,6 +82,10 @@ export interface Shape {
   description?: string;
   category?: PresetCategory;
   adsr?: ADSREnvelope;
+  /** Optional default Pitch Carrier when this shape is placed in Rhythm Space (d > 0) */
+  defaultCarrier?: 'self' | 'kit' | `shape:${string}`;
+  /** Optional default Rhythm Container when this shape is placed in Pitch Space (d <= 0) */
+  defaultContainer?: 'self' | 'static' | `shape:${string}`;
 }
 
 export interface Placement {
@@ -145,7 +153,11 @@ export interface VoiceMap {
 
 export interface AudioConfig {
   masterGain: number;
-  audioMode: 'poetic' | 'literal';
+  audioMode: 'poetic';
+  /** Pitch Carrier mode when placed in Rhythm Space (d > 0 / f0 < f_TPL) */
+  pitchCarrier?: PitchCarrierMode;
+  /** Rhythm Container mode when placed in Pitch Space (d <= 0 / f0 >= f_TPL) */
+  rhythmContainer?: RhythmContainerMode;
   speakerAssist: boolean;
   audibleGhostFundamental: boolean;
   audibleInterference: boolean;

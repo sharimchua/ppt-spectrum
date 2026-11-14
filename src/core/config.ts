@@ -76,6 +76,8 @@ export const DEFAULT_SCENE: Scene = {
   audio: {
     masterGain: 0.75,
     audioMode: 'poetic',
+    pitchCarrier: 'auto',
+    rhythmContainer: 'auto',
     speakerAssist: true,
     audibleGhostFundamental: false,
     audibleInterference: false,
@@ -145,6 +147,8 @@ export function loadSavedScene(): Scene {
         ...DEFAULT_SCENE.audio,
         ...(parsed.audio || {}),
         audioMode: 'poetic',
+        pitchCarrier: parsed.audio?.pitchCarrier || 'auto',
+        rhythmContainer: parsed.audio?.rhythmContainer || 'auto',
       },
       cosmetics: {
         ...DEFAULT_COSMETICS,
