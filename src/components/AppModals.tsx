@@ -16,6 +16,8 @@ import { UseEnvelopesResult } from './hooks/useEnvelopes';
 import { LibraryShareModal } from './LibraryShareModal';
 import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
+import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
+import { TutorialReturnToast } from './TutorialReturnToast';
 
 export interface AppModalsProps {
   // Capture Modal
@@ -26,7 +28,7 @@ export interface AppModalsProps {
   // Info / Tutorial Modal
   isInfoOpen: boolean;
   onCloseInfo: () => void;
-  onPlayDemo: () => void;
+  teachingDemo: UseTeachingDemoResult;
 
   // Shape Editor Tray
   isShapeEditorOpen: boolean;
@@ -121,7 +123,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onCaptureShape,
   isInfoOpen,
   onCloseInfo,
-  onPlayDemo,
+  teachingDemo,
   isShapeEditorOpen,
   onCloseShapeEditor,
   activeShape,
@@ -200,10 +202,22 @@ export const AppModals: React.FC<AppModalsProps> = ({
         tplHz={scene.anchors.tplFrequencyHz}
       />
 
+      <TutorialReturnToast
+        activeDemo={teachingDemo.activeDemo}
+        isInfoOpen={isInfoOpen}
+        onReturnToTutorial={teachingDemo.handleReturnToTutorial}
+        onCycleDemo={teachingDemo.handleCycleDemo}
+        onDismiss={teachingDemo.handleDismissDemoToast}
+      />
+
       <InfoModal
         isOpen={isInfoOpen}
+        initialSection={teachingDemo.tutorialSection}
+        initialScrollTop={teachingDemo.tutorialScrollTop}
+        onSectionChange={teachingDemo.setTutorialSection}
+        onScrollTopChange={teachingDemo.setTutorialScrollTop}
         onClose={onCloseInfo}
-        onPlayDemo={onPlayDemo}
+        onPlayDemo={teachingDemo.handlePlayDemo}
       />
 
       <TraySheet

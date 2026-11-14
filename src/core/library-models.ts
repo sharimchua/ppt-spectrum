@@ -41,14 +41,14 @@ export interface LibraryImportStats {
 export const PRESET_LIBRARY_BUNDLES: LibraryBundle[] = [
   {
     id: 'bundle-hemiola-tresillo',
-    name: 'Hemiola 3:2 + Tresillo Sieve',
-    description: 'Classic 3:2 polyrhythm gated by an 8-slot Tresillo cycle filter.',
+    name: 'Octuple 1:8 + Tresillo Sieve',
+    description: 'Dense 1:2:4:8 8th-note pulse stack gated by an 8-slot Tresillo cycle filter.',
     category: 'rhythm',
     origin: 'preset',
-    shape: PRESET_SHAPES.find((s) => s.id === 'hemiola-3-2') || PRESET_SHAPES[0],
+    shape: PRESET_SHAPES.find((s) => s.id === 'duple-1-8') || PRESET_SHAPES[0],
     filter: PRESET_FILTERS.find((f) => f.id === 'filter-tresillo'),
     envelope: PRESET_ENVELOPES.find((e) => e.id === 'env-rhythm-gate-2'),
-    placementD: 2.0,
+    placementD: 5.2,
   },
   {
     id: 'bundle-piano-harmonic-comb',

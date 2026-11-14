@@ -4,46 +4,90 @@ import {
   Sparkles,
   BookOpen,
   Sliders,
-  ExternalLink,
   Compass,
   Play,
+  Wrench,
 } from 'lucide-react';
 import { OverviewSection } from './info-modal/OverviewSection';
 import { ConceptsSection } from './info-modal/ConceptsSection';
+import { UnderTheHoodSection } from './info-modal/UnderTheHoodSection';
 import { CustomiseSection } from './info-modal/CustomiseSection';
 import { LinksSection } from './info-modal/LinksSection';
+import {
+  TutorialDemoId,
+  TutorialSectionId,
+  CustomTutorialDemoOverride,
+  STORAGE_KEY_DONT_SHOW_INTRO,
+} from './info-modal/tutorial-demos';
 
 interface InfoModalProps {
   isOpen: boolean;
+  initialSection?: TutorialSectionId;
+  initialScrollTop?: number;
+  onSectionChange?: (section: TutorialSectionId) => void;
+  onScrollTopChange?: (scrollTop: number) => void;
   onClose: () => void;
-  onPlayDemo?: () => void;
+  onPlayDemo?: (
+    demoId?: TutorialDemoId,
+    fromSection?: TutorialSectionId,
+    customOverride?: CustomTutorialDemoOverride
+  ) => void;
 }
 
-export const STORAGE_KEY_DONT_SHOW_INTRO = 'ppt_spectrum_dont_show_intro_v1';
-
-type NavSection = 'overview' | 'concepts' | 'customise' | 'links';
-
 interface NavItem {
-  id: NavSection;
+  id: TutorialSectionId;
   label: string;
   icon: React.ReactNode;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'overview', label: 'Spectrum Overview', icon: <Compass className="w-3.5 h-3.5" /> },
-  { id: 'concepts', label: 'PPT Musical Concepts', icon: <Sparkles className="w-3.5 h-3.5" /> },
-  { id: 'customise', label: 'Customisation & Controls', icon: <Sliders className="w-3.5 h-3.5" /> },
-  { id: 'links', label: 'Links & Resources', icon: <ExternalLink className="w-3.5 h-3.5" /> },
+  { id: 'overview', label: '1. Start Here & Demos', icon: <Compass className="w-3.5 h-3.5" /> },
+  { id: 'concepts', label: '2. How It Works', icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { id: 'hood', label: '3. Under the Hood', icon: <Wrench className="w-3.5 h-3.5" /> },
+  { id: 'customise', label: '4. Controls & Links', icon: <Sliders className="w-3.5 h-3.5" /> },
 ];
 
-export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDemo }) => {
-  const [activeSection, setActiveSection] = useState<NavSection>('overview');
+export const InfoModal: React.FC<InfoModalProps> = ({
+  isOpen,
+  initialSection = 'overview',
+  initialScrollTop = 0,
+  onSectionChange,
+  onScrollTopChange,
+  onClose,
+  onPlayDemo,
+}) => {
+  const [activeSection, setActiveSection] = useState<TutorialSectionId>(initialSection);
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(STORAGE_KEY_DONT_SHOW_INTRO) === 'true';
   });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const savedScrollTopRef = useRef<number>(initialScrollTop);
+  const savedSectionRef = useRef<TutorialSectionId>(initialSection);
+  savedScrollTopRef.current = initialScrollTop;
+  savedSectionRef.current = initialSection;
+
+  // Restore exact bookmarked scroll position when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setActiveSection(savedSectionRef.current);
+    const rafId = window.requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      if (savedScrollTopRef.current > 0) {
+        container.scrollTop = savedScrollTopRef.current;
+      } else if (savedSectionRef.current !== 'overview') {
+        const target = document.getElementById(`ppt-section-${savedSectionRef.current}`);
+        if (target) {
+          container.scrollTop = Math.max(0, target.offsetTop - 16);
+        }
+      } else {
+        container.scrollTop = 0;
+      }
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [isOpen]);
 
   // Close on Escape key
   useEffect(() => {
@@ -64,13 +108,19 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
     if (!container) return;
 
     const handleScroll = () => {
-      const sectionIds: NavSection[] = ['overview', 'concepts', 'customise', 'links'];
+      if (onScrollTopChange) {
+        onScrollTopChange(container.scrollTop);
+      }
+      const sectionIds: TutorialSectionId[] = ['overview', 'concepts', 'hood', 'customise'];
       const scrollPos = container.scrollTop + 140;
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
         const el = document.getElementById(`ppt-section-${sectionIds[i]}`);
         if (el && el.offsetTop <= scrollPos) {
           setActiveSection(sectionIds[i]);
+          if (onSectionChange) {
+            onSectionChange(sectionIds[i]);
+          }
           break;
         }
       }
@@ -78,12 +128,13 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [isOpen]);
+  }, [isOpen, onSectionChange, onScrollTopChange]);
 
-  if (!isOpen) return null;
-
-  const scrollToSection = (sectionId: NavSection) => {
+  const scrollToSection = (sectionId: TutorialSectionId) => {
     setActiveSection(sectionId);
+    if (onSectionChange) {
+      onSectionChange(sectionId);
+    }
     const target = document.getElementById(`ppt-section-${sectionId}`);
     if (target && scrollContainerRef.current) {
       const offsetTop = target.offsetTop - 16;
@@ -101,28 +152,39 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
     }
   };
 
-  const handlePlayDemoClick = () => {
+  const handlePlayDemoClick = (
+    demoId: TutorialDemoId = 'hemiola-sweep',
+    fromSection: TutorialSectionId = activeSection,
+    customOverride?: CustomTutorialDemoOverride
+  ) => {
+    if (scrollContainerRef.current && onScrollTopChange) {
+      onScrollTopChange(scrollContainerRef.current.scrollTop);
+    }
     if (onPlayDemo) {
-      onPlayDemo();
-      onClose();
+      onPlayDemo(demoId, fromSection, customOverride);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
+    <div
+      aria-hidden={!isOpen}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2.5 sm:p-4 transition-opacity duration-200 ${
+        isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
       <div className="relative flex flex-col w-full max-w-4xl max-h-[92vh] rounded-2xl border border-stone-800 bg-[#0c101a] shadow-2xl overflow-hidden">
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-stone-800/80 px-5 sm:px-6 py-3.5 bg-[#080b12]/95 shrink-0">
+        <div className="flex items-center justify-between border-b border-stone-800/80 px-4 sm:px-6 py-3.5 bg-[#080b12]/95 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="h-6 w-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="h-6 w-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
               <Sparkles className="h-3.5 w-3.5" />
             </div>
             <div>
               <h2 className="text-xs sm:text-sm font-bold tracking-wider text-stone-100 uppercase">
-                Prime Period Theory — Spectrum Guide &amp; Theoretical Foundations
+                PPT Spectrum — Interactive Guide &amp; Musical Thought Experiments
               </h2>
               <p className="text-[10px] text-stone-400 hidden sm:block">
-                Interactive spatial synthesiser, lens laboratory, and unified continuum guide
+                How rhythm, harmony, and timbre connect as amplitude across one continuous speed spectrum
               </p>
             </div>
           </div>
@@ -136,7 +198,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
         </div>
 
         {/* Navigation Bookmarks Bar */}
-        <div className="border-b border-stone-800/80 bg-stone-950/90 px-4 sm:px-6 py-2 shrink-0">
+        <div className="border-b border-stone-800/80 bg-stone-950/90 px-3 sm:px-6 py-2 shrink-0">
           <nav className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 sm:gap-2">
             {NAV_ITEMS.map((item) => {
               const isActive = activeSection === item.id;
@@ -161,14 +223,15 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
         {/* Scrollable Document Body */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-8 text-xs text-stone-300 leading-relaxed font-sans"
+          data-tutorial-scroll-body="true"
+          className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-5 sm:py-6 space-y-8 text-xs text-stone-300 leading-relaxed font-sans"
         >
-          {/* Section 1: Spectrum Overview */}
+          {/* Section 1: Start Here & Guided Demos */}
           <section id="ppt-section-overview" className="scroll-mt-4">
             <OverviewSection onPlayDemo={handlePlayDemoClick} />
           </section>
 
-          {/* Section Divider: Concepts */}
+          {/* Divider 2: How It Works */}
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full border-t border-stone-800" />
@@ -176,35 +239,35 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
             <div className="relative flex justify-center">
               <span className="bg-[#0c101a] px-3.5 py-1 rounded-full border border-stone-800 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-amber-400 flex items-center gap-1.5 shadow-sm">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Theoretical Foundations &amp; PPT Concepts</span>
+                <span>2. How It Works — Interactive Thought Experiments</span>
               </span>
             </div>
           </div>
 
-          {/* Section 2: PPT Musical Concepts */}
+          {/* Section 2: Concepts & Thought Experiments */}
           <section id="ppt-section-concepts" className="scroll-mt-4">
-            <ConceptsSection />
+            <ConceptsSection onPlayDemo={handlePlayDemoClick} />
           </section>
 
-          {/* Section Divider: Customisation & Controls */}
+          {/* Divider 3: Under the Hood */}
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full border-t border-stone-800" />
             </div>
             <div className="relative flex justify-center">
               <span className="bg-[#0c101a] px-3.5 py-1 rounded-full border border-stone-800 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 shadow-sm">
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Engine Controls &amp; Customisation</span>
+                <Wrench className="w-3.5 h-3.5" />
+                <span>3. Under the Hood — Sound Design, Sieves &amp; Sampling</span>
               </span>
             </div>
           </div>
 
-          {/* Section 3: Customisation & Controls */}
-          <section id="ppt-section-customise" className="scroll-mt-4">
-            <CustomiseSection />
+          {/* Section 3: Under the Hood */}
+          <section id="ppt-section-hood" className="scroll-mt-4">
+            <UnderTheHoodSection onPlayDemo={handlePlayDemoClick} />
           </section>
 
-          {/* Section Divider: Links */}
+          {/* Divider 4: Controls & Links */}
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full border-t border-stone-800" />
@@ -212,19 +275,20 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
             <div className="relative flex justify-center">
               <span className="bg-[#0c101a] px-3.5 py-1 rounded-full border border-stone-800 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 shadow-sm">
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Community, Portal &amp; Resources</span>
+                <span>4. Controls, Shortcuts &amp; Learning Portal</span>
               </span>
             </div>
           </div>
 
-          {/* Section 4: Links & Resources */}
-          <section id="ppt-section-links" className="scroll-mt-4">
+          {/* Section 4: Controls & Ecosystem Links */}
+          <section id="ppt-section-customise" className="scroll-mt-4 space-y-8">
+            <CustomiseSection />
             <LinksSection />
           </section>
         </div>
 
         {/* Modal Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-800/80 px-5 sm:px-6 py-3.5 bg-[#080b12]/95 shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-800/80 px-4 sm:px-6 py-3.5 bg-[#080b12]/95 shrink-0">
           <label className="flex items-center gap-2 text-stone-400 text-xs cursor-pointer select-none self-start sm:self-auto">
             <input
               type="checkbox"
@@ -232,26 +296,18 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, onPlayDem
               onChange={(e) => handleDontShowChange(e.target.checked)}
               className="rounded bg-stone-800 border-stone-700 text-amber-500 focus:ring-0 cursor-pointer"
             />
-            <span>Don&apos;t show this intro on startup</span>
+            <span>Don&apos;t show this guide automatically on startup</span>
           </label>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-            {onPlayDemo && (
-              <button
-                onClick={handlePlayDemoClick}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                <span>Play 3:2 Hemiola Sweep Demo</span>
-              </button>
-            )}
+          {onPlayDemo && (
             <button
-              onClick={onClose}
-              className="px-4 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 font-semibold text-xs text-stone-100 transition-colors cursor-pointer"
+              onClick={() => handlePlayDemoClick('hemiola-sweep', activeSection)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
             >
-              Get Started
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Play 3:2 Sweep Demo</span>
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

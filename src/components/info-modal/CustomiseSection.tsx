@@ -21,25 +21,25 @@ interface KeyShortcut {
 }
 
 const DESKTOP_SHORTCUTS: KeyShortcut[] = [
-  { key: 'Space', desc: 'Toggle audio playback and animation' },
-  { key: 'L', desc: 'Open / close Shape Synthesiser floating studio' },
+  { key: 'Space', desc: 'Play / pause audio and timeline' },
+  { key: 'L', desc: 'Open / close Shape Studio (Voice Anchors & Overtones)' },
   { key: 'L', shift: true, desc: 'Quick Shape Search (Shift+Enter: open studio)' },
-  { key: 'S', desc: 'Toggle automatic Bookmark A/B sweep' },
-  { key: 'A', desc: 'Jump frequency directly to Bookmark A' },
-  { key: 'A', shift: true, desc: 'Store current frequency to Bookmark A' },
-  { key: 'B', desc: 'Jump frequency directly to Bookmark B' },
-  { key: 'B', shift: true, desc: 'Store current frequency to Bookmark B' },
-  { key: 'T', desc: 'Trigger / strike acoustic ADSR note' },
-  { key: 'F', desc: 'Toggle compound filter bypass on / off' },
+  { key: 'S', desc: 'Start / stop automatic Bookmark A ↔ B sweep' },
+  { key: 'A', desc: 'Jump speed directly to Bookmark A' },
+  { key: 'A', shift: true, desc: 'Save current speed to Bookmark A' },
+  { key: 'B', desc: 'Jump speed directly to Bookmark B' },
+  { key: 'B', shift: true, desc: 'Save current speed to Bookmark B' },
+  { key: 'T', desc: 'Strike note with active ADSR envelope' },
+  { key: 'F', desc: 'Toggle Filters & Rhythm Sieves on / off' },
   { key: 'F', shift: true, desc: 'Quick Filter Search (Shift+Enter: open studio)' },
-  { key: 'V', desc: 'Toggle Envelope bypass on / off' },
+  { key: 'V', desc: 'Toggle Envelope / Supercycle on / off' },
   { key: 'V', shift: true, desc: 'Quick Envelope Search (Shift+Enter: open studio)' },
-  { key: 'E', desc: 'Toggle filter interactive edit mode HUD' },
-  { key: 'U', desc: 'Open / close Library Bundles & Slug Sharing' },
-  { key: 'M', desc: 'Open / close Bookmarks panel' },
-  { key: 'P', desc: 'Open Rhythm Tap-Tempo capture pad' },
-  { key: '← / →', desc: 'Step frequency by 1 octave (Shift: 0.5 oct)' },
-  { key: '↑ / ↓', desc: 'Navigate shape selection history' },
+  { key: 'E', desc: 'Toggle on-canvas Filter aperture edit HUD' },
+  { key: 'U', desc: 'Open Library Bundles & link sharing' },
+  { key: 'M', desc: 'Open Musical Bookmarks & Sweep settings' },
+  { key: 'P', desc: 'Open Mic Rhythm & 24-Partial Pitch Sampler' },
+  { key: '← / →', desc: 'Step speed by 1 octave (Shift: half octave)' },
+  { key: '↑ / ↓', desc: 'Step backward / forward through shape history' },
 ];
 
 export const CustomiseSection: React.FC = () => {
@@ -118,11 +118,12 @@ export const CustomiseSection: React.FC = () => {
                 <span>Rotary Jog-Wheel Continuous Scrubbing</span>
               </div>
               <p className="text-xs text-stone-300 leading-relaxed">
-                Use our virtual iPod-style rotary scrub wheel to glide seamlessly across octaves without running out of screen width.
-                Circle your thumb clockwise to pitch up into acoustic frequencies, or counter-clockwise to decelerate into sub-audible polyrhythms.
+                Touch anywhere on the main screen to summon the virtual rotary scrub wheel and glide seamlessly across octaves
+                without running out of screen width. Circle your thumb clockwise to speed up into pitch, or counter-clockwise
+                to slow down into polyrhythms.
               </p>
               <div className="text-[11px] text-cyan-400/90 font-mono bg-cyan-950/30 p-2 rounded border border-cyan-900/40">
-                Action: Circular drag on rotary dial = continuous smooth DuPeriod scrub
+                Action: Touch anywhere on main screen + circular drag = continuous smooth DuPeriod scrub
               </div>
             </div>
 

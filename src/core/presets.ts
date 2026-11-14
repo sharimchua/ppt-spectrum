@@ -169,9 +169,9 @@ export const PRESET_SHAPES: Shape[] = [
     description: '1 : 2 : 4 : 8 binary subdivision stack (Triple Octave in pitch space, 8th-note pulse stream in rhythm space). The ideal canvas for subtractive rhythm sieves like Tresillo (3+3+2) and Cinquillo.',
     partials: [
       { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Bar)' },
-      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.8, phase: 0, voice: 'snare', label: '2 (Half)' },
-      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.6, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
-      { id: 'p4', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.45, phase: 0, voice: 'clave', label: '8 (8th Note)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 2, den: 1 }, amp: 0.85, phase: 0, voice: 'snare', label: '2 (Half)' },
+      { id: 'p3', ratio: { kind: 'rational', num: 4, den: 1 }, amp: 0.75, phase: 0, voice: 'hihat', label: '4 (Quarter)' },
+      { id: 'p4', ratio: { kind: 'rational', num: 8, den: 1 }, amp: 0.85, phase: 0, voice: 'clave', label: '8 (8th Note)' },
     ]
   },
   {

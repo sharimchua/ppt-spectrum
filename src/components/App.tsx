@@ -8,7 +8,7 @@ import { setPrimaryPlacementD, stepPrimaryPlacementD } from '../core/scene-ops';
 import { SpectrumViewport } from './SpectrumViewport';
 import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
-import { STORAGE_KEY_DONT_SHOW_INTRO } from './InfoModal';
+import { STORAGE_KEY_DONT_SHOW_INTRO } from './info-modal/tutorial-demos';
 import { FilterEditHud } from './FilterEditHud';
 import { AppModals } from './AppModals';
 import { useTeachingDemo } from './hooks/useTeachingDemo';
@@ -268,19 +268,10 @@ export const App: React.FC = () => {
     actions: keyboardActions,
   });
 
-  const handlePlayDemo = useTeachingDemo({
-    handleSelectPreset,
-    setBookmarks,
-    handleUpdatePlacementD,
-    layout,
-    setLayout,
-    scene,
-    toggleFilter,
-    isOscillating,
-    toggleOscillating,
-    isPlaying,
-    handleTogglePlay,
-    setIsInfoOpen,
+  const teachingDemo = useTeachingDemo({
+    handleSelectPreset, setBookmarks, handleUpdatePlacementD, updateScene,
+    layout, setLayout, scene, toggleFilter, isOscillating, toggleOscillating,
+    isPlaying, handleTogglePlay, setIsInfoOpen,
   });
 
   return (
@@ -312,7 +303,7 @@ export const App: React.FC = () => {
         onToggleEnvelope={envelopes.handleToggleEnvelopeEnabled}
         onOpenBundles={bundlesApi.openBundleModal}
         onOpenCapture={() => setIsCaptureOpen(true)}
-        onOpenInfo={() => setIsInfoOpen(true)}
+        onOpenInfo={teachingDemo.handleReturnToTutorial}
         onOpenRadialMenu={handleOpenRadialMenu}
         midiState={midiState}
         onOpenMidiModal={openMidiModal}
@@ -374,7 +365,7 @@ export const App: React.FC = () => {
         onCaptureShape={handleCaptureShape}
         isInfoOpen={isInfoOpen}
         onCloseInfo={() => setIsInfoOpen(false)}
-        onPlayDemo={handlePlayDemo}
+        teachingDemo={teachingDemo}
         isShapeEditorOpen={isShapeEditorOpen}
         onCloseShapeEditor={() => setIsShapeEditorOpen(false)}
         activeShape={activeShape}
@@ -397,7 +388,7 @@ export const App: React.FC = () => {
         onCloseSettings={() => setIsSettingsOpen(false)}
         scene={scene}
         onUpdateScene={updateScene}
-        onOpenInfoModal={() => setIsInfoOpen(true)}
+        onOpenInfoModal={teachingDemo.handleReturnToTutorial}
         isQuickSearchOpen={isQuickSearchOpen} onCloseQuickSearch={() => setIsQuickSearchOpen(false)}
         onOpenShapeEditor={() => setIsShapeEditorOpen(true)}
         isFilterQuickSearchOpen={isFilterQuickSearchOpen} onCloseFilterQuickSearch={() => setIsFilterQuickSearchOpen(false)}

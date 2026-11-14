@@ -37,16 +37,21 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/EnvelopeQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for envelopes (`Shift+V`, `Shift+Enter` to open Envelope Studio).
 - `src/components/MidiPermissionModal.tsx` — Web MIDI permission request dialogue.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
+- `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with Prev/Next demo stepping and one-click return to the active tutorial section.
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
-- `OverviewSection.tsx` — Hero card with 3:2 Hemiola Sweep Demo launcher, 8 analytical lens overview cards, and quick interaction tips.
-- `ConceptsSection.tsx` — 7 numbered theoretical foundation cards with embedded interactive SVG exploration diagrams.
+- `tutorial-demos.ts` — Guided tutorial demo configurations, custom override contracts, section identifiers, and intro storage key.
+- `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time & the Bicycle-Spoke thought experiment, 4 guided live demo launchers, interactive `<LensPreviewGrid />`, and quick interaction tips.
+- `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.
+- `ConceptsSection.tsx` — 5 intuition-first musical thought experiments with UI reference badges and embedded interactive exploration diagrams.
+- `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors vs Overtones, Inharmonic Stretch ($B$), Rhythm Sieves & Formants (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Mic Capture, Web MIDI, and Audio Modes.
 - `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
 - `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, and lesson archives.
-- `TplContinuumDiagram.tsx` — Interactive continuum ruler with clickable landmarks, DuPeriod vs Physical Hz scale switch, and TPL transition zone.
-- `OvertoneTimbreDiagram.tsx` — Interactive waveform and timbre micro-polyphony explorer with waveform presets, live summed oscilloscope, and dual Rhythm/Pitch perception cards.
-- `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove overlays (Hemiola, Tresillo).
+- `TplContinuumDiagram.tsx` — Interactive continuum ruler with continuous draggable speed slider, clickable landmarks, DuPeriod vs Physical Hz scale switch, and TPL crossover zone.
+- `PolyrhythmSamDiagram.tsx` — Interactive polyrhythm-to-harmony alignment timeline with 1× Ghost Root / Sam toggle and live studio demo launchers.
+- `OvertoneTimbreDiagram.tsx` — Interactive partial mixer (clickable 1×–8× bars) and waveform presets with live summed oscilloscope and dual Rhythm/Pitch perception cards.
+- `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove/chord overlays.
 - `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
 
 ### Envelopes (`src/components/envelopes/`)
