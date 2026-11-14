@@ -216,7 +216,10 @@ export const AppModals: React.FC<AppModalsProps> = ({
         initialScrollTop={teachingDemo.tutorialScrollTop}
         onSectionChange={teachingDemo.setTutorialSection}
         onScrollTopChange={teachingDemo.setTutorialScrollTop}
-        onClose={onCloseInfo}
+        onClose={() => {
+          teachingDemo.handleDismissDemoToast();
+          onCloseInfo();
+        }}
         onPlayDemo={teachingDemo.handlePlayDemo}
       />
 

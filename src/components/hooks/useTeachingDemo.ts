@@ -303,6 +303,7 @@ export function useTeachingDemo({
     } else if (isOscillating) {
       toggleOscillating();
     }
+    setActiveDemo(null);
     setIsInfoOpen(true);
   }, [isPlaying, handleTogglePlay, isOscillating, toggleOscillating, setIsInfoOpen]);
 
