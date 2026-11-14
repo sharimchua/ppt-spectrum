@@ -125,8 +125,8 @@ export function getNearbyRatioSuggestions(
     }
   }
 
-  // Also include integer harmonic overtones 1..12
-  for (let h = 1; h <= 12; h++) {
+  // Also include integer harmonic overtones 1..32
+  for (let h = 1; h <= 32; h++) {
     const oct = Math.log2(h);
     if (oct < minOct - 0.01 || oct > maxOct + 0.01) continue;
     const key = `${h}/1`;

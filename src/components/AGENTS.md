@@ -11,7 +11,15 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/ToolbarOverflowMenu.tsx` — Responsive desktop overflow menu (`More`) surfacing secondary workspace tools collapsed at narrower desktop breakpoints (`md`–`xl`).
 - `src/components/FlexLayoutRenderer.tsx` — Recursive multi-cell Flexbox layout renderer supporting nested containers and live cell splitting/reordering.
 - `src/components/CellViewport.tsx` — Modular lens cell wrapper providing canvas high-DPI binding and in-place layout editor controls (lens switcher, split row/col, duplicate, remove).
-- `src/components/CaptureModal.tsx` — Rhythm tap pad with 11-limit DuPeriod rationaliser and microphone pitch detector.
+- `src/components/CaptureModal.tsx` — Capture modal orchestrator for mic-first rhythm capture and peak-attack 24-partial pitch/timbre capture.
+- `src/components/capture/capture-audio.ts` — Shared microphone stream acquisition helper for capture tabs.
+- `src/components/capture/CycleWheelPreview.tsx` — Lightweight `CycleWheelLensRenderer` preview canvas for captured rhythm Voice Anchors.
+- `src/components/capture/CapturedOnsetList.tsx` — Captured onset list with cycle period tuning and selective per-onset `PhaseOffsetScrubber` quantisation.
+- `src/components/capture/RhythmRecorderControls.tsx` — Mic rhythm recorder controls (expected voice count, root cycles, silence auto-stop, and sensitivity meter).
+- `src/components/capture/RhythmPreviewBar.tsx` — Shape simplification mode selector, tempo adjustment slider, and preview/apply controls.
+- `src/components/capture/rhythm-preview.ts` — Lightweight looping Web Audio preview scheduler for auditioning captured rhythm shapes.
+- `src/components/capture/RhythmCaptureTab.tsx` — Mic-first rhythm recorder with silence trimming, Cycle Wheel preview, and shape simplification modes.
+- `src/components/capture/PitchCaptureTab.tsx` — Peak-attack armed pitch/timbre capture (24 harmonic or inharmonic partials) with `ShapeRulerPreview` and `RatioScrubber` snapping.
 - `src/components/InfoModal.tsx` — Comprehensive 4-tab interactive theory documentation and tutorial modal with scroll-spy navigation.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
 - `src/components/TraySheet.tsx` — Floating & minimisable desktop window / mobile bottom sheet housing the shape partial inspector.

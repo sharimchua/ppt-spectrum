@@ -48,8 +48,17 @@ export const ShapeRulerPreview: React.FC<ShapeRulerPreviewProps> = ({
         <line x1={padX} y1={baseY} x2={width - padX} y2={baseY} stroke="rgba(148,163,184,0.25)" strokeWidth={1} />
 
         {/* Octave Ticks */}
-        {[-1, 0, 1, 2, 3, 4].map((oct) => {
+        {Array.from(
+          { length: Math.max(1, Math.floor(maxOct) - Math.ceil(minOct) + 1) },
+          (_, i) => Math.ceil(minOct) + i
+        ).map((oct) => {
           const tx = octToX(oct);
+          const label =
+            oct === 0
+              ? '1x'
+              : oct < 0
+                ? `1/${Math.pow(2, -oct)}`
+                : `${Math.pow(2, oct)}x`;
           return (
             <g key={oct}>
               <line
@@ -68,7 +77,7 @@ export const ShapeRulerPreview: React.FC<ShapeRulerPreviewProps> = ({
                 fontSize={8}
                 fontFamily="monospace"
               >
-                {oct === 0 ? '1x' : oct < 0 ? '1/2' : `${Math.pow(2, oct)}x`}
+                {label}
               </text>
             </g>
           );
