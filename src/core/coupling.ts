@@ -80,11 +80,12 @@ export function resolvePitchCarrier(scene: Scene, shape: Shape): ResolvedPitchCa
     const carrierShape = scene.shapes.find((s) => s.id === shapeId);
     if (carrierShape) {
       const shortName = carrierShape.name.split('(')[0].trim();
+      const compactName = shortName.length > 10 ? `${shortName.slice(0, 9)}…` : shortName;
       return {
         mode: 'shape',
         carrierShape,
         label: isAuto ? `Auto (${shortName})` : `Shape: ${shortName}`,
-        shortLabel: isAuto ? `Auto·${shortName}` : shortName,
+        shortLabel: compactName,
         isAuto,
         rawMode,
       };
@@ -95,7 +96,7 @@ export function resolvePitchCarrier(scene: Scene, shape: Shape): ResolvedPitchCa
     return {
       mode: 'kit',
       label: isAuto ? 'Auto (Drum Kit)' : 'Drum Kit',
-      shortLabel: isAuto ? 'Auto (Kit)' : 'Drum Kit',
+      shortLabel: 'Kit',
       isAuto,
       rawMode,
     };
@@ -105,7 +106,7 @@ export function resolvePitchCarrier(scene: Scene, shape: Shape): ResolvedPitchCa
     mode: 'self',
     carrierShape: shape,
     label: isAuto ? 'Auto (Self)' : 'Self',
-    shortLabel: isAuto ? 'Auto (Self)' : 'Self',
+    shortLabel: 'Self',
     isAuto,
     rawMode,
   };
@@ -127,11 +128,12 @@ export function resolveRhythmContainer(scene: Scene, shape: Shape): ResolvedRhyt
     const containerShape = scene.shapes.find((s) => s.id === shapeId);
     if (containerShape) {
       const shortName = containerShape.name.split('(')[0].trim();
+      const compactName = shortName.length > 10 ? `${shortName.slice(0, 9)}…` : shortName;
       return {
         mode: 'shape',
         containerShape,
         label: isAuto ? `Auto (${shortName})` : `Shape: ${shortName}`,
-        shortLabel: isAuto ? `Auto·${shortName}` : shortName,
+        shortLabel: compactName,
         isAuto,
         rawMode,
       };
@@ -142,7 +144,7 @@ export function resolveRhythmContainer(scene: Scene, shape: Shape): ResolvedRhyt
     return {
       mode: 'static',
       label: isAuto ? 'Auto (Static)' : 'Static',
-      shortLabel: isAuto ? 'Auto (Static)' : 'Static',
+      shortLabel: 'Static',
       isAuto,
       rawMode,
     };
@@ -152,7 +154,7 @@ export function resolveRhythmContainer(scene: Scene, shape: Shape): ResolvedRhyt
     mode: 'self',
     containerShape: shape,
     label: isAuto ? 'Auto (Self)' : 'Self',
-    shortLabel: isAuto ? 'Auto (Self)' : 'Self',
+    shortLabel: 'Self',
     isAuto,
     rawMode,
   };

@@ -42,12 +42,14 @@ describe('Cross-Limen Coupling (Pitch Carrier & Rhythm Container)', () => {
     const resHemiola = resolvePitchCarrier(DEFAULT_SCENE, hemiola);
     expect(resHemiola.mode).toBe('self');
     expect(resHemiola.isAuto).toBe(true);
-    expect(resHemiola.shortLabel).toBe('Auto (Self)');
+    expect(resHemiola.label).toBe('Auto (Self)');
+    expect(resHemiola.shortLabel).toBe('Self');
 
     const resBell = resolvePitchCarrier(DEFAULT_SCENE, bell);
     expect(resBell.mode).toBe('kit');
     expect(resBell.isAuto).toBe(true);
-    expect(resBell.shortLabel).toBe('Auto (Kit)');
+    expect(resBell.label).toBe('Auto (Drum Kit)');
+    expect(resBell.shortLabel).toBe('Kit');
   });
 
   it('resolves Rhythm Container in Auto mode to Self for eligible shapes and Static for timbres', () => {
@@ -56,11 +58,13 @@ describe('Cross-Limen Coupling (Pitch Carrier & Rhythm Container)', () => {
 
     const resTriad = resolveRhythmContainer(DEFAULT_SCENE, majorTriad);
     expect(resTriad.mode).toBe('self');
-    expect(resTriad.shortLabel).toBe('Auto (Self)');
+    expect(resTriad.label).toBe('Auto (Self)');
+    expect(resTriad.shortLabel).toBe('Self');
 
     const resPiano = resolveRhythmContainer(DEFAULT_SCENE, piano);
     expect(resPiano.mode).toBe('static');
-    expect(resPiano.shortLabel).toBe('Auto (Static)');
+    expect(resPiano.label).toBe('Auto (Static)');
+    expect(resPiano.shortLabel).toBe('Static');
   });
 
   it('supports explicit scene overrides for Self, Kit, Static, and Library Shape coupling', () => {

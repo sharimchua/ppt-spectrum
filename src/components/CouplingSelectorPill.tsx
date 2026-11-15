@@ -115,13 +115,13 @@ export const CouplingSelectorPill: React.FC<CouplingSelectorPillProps> = ({
         }`}
         title={
           isCarrier
-            ? 'Pitch Carrier (Rhythm Space, d > 0): Choose what sound rings out on each rhythmic onset (Self, Drum Kit, or a Library Shape)'
-            : 'Rhythm Container (Pitch Space, d ≤ 0): Choose how the harmonic spectrum is articulated in time (Self, Static, or a Library Shape)'
+            ? `Pitch Carrier (${resolvedCarrier!.label}): Choose what sound rings out on each rhythmic onset in Rhythm Space (d > 0)`
+            : `Rhythm Container (${resolvedContainer!.label}): Choose how the harmonic spectrum is articulated in Pitch Space (d ≤ 0)`
         }
       >
         {isCarrier ? (
           <>
-            {!compact && <span className="text-slate-400">◄ Rhythm ·</span>}
+            {!compact && <span className="text-slate-400">◄</span>}
             <span className="font-semibold">Carrier:</span>
             <span className="font-bold text-white">{shortText}</span>
             <ChevronDown className="w-2.5 h-2.5 opacity-75 shrink-0" />
@@ -131,7 +131,7 @@ export const CouplingSelectorPill: React.FC<CouplingSelectorPillProps> = ({
             <span className="font-semibold">Container:</span>
             <span className="font-bold text-white">{shortText}</span>
             <ChevronDown className="w-2.5 h-2.5 opacity-75 shrink-0" />
-            {!compact && <span className="text-slate-400">· Pitch ►</span>}
+            {!compact && <span className="text-slate-400">►</span>}
           </>
         )}
       </button>
