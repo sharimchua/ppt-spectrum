@@ -1,5 +1,5 @@
-import React from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, Volume2, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Volume2, X } from 'lucide-react';
 import { TutorialDemoConfig, FEATURED_TOUR_DEMOS } from './info-modal/tutorial-demos';
 
 interface TutorialReturnToastProps {
@@ -17,6 +17,14 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   onCycleDemo,
   onDismiss,
 }) => {
+  const [isMinimised, setIsMinimised] = useState(false);
+
+  useEffect(() => {
+    if (!activeDemo) {
+      setIsMinimised(false);
+    }
+  }, [activeDemo]);
+
   if (!activeDemo || isInfoOpen) return null;
 
   const tourIndex = FEATURED_TOUR_DEMOS.findIndex((d) => d.id === activeDemo.id);
@@ -24,6 +32,50 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
     tourIndex >= 0
       ? `Guided Demo ${tourIndex + 1}/${FEATURED_TOUR_DEMOS.length}`
       : 'Live Tutorial Preview';
+
+  if (isMinimised) {
+    return (
+      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100%-1.5rem)] pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-[#0b0f19]/95 backdrop-blur-md pl-2.5 pr-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20">
+          <button
+            type="button"
+            onClick={() => setIsMinimised(false)}
+            className="flex items-center gap-1.5 min-w-0 text-left cursor-pointer group"
+            title="Expand tutorial banner"
+            aria-label="Expand tutorial banner"
+          >
+            <Volume2 className="h-3.5 w-3.5 shrink-0 text-amber-300 animate-pulse" />
+            <span className="text-[11px] font-semibold text-stone-100 truncate max-w-[140px] sm:max-w-[220px] group-hover:text-amber-200 transition">
+              {activeDemo.title}
+            </span>
+            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-stone-400 group-hover:text-white transition" />
+          </button>
+
+          <div className="h-3.5 w-px bg-stone-800 mx-0.5 shrink-0" />
+
+          <button
+            type="button"
+            onClick={onReturnToTutorial}
+            className="inline-flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-stone-950 transition cursor-pointer shrink-0"
+            title="Back to Guide"
+          >
+            <BookOpen className="h-3 w-3" />
+            <span>Guide</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-full p-1 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition cursor-pointer shrink-0"
+            title="Dismiss tutorial banner"
+            aria-label="Dismiss tutorial banner"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -52,10 +104,11 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             </div>
           </div>
 
-          {/* Right: Step Demos, Back to Tutorial & Dismiss */}
+          {/* Right: Step Demos, Back to Tutorial, Minimise & Dismiss */}
           <div className="flex items-center justify-end gap-1.5 shrink-0 border-t sm:border-t-0 border-stone-800/80 pt-2 sm:pt-0">
             <div className="flex items-center rounded-lg border border-stone-700/80 bg-stone-900/90 p-0.5">
               <button
+                type="button"
                 onClick={() => onCycleDemo(-1)}
                 className="p-1 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition cursor-pointer"
                 title="Previous Guided Demo"
@@ -67,6 +120,7 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
                 Demo
               </span>
               <button
+                type="button"
                 onClick={() => onCycleDemo(1)}
                 className="p-1 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition cursor-pointer"
                 title="Next Guided Demo"
@@ -77,6 +131,7 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={onReturnToTutorial}
               className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 px-3 py-1.5 text-xs font-bold text-stone-950 shadow-sm transition cursor-pointer"
             >
@@ -85,6 +140,17 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             </button>
 
             <button
+              type="button"
+              onClick={() => setIsMinimised(true)}
+              className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition cursor-pointer"
+              title="Minimise tutorial banner"
+              aria-label="Minimise tutorial banner"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={onDismiss}
               className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition cursor-pointer"
               title="Dismiss tutorial banner"
