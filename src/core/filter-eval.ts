@@ -25,6 +25,8 @@ export interface PartialContext {
   sceneD: number;
   tplHz?: number;
   ratioToScene?: number;
+  /** Compact supercycle period in Root Turns (defaults to 1). */
+  cyclePeriodTurns?: number;
 }
 
 /**
@@ -170,16 +172,20 @@ export function evaluateRangeMatch(
 
 /**
  * Evaluates an onset occurrence at continuous scene fundamental turns against a CycleCondition.
+ * Subdivides the shape's compact supercycle period (`cyclePeriodTurns`, defaulting to 1 Root Turn).
  */
 export function evaluateCycleMatch(
   onsetSceneTurns: number,
-  condition: CycleCondition
+  condition: CycleCondition,
+  cyclePeriodTurns: number = 1
 ): number {
   const N = Math.max(1, condition.divisions);
   const R = condition.rotation;
+  const period = cyclePeriodTurns > 0 ? cyclePeriodTurns : 1;
 
-  let c = Math.floor(onsetSceneTurns);
-  const u = onsetSceneTurns - c;
+  const normalizedTurns = onsetSceneTurns / period;
+  let c = Math.floor(normalizedTurns);
+  const u = normalizedTurns - c;
 
   // Discrete slot rounding
   const rawSlot = Math.round(u * N);
@@ -273,17 +279,19 @@ export function meanCycleMatch(
   condition: CycleCondition,
   ratioVal: number,
   phaseOffset: number,
-  ratioToScene: number = 1.0
+  ratioToScene: number = 1.0,
+  cyclePeriodTurns: number = 1
 ): number {
+  const period = cyclePeriodTurns > 0 ? cyclePeriodTurns : 1;
   const L = condition.supercycle ? Math.max(1, condition.supercycle.length) : 1;
-  const totalTurns = L;
+  const totalTurns = L * period;
   const onsetsCount = Math.max(1, Math.min(512, Math.round(totalTurns * ratioVal * ratioToScene)));
 
   let sum = 0.0;
   for (let n = 0; n < onsetsCount; n++) {
     const onsetMaster = n / ratioVal + phaseOffset;
     const sceneTurns = onsetMaster * ratioToScene;
-    sum += evaluateCycleMatch(sceneTurns, condition);
+    sum += evaluateCycleMatch(sceneTurns, condition, period);
   }
   return sum / onsetsCount;
 }
@@ -304,6 +312,7 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
   const ratioVal = ctx.ratio ? ratioToValue(ctx.ratio) : 1.0;
   const phase = ctx.phase ?? 0;
   const ratioToScene = ctx.ratioToScene ?? 1.0;
+  const cyclePeriodTurns = ctx.cyclePeriodTurns && ctx.cyclePeriodTurns > 0 ? ctx.cyclePeriodTurns : 1;
 
   const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
@@ -315,7 +324,7 @@ export function evaluateDutyGain(filter: Filter, ctx: PartialContext): number {
       }
       return match;
     }
-    return meanCycleMatch(cond, ratioVal, phase, ratioToScene);
+    return meanCycleMatch(cond, ratioVal, phase, ratioToScene, cyclePeriodTurns);
   });
 
   const combined = combineMatches(matches, filter.combine, filter.action);
@@ -338,6 +347,7 @@ export function evaluateOnsetGain(
   const anchorRatioVal = ctx.anchorRatio ? ratioToValue(ctx.anchorRatio) : 1.0;
   const placementD = ctx.placementD ?? ctx.sceneD;
   const anchorD = placementD - Math.log2(anchorRatioVal);
+  const cyclePeriodTurns = ctx.cyclePeriodTurns && ctx.cyclePeriodTurns > 0 ? ctx.cyclePeriodTurns : 1;
 
   const matches = activeConds.map((cond) => {
     if (cond.kind === 'range') {
@@ -345,14 +355,14 @@ export function evaluateOnsetGain(
       let match = evaluateRangeMatch(x, cond, ctx.tplHz);
       if (cond.supercycle && cond.supercycle.length > 0) {
         const L = cond.supercycle.length;
-        const c = Math.floor(onsetSceneTurns);
+        const c = Math.floor(onsetSceneTurns / cyclePeriodTurns);
         const superIdx = ((c % L) + L) % L;
         const superMatch = cond.supercycle.cycleWeights[superIdx] ?? 1.0;
         match *= superMatch;
       }
       return match;
     }
-    return evaluateCycleMatch(onsetSceneTurns, cond);
+    return evaluateCycleMatch(onsetSceneTurns, cond, cyclePeriodTurns);
   });
 
   const combined = combineMatches(matches, filter.combine, filter.action);
@@ -364,6 +374,7 @@ export interface CompiledWorkletFilter {
   action: number; // 0 = keep, 1 = remove
   combine: number; // 0 = all, 1 = any
   depth: number;
+  cyclePeriodTurns: number;
   hasCycle: boolean;
   hasRangeSuper: boolean;
   ranges: Array<{
@@ -384,13 +395,18 @@ export interface CompiledWorkletFilter {
 /**
  * Compiles a Filter into lightweight, GC-free data structures for the AudioWorklet.
  */
-export function compileFilterForWorklet(filter: Filter | undefined): CompiledWorkletFilter {
+export function compileFilterForWorklet(
+  filter: Filter | undefined,
+  cyclePeriodTurns: number = 1
+): CompiledWorkletFilter {
+  const period = cyclePeriodTurns > 0 ? cyclePeriodTurns : 1;
   if (!filter || !filter.enabled) {
     return {
       enabled: false,
       action: 0,
       combine: 0,
       depth: 1.0,
+      cyclePeriodTurns: period,
       hasCycle: false,
       hasRangeSuper: false,
       ranges: [],
@@ -405,6 +421,7 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
       action: 0,
       combine: 0,
       depth: 1.0,
+      cyclePeriodTurns: period,
       hasCycle: false,
       hasRangeSuper: false,
       ranges: [],
@@ -427,6 +444,7 @@ export function compileFilterForWorklet(filter: Filter | undefined): CompiledWor
     action: filter.action === 'remove' ? 1 : 0,
     combine: filter.combine === 'any' ? 1 : 0,
     depth: Math.max(0.0, Math.min(1.0, filter.depth)),
+    cyclePeriodTurns: period,
     hasCycle: cycleConds.length > 0,
     hasRangeSuper,
     ranges: rangeConds.map((c) => ({

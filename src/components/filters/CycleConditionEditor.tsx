@@ -9,7 +9,7 @@ interface CycleConditionEditorProps {
   onChange: (updated: CycleCondition) => void;
 }
 
-const COMMON_DIVISIONS = [2, 3, 4, 5, 6, 8, 12, 16];
+const COMMON_DIVISIONS = Array.from({ length: 16 }, (_, i) => i + 1);
 
 export const CycleConditionEditor: React.FC<CycleConditionEditorProps> = ({
   condition,

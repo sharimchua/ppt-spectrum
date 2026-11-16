@@ -306,6 +306,7 @@ export function calculateRealignmentAnalysis(
   const coincidence = calculateCoincidenceCycle(shape, 440);
   const isAperiodic = coincidence.isAperiodic;
   const coincidenceStride = isAperiodic ? Infinity : coincidence.rootTurnsToAlign;
+  const cyclePeriodTurns = coincidence.isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
 
   const effectiveWindowCycles =
     windowCycles !== undefined
@@ -363,6 +364,7 @@ export function calculateRealignmentAnalysis(
           sceneD: placement ? placement.d : 0,
           tplHz: 440,
           ratioToScene: 1.0,
+          cyclePeriodTurns,
         };
 
         const hits: number[] = [];
@@ -450,6 +452,7 @@ export function calculateRealignmentAnalysis(
         sceneD: placement ? placement.d : 0,
         tplHz: 440,
         ratioToScene: 1.0,
+        cyclePeriodTurns,
       };
 
       const hits: number[] = [];
@@ -514,6 +517,7 @@ export function calculateRealignmentAnalysis(
         sceneD: placement ? placement.d : 0,
         tplHz: 440,
         ratioToScene: 1.0,
+        cyclePeriodTurns,
       };
       allComponents.push({
         ratio: pRatio,

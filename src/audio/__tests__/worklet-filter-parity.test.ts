@@ -324,4 +324,53 @@ describe('worklet-filter-parity', () => {
       }
     }
   });
+
+  it('matches evaluateOnsetGain across a 3-turn supercycle (4:3 polyrhythm)', () => {
+    const filter: Filter = {
+      name: '4:3 Slot 0 Filter',
+      enabled: true,
+      action: 'keep',
+      combine: 'all',
+      depth: 1.0,
+      conditions: [
+        {
+          kind: 'cycle',
+          id: 'c-43',
+          divisions: 4,
+          slotWeights: [1.0, 0.0, 0.0, 0.0],
+          rotation: 0,
+          tolerance: 0.25,
+          offGridMatch: 0.0,
+          supercycle: { length: 2, cycleWeights: [1.0, 0.5] },
+        },
+      ],
+      focus: null,
+      centreD: 0,
+      widthD: 4,
+      softnessD: 1,
+      mode: 'band-pass',
+      trackingMode: 'fixed',
+    };
+
+    const compiled = compileFilterForWorklet(filter, 3);
+    expect(compiled.cyclePeriodTurns).toBe(3);
+    const proc = instantiateWorklet();
+    proc.filter = compiled;
+
+    const testTurns = [0, 0.75, 1.0, 1.5, 2.0, 2.25, 3.0, 3.75, 4.0, 4.5, 5.0, 5.25];
+    for (const sceneTurns of testTurns) {
+      const coreGain = evaluateOnsetGain(
+        filter,
+        { partialD: 0, sceneD: 0, cyclePeriodTurns: 3 },
+        sceneTurns
+      );
+      const workletGain = proc.evalOnsetGain([], sceneTurns);
+      expect(workletGain).toBeCloseTo(coreGain, 4);
+    }
+    expect(proc.evalOnsetGain([], 0)).toBe(1.0);
+    expect(proc.evalOnsetGain([], 1.0)).toBe(0.0);
+    expect(proc.evalOnsetGain([], 2.0)).toBe(0.0);
+    expect(proc.evalOnsetGain([], 0.75)).toBe(0.0);
+    expect(proc.evalOnsetGain([], 3.0)).toBe(0.5);
+  });
 });

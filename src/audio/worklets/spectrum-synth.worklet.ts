@@ -266,6 +266,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     const f = this.filter;
     if (!f || !f.enabled) return 1.0;
 
+    const period = (f.cyclePeriodTurns && f.cyclePeriodTurns > 0) ? f.cyclePeriodTurns : 1.0;
     const matches = [];
 
     if (Array.isArray(rangeMatchesOrScalar)) {
@@ -275,7 +276,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const rDef = rangeDefs[i];
         if (rDef && rDef.superLength > 0 && rDef.superWeights && rDef.superWeights.length > 0) {
           const L = rDef.superLength;
-          const c = Math.floor(sceneTurns);
+          const c = Math.floor(sceneTurns / period);
           const superIdx = ((c % L) + L) % L;
           const superWeight = rDef.superWeights[superIdx] !== undefined ? rDef.superWeights[superIdx] : 1.0;
           match *= superWeight;
@@ -287,7 +288,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       const rDef = (f.ranges && f.ranges[0]) || null;
       if (rDef && rDef.superLength > 0 && rDef.superWeights && rDef.superWeights.length > 0) {
         const L = rDef.superLength;
-        const c = Math.floor(sceneTurns);
+        const c = Math.floor(sceneTurns / period);
         const superIdx = ((c % L) + L) % L;
         const superWeight = rDef.superWeights[superIdx] !== undefined ? rDef.superWeights[superIdx] : 1.0;
         match *= superWeight;
@@ -300,8 +301,9 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const cCond = f.cycles[i];
         const D = Math.max(1, cCond.divisions || 1);
 
-        let c = Math.floor(sceneTurns);
-        const u = sceneTurns - c;
+        const normalizedTurns = sceneTurns / period;
+        let c = Math.floor(normalizedTurns);
+        const u = normalizedTurns - c;
         const rawSlot = Math.round(u * D);
         let slotIndex = rawSlot;
         if (slotIndex >= D) {

@@ -167,6 +167,7 @@ export class PhasorLensRenderer implements RegisteredLensRenderer {
               anchorRatio: anchor.ratio,
               placementD: placement.d,
               tplHz: scene.anchors.tplFrequencyHz,
+              cyclePeriodTurns: coincidence.isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1,
             })
           : 1.0;
         const filteredAmp = p.amp * anchorGain * placement.gain * fGain;

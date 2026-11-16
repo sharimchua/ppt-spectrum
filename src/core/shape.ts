@@ -1,5 +1,5 @@
 import { Shape, Placement, BandFilter, Filter, ADSREnvelope, VoiceAnchor, PartialComponent, Ratio } from './types';
-import { ratioToValue, primeFactors, reduceRational } from './rational';
+import { ratioToValue, primeFactors, reduceRational, lcm } from './rational';
 import { dToFreq } from './axis';
 import { evaluateDutyGain } from './filter-eval';
 import { legacyBandFilterGain } from './filter-migration';
@@ -310,6 +310,28 @@ export function calculateFilterGain(
 }
 
 /**
+ * Computes the compact supercycle period in Root Turns for a shape (1 for harmonic,
+ * aperiodic, or high-denominator shapes exceeding maxCompactTurns).
+ */
+export function getShapeCyclePeriodTurns(
+  shape: Shape,
+  maxCompactTurns: number = 12
+): number {
+  const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
+  if (activePartials.length === 0) return 1;
+  if (!activePartials.every((p) => p.ratio.kind === 'rational')) return 1;
+
+  let period = 1;
+  for (const p of activePartials) {
+    if (p.ratio.kind === 'rational') {
+      const reduced = reduceRational(p.ratio.num, p.ratio.den);
+      period = lcm(period, reduced.den);
+    }
+  }
+  return period <= maxCompactTurns ? period : 1;
+}
+
+/**
  * Evaluates the absolute coordinates, frequencies, and filtered amplitudes of all partials in a placed shape.
  * Evaluates static and duty filter gains prior to merging coincident anchor partials.
  */
@@ -332,6 +354,7 @@ export function evaluatePlacedShape(
     }
   }
 
+  const cyclePeriodTurns = getShapeCyclePeriodTurns(shape);
   const unmerged = getFilterablePartials(shape);
   const gains = unmerged.map((p) => {
     if (!filter || !filter.enabled) return 1.0;
@@ -347,6 +370,7 @@ export function evaluatePlacedShape(
         placementD: placement.d,
         sceneD: effectiveSceneD,
         tplHz: effectiveTplHz,
+        cyclePeriodTurns,
       });
     }
 

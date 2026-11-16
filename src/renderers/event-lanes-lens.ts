@@ -1,7 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape, resolveDuMetricOffsetToken } from '../core/shape';
 import { calculateCoincidenceCycle } from '../core/alignment';
-import { lcm } from '../core/rational';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -72,9 +71,10 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     }
 
     const isCompactSuperCycle = coincidence.isCompactSuperCycle;
+    const cyclePeriodTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
     const baseShapeTurns = isCompactSuperCycle ? coincidence.rootTurnsToAlign : 4;
     const windowTurns = isCompactSuperCycle
-      ? Math.min(16, lcm(baseShapeTurns, filterSuperLength))
+      ? Math.min(16, baseShapeTurns * filterSuperLength)
       : Math.min(16, Math.max(4, filterSuperLength));
     const windowStartTurn = Math.floor(Math.max(0, unwrappedRootTurns) / windowTurns) * windowTurns;
 
@@ -165,6 +165,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
         anchorRatio: p.anchorRatio,
         tplHz: scene.anchors.tplFrequencyHz,
         ratioToScene: 1.0,
+        cyclePeriodTurns,
       };
       const isHighFreq = shouldUseDutyGain(p.freqHz);
 

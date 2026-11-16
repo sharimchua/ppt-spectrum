@@ -1,7 +1,7 @@
 import { Scene, VoiceId, ADSREnvelope, Filter, RangeCondition } from '../core/types';
 import { DEFAULT_SCENE } from '../core/config';
 import { ratioToValue } from '../core/rational';
-import { calculateFilterGain, getFilterablePartials, getShapeAnchors, getEffectivePartials } from '../core/shape';
+import { calculateFilterGain, getFilterablePartials, getShapeAnchors, getEffectivePartials, getShapeCyclePeriodTurns } from '../core/shape';
 import { rangeCoordinate, evaluateRangeMatch, compileFilterForWorklet } from '../core/filter-eval';
 import {
   resolvePitchCarrier,
@@ -747,6 +747,12 @@ export class AudioEngine {
     const payloadShapes = buildAudioPayloadShapes(this.scene);
     const effectiveGain = !this.isMutedForFocus ? this.scene.audio.masterGain : 0;
 
+    const primaryPlacement = this.scene.placements[0];
+    const primaryShape = primaryPlacement
+      ? this.scene.shapes.find((s) => s.id === primaryPlacement.shapeId)
+      : undefined;
+    const cyclePeriodTurns = primaryShape ? getShapeCyclePeriodTurns(primaryShape) : 1;
+
     const env = this.scene.envelope;
     this.postToSynth({
       type: 'UPDATE_SCENE',
@@ -756,7 +762,7 @@ export class AudioEngine {
         masterGain: effectiveGain,
         isPlaying: this.isPlaying,
         tplHz: this.scene.anchors.tplFrequencyHz,
-        filter: compileFilterForWorklet(this.scene.filter),
+        filter: compileFilterForWorklet(this.scene.filter, cyclePeriodTurns),
         envelope: env
           ? {
               enabled: env.enabled,

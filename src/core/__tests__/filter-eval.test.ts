@@ -215,6 +215,44 @@ describe('filter-eval', () => {
       expect(evaluateCycleMatch(3.0, condition)).toBe(0.0); // Cycle 3 (muted)
       expect(evaluateCycleMatch(4.0, condition)).toBe(1.0); // Cycle 4 wraps to 0
     });
+
+    it('subdivides the shape supercycle period (e.g. 3 turns for 4:3 polyrhythm)', () => {
+      const slot0Only: CycleCondition = {
+        kind: 'cycle',
+        id: 'cond-43-slot0',
+        divisions: 4,
+        slotWeights: [1.0, 0.0, 0.0, 0.0], // Only 12 o'clock active
+        rotation: 0,
+        tolerance: 0.25,
+        offGridMatch: 0.0,
+        supercycle: null,
+      };
+
+      // 4:3 polyrhythm supercycle spans 3 Root Turns:
+      // - 1/1 pulses at 0, 1, 2 (12, 4, 8 o'clock) -> only t=0 is at 12 o'clock
+      expect(evaluateCycleMatch(0.0, slot0Only, 3)).toBe(1.0);
+      expect(evaluateCycleMatch(1.0, slot0Only, 3)).toBe(0.0);
+      expect(evaluateCycleMatch(2.0, slot0Only, 3)).toBe(0.0);
+      expect(evaluateCycleMatch(3.0, slot0Only, 3)).toBe(1.0);
+
+      // - 4/3 pulses at 0, 0.75, 1.5, 2.25 (12, 3, 6, 9 o'clock) -> only t=0 is active
+      expect(evaluateCycleMatch(0.0, slot0Only, 3)).toBe(1.0);
+      expect(evaluateCycleMatch(0.75, slot0Only, 3)).toBe(0.0);
+      expect(evaluateCycleMatch(1.5, slot0Only, 3)).toBe(0.0);
+      expect(evaluateCycleMatch(2.25, slot0Only, 3)).toBe(0.0);
+
+      // With all 4 subdivisions active (12, 3, 6, 9) at tolerance 0.25,
+      // 4/3 pulses are on-grid, while 1/1 pulses at 4 and 8 o'clock are off-grid (off = 1/3 > 0.25)
+      const all4Slots: CycleCondition = {
+        ...slot0Only,
+        slotWeights: [1.0, 1.0, 1.0, 1.0],
+      };
+      expect(evaluateCycleMatch(0.75, all4Slots, 3)).toBe(1.0);
+      expect(evaluateCycleMatch(1.5, all4Slots, 3)).toBe(1.0);
+      expect(evaluateCycleMatch(2.25, all4Slots, 3)).toBe(1.0);
+      expect(evaluateCycleMatch(1.0, all4Slots, 3)).toBe(0.0);
+      expect(evaluateCycleMatch(2.0, all4Slots, 3)).toBe(0.0);
+    });
   });
 
   describe('combineMatches and applyFilterAction', () => {

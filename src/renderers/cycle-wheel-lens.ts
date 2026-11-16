@@ -1,7 +1,6 @@
 import { Scene } from '../core/types';
 import { evaluatePlacedShape } from '../core/shape';
 import { calculateGhostFundamental, calculateCoincidenceCycle } from '../core/alignment';
-import { lcm } from '../core/rational';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
@@ -79,7 +78,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     }
 
     const baseD = coincidence.isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
-    const combinedD = coincidence.isCompactSuperCycle ? lcm(baseD, filterSuperLength) : 1;
+    const combinedD = coincidence.isCompactSuperCycle ? baseD * filterSuperLength : 1;
     const isCompactSuperCycle = coincidence.isCompactSuperCycle && combinedD <= 12;
     const superD = isCompactSuperCycle ? combinedD : baseD;
 
@@ -164,7 +163,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
 
     if (condWithSuper?.supercycle) {
       const L = condWithSuper.supercycle.length;
-      const curBar = ((Math.floor(unwrappedRootTurns) % L) + L) % L + 1;
+      const curBar = ((Math.floor(unwrappedRootTurns / baseD) % L) + L) % L + 1;
       ctx.save();
       ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
       ctx.font = isCompact ? 'bold 7.5px JetBrains Mono, monospace' : 'bold 8.5px JetBrains Mono, monospace';
@@ -207,6 +206,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
         anchorRatio: p.anchorRatio,
         tplHz: scene.anchors.tplFrequencyHz,
         ratioToScene: 1.0,
+        cyclePeriodTurns: baseD,
       };
       const isHighFreq = shouldUseDutyGain(p.freqHz);
 
