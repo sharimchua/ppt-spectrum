@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Keyboard, RefreshCw } from 'lucide-react';
+import { Keyboard, RefreshCw, Unplug } from 'lucide-react';
 import { midiManagerInstance, MidiDeviceState } from '../audio/midi-manager';
 
 export interface MidiPermissionModalProps {
@@ -51,6 +51,11 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  const handleDisconnect = () => {
+    midiManagerInstance.disconnect();
+    setLastNote(null);
   };
 
   return (
@@ -124,7 +129,13 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
             </div>
           )}
 
-          {!midiState.isConnected && midiState.permissionStatus === 'granted' && (
+          {!midiState.isConnected && midiState.isDisconnected && (
+            <div className="text-xs text-slate-300 bg-slate-800/70 border border-slate-600/60 rounded-xl p-3">
+              MIDI input is disconnected. Your MIDI keyboard will not change the frequency or trigger notes until you reconnect.
+            </div>
+          )}
+
+          {!midiState.isConnected && !midiState.isDisconnected && midiState.permissionStatus === 'granted' && (
             <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-500/40 rounded-xl p-3">
               MIDI permission is granted, but no MIDI input devices were detected. Plug in or power on your keyboard and click Refresh.
             </div>
@@ -150,7 +161,7 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
             onClick={() => void handleConnect()}
             className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-red-950/40 text-center flex items-center justify-center gap-2 cursor-pointer"
           >
-            {midiState.permissionStatus === 'granted' ? (
+            {midiState.permissionStatus === 'granted' && !midiState.isDisconnected ? (
               <>
                 <RefreshCw className={`w-4 h-4 ${isConnecting ? 'animate-spin' : ''}`} />
                 <span>{isConnecting ? 'Scanning…' : 'Refresh MIDI Devices'}</span>
@@ -162,6 +173,16 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
               </>
             )}
           </button>
+          {midiState.isConnected && (
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              className="py-2.5 px-4 bg-slate-800 hover:bg-red-950/70 text-slate-200 hover:text-red-200 border border-slate-700 hover:border-red-700/60 rounded-xl font-medium text-sm transition text-center flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Unplug className="w-4 h-4" />
+              <span>Disconnect</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

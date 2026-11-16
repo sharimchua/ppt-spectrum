@@ -16,6 +16,7 @@ export interface MidiDeviceState {
   inputs: MidiInputDeviceInfo[];
   selectedInputId: string;
   isConnected: boolean;
+  isDisconnected?: boolean;
   permissionStatus: MidiPermissionStatus;
   lastError?: string | null;
 }
@@ -37,6 +38,7 @@ export class MidiManager {
   private stateChangeCallbacks: Set<(state: MidiDeviceState) => void> = new Set();
 
   private focusModeEnabled: boolean = true;
+  private isManuallyDisconnected: boolean = false;
   private heldMidiNotes: Set<number> = new Set();
   private sustainPedalDown: boolean = false;
   private mockFocusedState: boolean | null = null;
@@ -46,6 +48,7 @@ export class MidiManager {
     inputs: [],
     selectedInputId: 'all',
     isConnected: false,
+    isDisconnected: false,
     permissionStatus: 'prompt',
     lastError: null,
   };
@@ -98,7 +101,7 @@ export class MidiManager {
       status.onchange = () => {
         const nextState = (status.state as MidiPermissionStatus) || 'prompt';
         this.setPermissionStatus(nextState);
-        if (nextState === 'granted' && !this.midiAccess) {
+        if (nextState === 'granted' && !this.midiAccess && !this.isManuallyDisconnected) {
           void this.requestAccess();
         }
       };
@@ -114,7 +117,7 @@ export class MidiManager {
     this.state.permissionStatus = status;
     this.notifyState();
 
-    if (status === 'granted') {
+    if (status === 'granted' && !this.isManuallyDisconnected) {
       await this.requestAccess();
     }
   }
@@ -164,6 +167,9 @@ export class MidiManager {
   }
 
   public async requestAccess(): Promise<boolean> {
+    this.isManuallyDisconnected = false;
+    this.state.isDisconnected = false;
+
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
       this.state.isConnected = false;
       this.state.permissionStatus = 'unsupported';
@@ -190,6 +196,28 @@ export class MidiManager {
       this.notifyState();
       return false;
     }
+  }
+
+  public disconnect(): void {
+    this.isManuallyDisconnected = true;
+    this.releaseAllHeldNotes();
+
+    if (this.midiAccess) {
+      this.midiAccess.onstatechange = null;
+      for (const input of this.midiAccess.inputs.values()) {
+        input.onmidimessage = null;
+        if (typeof input.close === 'function' && input.connection === 'open') {
+          void input.close().catch(() => {});
+        }
+      }
+      this.midiAccess = null;
+    }
+
+    this.state.inputs = [];
+    this.state.isConnected = false;
+    this.state.isDisconnected = true;
+    this.state.lastError = null;
+    this.notifyState();
   }
 
   private updateInputs(): void {
