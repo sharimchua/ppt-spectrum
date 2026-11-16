@@ -87,7 +87,7 @@ export const PRESET_SOLO: LayoutDefinition = {
 export const PRESET_DUO_HORIZONTAL: LayoutDefinition = {
   id: 'duo-horizontal',
   name: 'Stacked Duo',
-  description: 'Spectrum Ruler on top with Concentric Ring Clock below',
+  description: 'Spectrum Ruler on top with Cycle Wheel below',
   root: {
     id: 'root-duo-h',
     type: 'container',
@@ -104,10 +104,9 @@ export const PRESET_DUO_HORIZONTAL: LayoutDefinition = {
       {
         id: 'cell-bottom',
         type: 'cell',
-        module: 'ring-clock',
-        ringClockMode: 'auto-compact',
+        module: 'cycle-wheel',
         flex: 1.5,
-        title: 'Concentric Ring Clock',
+        title: 'Cycle Wheel',
       },
     ],
   },
