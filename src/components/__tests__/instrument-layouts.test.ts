@@ -7,13 +7,14 @@ import {
 } from '../keyboard/instrument-layouts';
 
 describe('Alternate Instrument Surfaces', () => {
-  it('builds Scale-Degree Strip pads for Pythagorean Pentatonic (2 octaves = 10 pads)', () => {
+  it('builds Scale-Degree Strip pads for Pythagorean Pentatonic (all 12 steps across 2 octaves, 10 in-scale)', () => {
     const cfg = createDefaultMidiTuningConfig('pythagorean-pentatonic');
     const pads = buildScaleStripPads(cfg, -3.0, 440, 25.8);
-    expect(pads.length).toBe(10);
+    expect(pads.length).toBe(24);
+    expect(pads.filter((p) => p.inScale).length).toBe(10);
     expect(pads[0].isRoot).toBe(true);
-    expect(pads[5].isRoot).toBe(true);
-    expect(pads[5].d).toBeCloseTo(pads[0].d - 1.0, 4);
+    expect(pads[12].isRoot).toBe(true);
+    expect(pads[12].d).toBeCloseTo(pads[0].d - 1.0, 4);
   });
 
   it('builds 2D Isomorphic Grid with 31-EDO support', () => {

@@ -11,7 +11,6 @@ import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { STORAGE_KEY_DONT_SHOW_INTRO } from './info-modal/tutorial-demos';
 import { FilterEditHud } from './FilterEditHud';
-import { TuningStrumHud } from './TuningStrumHud';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { TutorialReturnToast } from './TutorialReturnToast';
 import { AppModals } from './AppModals';
@@ -302,19 +301,10 @@ export const App: React.FC = () => {
         onToggleFullscreen={toggleFullscreen} onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
         onToggleFilter={toggleFilter} onOpenFilters={openFilters}
-        isStrumMode={tuningStrum.isStrumMode} onToggleStrumMode={handleToggleStrumMode}
         onOpenEnvelopes={envelopes.openEnvelopes} onToggleEnvelope={envelopes.handleToggleEnvelopeEnabled}
         onOpenBundles={bundlesApi.openBundleModal} onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={teachingDemo.handleReturnToTutorial} onOpenRadialMenu={handleOpenRadialMenu} midi={midi}
       />
-
-      {tuningStrum.isStrumMode && (
-        <TuningStrumHud
-          midiTuning={midi.midiTuning}
-          tuningStrum={tuningStrum}
-          onOpenTuningStudio={midi.openTuningModal}
-        />
-      )}
 
       {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
       {isFilterEditMode && (
@@ -375,7 +365,7 @@ export const App: React.FC = () => {
         </div>
       </SpectrumViewport>
 
-      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} />
+      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} tuningStrum={tuningStrum} onToggleStrumMode={handleToggleStrumMode} />
 
       <AppModals
         isCaptureOpen={isCaptureOpen}

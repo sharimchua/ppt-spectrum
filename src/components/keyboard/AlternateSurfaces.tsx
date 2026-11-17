@@ -57,14 +57,20 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
               onPointerDown={(e) => handleDown(pad, e)}
               onPointerUp={() => handleUpOrLeave(pad)}
               onPointerLeave={() => handleUpOrLeave(pad)}
-              className={`min-w-[52px] flex-1 h-20 rounded-lg border flex flex-col items-center justify-between py-2 px-1 transition cursor-pointer ${
+              className={`min-w-[44px] flex-1 h-20 rounded-lg border flex flex-col items-center justify-between py-2 px-1 transition cursor-pointer ${
                 isActive
                   ? 'scale-[0.97] brightness-125 ring-2 ring-white/70'
-                  : 'hover:brightness-110'
+                  : pad.inScale
+                  ? 'opacity-100 hover:brightness-110'
+                  : 'opacity-35 hover:opacity-75'
               }`}
               style={{
-                backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}26`,
-                borderColor: pad.isRoot ? '#fbbf24' : `${pad.colorHex}80`,
+                backgroundColor: isActive
+                  ? pad.colorHex
+                  : pad.inScale
+                  ? `${pad.colorHex}33`
+                  : '#0f172a',
+                borderColor: pad.isRoot ? '#fbbf24' : pad.inScale ? `${pad.colorHex}85` : '#1e293b',
               }}
             >
               <span className="text-[11px] font-bold text-white truncate max-w-full">{pad.label}</span>

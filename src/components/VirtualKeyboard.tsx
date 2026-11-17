@@ -7,15 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eraser,
-  Keyboard as MidiIcon,
-  Maximize2,
-  Minimize2,
-  Minus,
-  Plus,
-  Ruler,
-  Sliders,
-  X,
+  Eraser, Keyboard as MidiIcon, Maximize2, Minimize2, Minus, Plus, Ruler, Sliders, Sparkles, X,
 } from 'lucide-react';
 import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
 import { PITCH_NAMES } from '../core/axis';
@@ -31,6 +23,7 @@ import {
 } from './keyboard/keyboard-layout';
 import { AlternateSurfaces } from './keyboard/AlternateSurfaces';
 import { PianoKeybed } from './keyboard/PianoKeybed';
+import { PlayPanelStrumBar } from './keyboard/PlayPanelStrumBar';
 import {
   InstrumentSurfaceMode,
   buildGuitarFretboard,
@@ -38,6 +31,7 @@ import {
   buildScaleStripPads,
 } from './keyboard/instrument-layouts';
 import { UseMidiResult } from './hooks/useMidi';
+import { UseTuningStrumResult } from './hooks/useTuningStrum';
 
 export interface VirtualKeyboardProps {
   midi: UseMidiResult;
@@ -45,6 +39,8 @@ export interface VirtualKeyboardProps {
   tuningA4Hz: number;
   tplFrequencyHz: number;
   autoShowIntervals?: boolean;
+  tuningStrum?: UseTuningStrumResult;
+  onToggleStrumMode?: () => void;
 }
 
 function formatMidiShort(midi: number): string {
@@ -59,6 +55,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   tuningA4Hz,
   tplFrequencyHz,
   autoShowIntervals = false,
+  tuningStrum,
+  onToggleStrumMode,
 }) => {
   const {
     isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers,
@@ -243,6 +241,22 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             ))}
           </div>
 
+          {onToggleStrumMode && tuningStrum && (
+            <button
+              type="button"
+              onClick={onToggleStrumMode}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
+                tuningStrum.isStrumMode
+                  ? 'bg-rose-600/25 border-rose-500 text-rose-200'
+                  : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:text-white'
+              }`}
+              title="Toggle Strum & Scale Walk mode inside the Play Panel"
+            >
+              <Sparkles className="w-3 h-3 text-rose-400" />
+              <span>Strum</span>
+            </button>
+          )}
+
           {/* Range Selector */}
           <select
             value={rangePresetId}
@@ -372,6 +386,15 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Inline Strum & Scale Walk Bar (when Strum is toggled on) */}
+      {tuningStrum?.isStrumMode && (
+        <PlayPanelStrumBar
+          midiTuning={midiTuning}
+          onChangeTuning={midi.setMidiTuning}
+          tuningStrum={tuningStrum}
+        />
+      )}
 
       {/* Scrollable Keybed / Alternate Surface */}
       {surfaceMode !== 'piano' ? (

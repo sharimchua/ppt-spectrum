@@ -54,15 +54,15 @@ export function buildScaleStripPads(
   tplHz: number,
   baseIdOffset: number = 2000
 ): SurfacePad[] {
-  const active = resolveTuningDegrees(midiTuning).filter((d) => d.active);
-  if (active.length === 0) return [];
-  const octaves = active.length > 14 ? 1 : 2;
+  const all = resolveTuningDegrees(midiTuning);
+  if (all.length === 0) return [];
+  const octaves = all.length > 14 ? 1 : 2;
   const pads: SurfacePad[] = [];
 
   for (let oct = 0; oct < octaves; oct++) {
-    for (let i = 0; i < active.length; i++) {
-      const deg = active[i];
-      const idx = oct * active.length + i;
+    for (let i = 0; i < all.length; i++) {
+      const deg = all[i];
+      const idx = oct * all.length + i;
       const midiId = baseIdOffset + idx;
       const mapping = tuningDegreeToMapping(
         deg,
@@ -81,7 +81,7 @@ export function buildScaleStripPads(
         subLabel: deg.subLabel,
         d: mapping.d,
         colorHex: solfegeColorForCents(cents),
-        inScale: true,
+        inScale: deg.active,
         isRoot: i === 0,
       });
     }

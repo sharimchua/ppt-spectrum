@@ -9,7 +9,7 @@ import { CouplingSelectorPill } from './CouplingSelectorPill';
 import {
   Play, Pause, Repeat, ArrowRightLeft, Radio, Layers, LayoutGrid, Share2, Check,
   Maximize2, Minimize2, HelpCircle, ChevronDown, Settings, SlidersHorizontal, Filter,
-  Compass, Keyboard, Activity, Package, Sparkles,
+  Compass, Keyboard, Activity, Package,
 } from 'lucide-react';
 import { ToolbarOverflowMenu } from './ToolbarOverflowMenu';
 
@@ -37,8 +37,6 @@ interface ControlToolbarProps {
   onToggleShapeEditor?: () => void;
   onToggleFilter?: () => void;
   onOpenFilters?: () => void;
-  isStrumMode?: boolean;
-  onToggleStrumMode?: () => void;
   onOpenEnvelopes?: () => void;
   onToggleEnvelope?: () => void;
   onOpenBundles?: () => void;
@@ -72,8 +70,6 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleShapeEditor,
   onToggleFilter,
   onOpenFilters,
-  isStrumMode = false,
-  onToggleStrumMode,
   onOpenEnvelopes,
   onToggleEnvelope,
   onOpenBundles,
@@ -431,7 +427,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* Dedicated Filters Sheet & Strum Mode Launchers */}
+          {/* Dedicated Filters Sheet Launcher */}
           {(onOpenFilters || onToggleFilter) && (
             <button onClick={onOpenFilters ?? onToggleFilter} title="Acoustic Aperture & Sieve Filters (Shift+F to quick search, F to toggle)"
               className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
@@ -439,14 +435,6 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
               }`}>
               <Filter className="w-3.5 h-3.5 text-sky-400" /><span className="hidden xl:inline">Filters</span>
               <span className="text-[9px] px-1 rounded bg-slate-900/80 font-bold">{scene.filter?.enabled ? 'ON' : 'OFF'}</span>
-            </button>
-          )}
-          {onToggleStrumMode && (
-            <button onClick={onToggleStrumMode} title="Strum / Scale-Step Mode: Drag or scroll canvas to step across active tuning degrees"
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
-                isStrumMode ? 'border-rose-500 bg-rose-950/70 text-rose-200 shadow-[0_0_8px_rgba(244,63,94,0.3)]' : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
-              }`}>
-              <Sparkles className="w-3.5 h-3.5 text-rose-400" /><span className="hidden xl:inline">Strum</span>
             </button>
           )}
 

@@ -33,7 +33,6 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/MusicalBookmarksModal.tsx` — Musical bookmark points editor.
 - `src/components/bookmarks-storage.ts` — Bookmark data contracts, defaults, and localStorage persistence (`loadSavedBookmarks`, `saveBookmarks`).
 - `src/components/FilterEditHud.tsx` — Floating filter aperture editor HUD banner with centre/width/skirt parameters and mode cycling.
-- `src/components/TuningStrumHud.tsx` — Floating Tuning-driven Strum / Scale-Step HUD banner with clickable degree pills, degree activation toggles, and stepped scale sequencer controls.
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
 - `src/components/EnvelopeQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for envelopes (`Shift+V`, `Shift+Enter` to open Envelope Studio).
@@ -47,6 +46,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/keyboard/instrument-layouts.ts` — Pure layout builders for Scale-Degree Strip, 2D Isomorphic Lattice, and 6-string Guitar Fretboard driven by `MidiTuningConfig`.
 - `src/components/keyboard/AlternateSurfaces.tsx` — Interactive renderer for Scale-Degree Strip, Isomorphic Lattice, and Guitar Fretboard surfaces inside `VirtualKeyboard`.
 - `src/components/keyboard/PianoKeybed.tsx` — Standard 12-key Solfège piano keybed with stacked interval distance bands.
+- `src/components/keyboard/PlayPanelStrumBar.tsx` — Inline Strum & Stepped Scale Sequencer bar docked inside `VirtualKeyboard`.
 - `src/components/keyboard/IntervalBandsStrip.tsx` — Stacked Harmonic-Geometry-style interval ratio & frequency distance bands above the keybed.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 - `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with regime narration, sweep Pause/Resume toggle, and one-click return to the active tutorial section.
