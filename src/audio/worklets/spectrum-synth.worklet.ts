@@ -841,6 +841,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
         const sampleDt = 1.0 / sampleRate;
 
+        const carrierSpec = primaryShape.carrier;
+
         for (const [midiNote, mv] of this.midiVoices.entries()) {
           const f0 = this.tplHz * Math.pow(2, -mv.targetD);
           let mvPhase = mv.masterPhase;
@@ -849,6 +851,8 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           if (!mv.gateSmooths) mv.gateSmooths = [];
 
           for (let s = 0; s < numSamples; s++) {
+            const isFirstSample = mv.noteAge === 0.0;
+            const prevMvPhase = mvPhase;
             mvPhase += f0 * sampleDt;
             if (mvPhase > 9369360) mvPhase -= 9369360;
             mv.noteAge += sampleDt;
@@ -863,7 +867,16 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               if (p.amp <= 0.0001) continue;
 
               const ratioVal = p.ratio;
+              const partialFreq = f0 * ratioVal;
               const partialPhase = ((mvPhase * ratioVal + p.phaseOffset) % 1.0 + 1.0) % 1.0;
+
+              let toneWeight = 0.0;
+              if (partialFreq >= 40.0) {
+                toneWeight = 1.0;
+              } else if (partialFreq > 10.0) {
+                toneWeight = 0.5 * (1.0 - Math.cos(Math.PI * (partialFreq - 10.0) / 30.0));
+              }
+              const eventWeight = 1.0 - toneWeight;
 
               let env = 1.0;
               if (adsr) {
@@ -916,7 +929,121 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               }
               mv.gateSmooths[pIdx] = gateGain;
 
-              const sig = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * gateGain * mv.velocity * primaryShape.gain * shapeHeadroom;
+              let toneSample = 0;
+              if (toneWeight > 0.001) {
+                toneSample = Math.sin(2.0 * Math.PI * partialPhase) * p.amp * env * toneWeight * gateGain;
+              }
+
+              let eventSample = 0;
+              if (eventWeight > 0.001) {
+                const eventPhase = (((mvPhase - p.phaseOffset) * ratioVal) % 1.0 + 1.0) % 1.0;
+                const prevEventPhase = (((prevMvPhase - p.phaseOffset) * ratioVal) % 1.0 + 1.0) % 1.0;
+                const wrapped = !mv.isReleased && (
+                  (eventPhase < prevEventPhase && (prevEventPhase - eventPhase) > 0.5) ||
+                  (isFirstSample && eventPhase < 0.04)
+                );
+                const voiceKey = 'midi_' + midiNote + '_' + pIdx;
+                const useShapeCarrier = Boolean(
+                  carrierSpec && carrierSpec.mode !== 'kit' && p.carrierPartials && p.carrierPartials.length > 0
+                );
+                const voiceId = useShapeCarrier ? ('carrier_' + carrierSpec.mode) : (p.voice || 'woodblock');
+                let vState = this.voiceStates.get(voiceKey);
+                if (!vState || vState.voiceId !== voiceId) {
+                  let decaySec = 0.065;
+                  let pitchHz = 220;
+                  if (useShapeCarrier) {
+                    const cAdsr = carrierSpec.adsr || { attack: 0.004, decay: 0.34 };
+                    decaySec = Math.max(0.08, Math.min(0.65, (cAdsr.attack || 0.004) + (cAdsr.decay || 0.34) * 0.85));
+                    pitchHz = (carrierSpec.baseFreqHz || 220) * ratioVal;
+                  } else if (voiceId === 'kick') { decaySec = 0.095; pitchHz = 62; }
+                  else if (voiceId === 'snare') { decaySec = 0.075; pitchHz = 210; }
+                  else if (voiceId === 'clave') { decaySec = 0.045; pitchHz = 1480; }
+                  else if (voiceId === 'woodblock') { decaySec = 0.055; pitchHz = 780; }
+                  else if (voiceId === 'hihat') { decaySec = 0.038; pitchHz = 3800; }
+                  else if (voiceId === 'triangle') { decaySec = 0.11; pitchHz = 2400; }
+                  else { decaySec = 0.035; pitchHz = 1100; }
+                  vState = { active: false, sampleIndex: 0, decaySamples: Math.floor(sampleRate * decaySec), pitchHz, voiceId, gate: 1.0, lastSample: 0.0, tailAmp: 0.0 };
+                  this.voiceStates.set(voiceKey, vState);
+                } else if (useShapeCarrier) {
+                  vState.pitchHz = (carrierSpec.baseFreqHz || 220) * ratioVal;
+                }
+
+                if (wrapped && curGateTarget > 0.001) {
+                  if (vState.active) {
+                    vState.tailAmp = vState.lastSample || 0.0;
+                  }
+                  vState.active = true;
+                  vState.sampleIndex = 0;
+                  vState.gate = curGateTarget;
+                }
+
+                if (vState.active || Math.abs(vState.tailAmp) > 0.0001) {
+                  let retriggerTail = 0.0;
+                  if (Math.abs(vState.tailAmp) > 0.0001) {
+                    retriggerTail = vState.tailAmp;
+                    vState.tailAmp *= 0.94;
+                  } else {
+                    vState.tailAmp = 0.0;
+                  }
+
+                  if (vState.active) {
+                    const tSec = vState.sampleIndex / sampleRate;
+                    let clickOsc = 0;
+                    let vEnv = 1.0;
+                    if (useShapeCarrier) {
+                      const cAdsr = carrierSpec.adsr || { attack: 0.004, decay: 0.34, damping: 0.45 };
+                      const attSec = Math.max(0.002, cAdsr.attack || 0.004);
+                      const decSec = Math.max(0.04, cAdsr.decay || 0.34);
+                      const damp = cAdsr.damping !== undefined ? cAdsr.damping : 0.45;
+                      const vAttack = tSec < attSec ? (tSec / attSec) : 1.0;
+                      const fadeOut = Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples);
+                      const cPartials = p.carrierPartials;
+                      let cSum = 0;
+                      let cAmpNorm = 0;
+                      for (let cIdx = 0; cIdx < cPartials.length; cIdx++) {
+                        const cp = cPartials[cIdx];
+                        const cFreq = vState.pitchHz * cp.ratio;
+                        if (cFreq >= sampleRate * 0.46) continue;
+                        const tau = decSec / (1.0 + damp * Math.max(0.0, cp.ratio - 1.0));
+                        const pDecay = Math.exp(-Math.max(0, tSec - attSec) / Math.max(0.008, tau));
+                        cSum += Math.sin(2.0 * Math.PI * cFreq * tSec) * cp.amp * pDecay;
+                        cAmpNorm += cp.amp;
+                      }
+                      const normFactor = cAmpNorm > 1.0 ? 1.0 / Math.sqrt(cAmpNorm) : 1.0;
+                      clickOsc = cSum * normFactor * 0.9;
+                      vEnv = vAttack * fadeOut;
+                    } else {
+                      const attackSamples = Math.max(1, Math.floor(sampleRate * 0.0015));
+                      const vAttack = vState.sampleIndex < attackSamples ? vState.sampleIndex / attackSamples : 1.0;
+                      vEnv = Math.pow(Math.max(0, 1.0 - vState.sampleIndex / vState.decaySamples), 1.6) * vAttack;
+                      if (voiceId === 'kick') {
+                        const instPhase = 2.0 * Math.PI * (55 * tSec + 4.5 * (1.0 - Math.exp(-tSec * 45)));
+                        clickOsc = Math.sin(instPhase) * 1.25;
+                      } else if (voiceId === 'snare') {
+                        const body = Math.sin(2.0 * Math.PI * 195 * tSec);
+                        const rattle = Math.sin(2.0 * Math.PI * 1187 * tSec + Math.sin(2.0 * Math.PI * 3511 * tSec) * 2.5);
+                        clickOsc = body * 0.65 + rattle * 0.55;
+                      } else if (voiceId === 'hihat') {
+                        clickOsc = Math.sin(2.0 * Math.PI * 3840 * tSec + Math.sin(2.0 * Math.PI * 5410 * tSec) * 3.8) * 0.75;
+                      } else {
+                        clickOsc = Math.sin(2.0 * Math.PI * vState.pitchHz * tSec);
+                      }
+                    }
+                    const gateMult = vState.gate !== undefined ? vState.gate : 1.0;
+                    eventSample = clickOsc * vEnv * p.amp * eventWeight * 1.45 * gateMult + retriggerTail;
+                    vState.lastSample = eventSample;
+                    vState.sampleIndex++;
+                    if (vState.sampleIndex >= vState.decaySamples) {
+                      vState.active = false;
+                    }
+                  } else {
+                    eventSample = retriggerTail;
+                    vState.lastSample = eventSample;
+                  }
+                }
+              }
+
+              const sig = (toneSample + eventSample) * mv.velocity * primaryShape.gain * shapeHeadroom;
               const pan = Math.sin(pIdx * 1.2) * 0.35;
               sampleValL += sig * (0.5 - pan * 0.5);
               sampleValR += sig * (0.5 + pan * 0.5);
