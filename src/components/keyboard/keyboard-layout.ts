@@ -49,6 +49,8 @@ export interface IntervalBandItem {
   ratioLabel: string;
   deltaLabel: string;
   centsLabel: string;
+  colorHex: string;
+  neonHex: string;
   isSubtleStep: boolean;
 }
 
@@ -187,6 +189,7 @@ export function buildIntervalBands(
       const ratio = pair.b.mapping.freqHz / Math.max(1e-6, pair.a.mapping.freqHz);
       const cents = Math.round(1200 * Math.log2(ratio));
       const deltaHz = Math.abs(pair.b.mapping.freqHz - pair.a.mapping.freqHz);
+      const intervalSemitone = ((pair.b.midi - pair.a.midi) % 12 + 12) % 12;
 
       bands.push({
         id: `active-${pair.a.midi}-${pair.b.midi}`,
@@ -196,6 +199,8 @@ export function buildIntervalBands(
         ratioLabel: formatIntervalRatioLabel(ratio),
         deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
         centsLabel: `${cents}¢`,
+        colorHex: SOLFEGE_COLORS[intervalSemitone] || '#38bdf8',
+        neonHex: SOLFEGE_NEON_COLORS[intervalSemitone] || '#60a5fa',
         isSubtleStep: false,
       });
     }
@@ -218,6 +223,8 @@ export function buildIntervalBands(
       ratioLabel: `${cents}¢`,
       deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
       centsLabel: `${cents}¢`,
+      colorHex: SOLFEGE_COLORS[1] || '#F98016',
+      neonHex: SOLFEGE_NEON_COLORS[1] || '#FB923C',
       isSubtleStep: true,
     });
   }

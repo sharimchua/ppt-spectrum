@@ -136,7 +136,11 @@ export const App: React.FC = () => {
     await rawHandleTogglePlay();
   }, [isPlaying, rawHandleTogglePlay]);
 
-  // Keep useSceneEngine oscillating state gate synced with useBookmarks
+  const handlePanicClear = useCallback(() => {
+    clearAllNotes();
+    if (isOscillating) setIsOscillating(false);
+    if (isPlaying) void handleTogglePlay();
+  }, [clearAllNotes, isOscillating, setIsOscillating, isPlaying, handleTogglePlay]);
   if (isOscillating !== isOscillatingInit) {
     setIsOscillatingInit(isOscillating);
   }
@@ -260,13 +264,14 @@ export const App: React.FC = () => {
       onToggleBundlesOpen: () => (bundlesApi.isBundleModalOpen ? bundlesApi.closeBundleModal() : bundlesApi.openBundleModal()),
       onToggleKeyboard: toggleKeyboard,
       onFlipPolarity: flipPolarity,
+      onPanicClear: handlePanicClear,
     }),
     [
       handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode,
       toggleFilter, toggleFiltersOpen, handleNoteOn, handleNoteOff,
       handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
       handleStepPrimaryD, historyBack, historyForward, envelopes, bundlesApi,
-      toggleKeyboard, flipPolarity,
+      toggleKeyboard, flipPolarity, handlePanicClear,
     ]
   );
 

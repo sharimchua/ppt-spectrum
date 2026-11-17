@@ -34,6 +34,7 @@ export interface KeyboardActions {
   onToggleBundlesOpen?: () => void;
   onToggleKeyboard?: () => void;
   onFlipPolarity?: () => void;
+  onPanicClear?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
   onJumpBookmarkA: () => void;
@@ -80,6 +81,16 @@ export function useKeyboardShortcuts({
           target.isContentEditable);
 
       if (isTextInput) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        // Only run global panic clear when no modal dialogue is open (modals handle Escape to close)
+        if (typeof document !== 'undefined' && document.querySelector('[role="dialog"]')) {
+          return;
+        }
+        e.preventDefault();
+        actionsRef.current.onPanicClear?.();
         return;
       }
 
