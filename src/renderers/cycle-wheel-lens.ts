@@ -79,7 +79,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
 
     const baseD = coincidence.isCompactSuperCycle ? coincidence.rootTurnsToAlign : 1;
     const combinedD = coincidence.isCompactSuperCycle ? baseD * filterSuperLength : 1;
-    const isCompactSuperCycle = coincidence.isCompactSuperCycle && combinedD <= 12;
+    const isCompactSuperCycle = coincidence.isCompactSuperCycle && combinedD <= 16;
     const superD = isCompactSuperCycle ? combinedD : baseD;
 
     // In compact Super-Cycle mode (D <= 12), 1 full sweep of the playhead spans D Root Turns

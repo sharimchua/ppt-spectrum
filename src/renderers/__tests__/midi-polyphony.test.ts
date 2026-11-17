@@ -37,6 +37,20 @@ describe('midi-polyphony-utils', () => {
     expect(coincidence.rootTurnsToAlign).toBe(4);
   });
 
+  it('renders 16:15 minor 2nd as a compact 15-turn Super-Cycle', () => {
+    const m2D = 4.0 - Math.log2(16 / 15);
+    const held: HeldMidiNote[] = [
+      { midi: 69, d: m2D, velocity: 0.9, isPrimary: true, livePhase: 0 },
+      { midi: 68, d: 4.0, velocity: 0.8, isPrimary: false, livePhase: 0 },
+    ];
+    const poly = buildPolyphonicMidiScene(sineScene, held);
+    expect(poly).not.toBeNull();
+    const coincidence = calculateCoincidenceCycle(poly!.scene.shapes[0], poly!.anchorFreqHz);
+    expect(coincidence.isAperiodic).toBe(false);
+    expect(coincidence.isCompactSuperCycle).toBe(true);
+    expect(coincidence.rootTurnsToAlign).toBe(15);
+  });
+
   it('treats 12-TET tempered intervals as aperiodic rather than snapping to Just ratios', () => {
     // Hold Do+4 and 12-TET Major 3rd (+4 semitones)
     const temperedMaj3D = 4.0 - 4 / 12;

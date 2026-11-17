@@ -98,7 +98,7 @@ export interface CoincidenceCycleInfo {
 export function calculateCoincidenceCycle(
   shape: Shape,
   f0: number,
-  maxCompactTurns: number = 12
+  maxCompactTurns: number = 16
 ): CoincidenceCycleInfo {
   const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
   if (activePartials.length === 0 || f0 <= 0) {

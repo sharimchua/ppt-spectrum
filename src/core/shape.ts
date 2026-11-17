@@ -315,7 +315,7 @@ export function calculateFilterGain(
  */
 export function getShapeCyclePeriodTurns(
   shape: Shape,
-  maxCompactTurns: number = 12
+  maxCompactTurns: number = 16
 ): number {
   const activePartials = getEffectivePartials(shape).filter((p) => p.amp > 0);
   if (activePartials.length === 0) return 1;
