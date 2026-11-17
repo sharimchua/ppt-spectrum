@@ -16,6 +16,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/envelope-presets.ts` — Canonical Pitch-space and Rhythm-space envelope presets plus `evaluateRhythmEnvelopeGain`.
 - `src/core/ppt-constants.ts` — Theory constants ($f_{\text{TPL}} = 25.8\text{ Hz}$, $T_{\text{TPL}} \approx 38.76\text{ ms}$), canonical Solfège palette, Prime palette, and Hann window decay.
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
+- `src/core/midi-tuning.ts` — Polarity-aware MIDI tuning and Prime Family interval mapping (`Du`, `Tri`, `Qui`, `Sep`, `Undec`) across Pitch Space and Rhythm Space.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
 - `src/core/ratio-suggestions.ts` — DuMetric octave conversions (`ratioToOctaves`, `octavesToRatio`) and nearby rational ratio snap suggestions.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
@@ -43,6 +44,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `filter-presets.test.ts` — Björklund Euclidean rhythm patterns, Xenakis residue sieves, Just ↔ 12-TET windows, and starter filters.
 - `layout.test.ts` — Layout tree operations, slug round-trips, and ring-clock band calculation (imports `calculateRingClockBands` from `src/renderers`; new renderer tests belong in `src/renderers/__tests__/`).
 - `library-models.test.ts` — Library bundle slug round-trips, idempotent re-imports, and collision-safe non-destructive merging.
+- `midi-tuning.test.ts` — Prime Family interval resolution, Rhythm Space `G#4 -> Do+4` mirror mapping, TPL polarity clamping, and 12-TET pitch parity.
 - `phase6.test.ts` — Alignment and inharmonicity models (named after its delivery phase; prefer feature-based names for new test files).
 - `ratio-suggestions.test.ts` — DuMetric octave conversions and nearby rational ratio snap suggestions.
 - `scene-ops.test.ts` — Scene placement coordinate stepping, filter mode cycling, shape capture, upsert, and duplication.
