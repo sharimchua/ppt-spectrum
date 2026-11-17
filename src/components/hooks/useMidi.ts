@@ -78,9 +78,9 @@ export interface UseMidiResult {
   heldMappings: MidiNoteMappingResult[];
   activeMidiNumbers: number[];
   latchedMidiNumbers: number[];
-  virtualNoteOn: (midi: number, velocity?: number, explicitPolarityD?: number) => void;
+  virtualNoteOn: (midi: number, velocity?: number, explicitPolarityD?: number, explicitNoteD?: number) => void;
   virtualNoteOff: (midi: number) => void;
-  toggleVirtualNote: (midi: number, velocity?: number) => void;
+  toggleVirtualNote: (midi: number, velocity?: number, explicitNoteD?: number) => void;
   transposeLatchedNotes: (semitones: number) => boolean;
   isMidiHoldActive: boolean;
   toggleMidiHold: () => void;
@@ -155,7 +155,13 @@ export function useMidi({
   }, [coordinator]);
 
   const dispatchNoteOn = useCallback(
-    (midi: number, velocity: number, source: NoteInputSource, explicitPolarityD?: number) => {
+    (
+      midi: number,
+      velocity: number,
+      source: NoteInputSource,
+      explicitPolarityD?: number,
+      explicitNoteD?: number
+    ) => {
       let srcs = sourcesByMidiRef.current.get(midi);
       if (!srcs) {
         srcs = new Set();
@@ -165,13 +171,15 @@ export function useMidi({
 
       const sc = sceneRef.current;
       const currentD = explicitPolarityD ?? (sc.placements[0]?.d ?? 2.0);
-      const mapping = midiToDWithTuning(
+      const baseMapping = midiToDWithTuning(
         midi,
         midiTuningRef.current,
         currentD,
         sc.anchors.tuningA4Hz,
         sc.anchors.tplFrequencyHz
       );
+      const mapping =
+        explicitNoteD !== undefined ? { ...baseMapping, d: explicitNoteD } : baseMapping;
 
       void audioEngine.midiNoteOn(
         midi,
@@ -325,8 +333,8 @@ export function useMidi({
   }, [audioEngine, coordinator, dispatchNoteOff, dispatchNoteOn]);
 
   const virtualNoteOn = useCallback(
-    (midi: number, velocity: number = 0.85, explicitPolarityD?: number) => {
-      dispatchNoteOn(midi, velocity, 'virtual', explicitPolarityD);
+    (midi: number, velocity: number = 0.85, explicitPolarityD?: number, explicitNoteD?: number) => {
+      dispatchNoteOn(midi, velocity, 'virtual', explicitPolarityD, explicitNoteD);
     },
     [dispatchNoteOn]
   );
@@ -339,12 +347,12 @@ export function useMidi({
   );
 
   const toggleVirtualNote = useCallback(
-    (midi: number, velocity: number = 0.85) => {
+    (midi: number, velocity: number = 0.85, explicitNoteD?: number) => {
       const srcs = sourcesByMidiRef.current.get(midi);
       if (srcs && srcs.has('virtual')) {
         dispatchNoteOff(midi, 'virtual');
       } else {
-        dispatchNoteOn(midi, velocity, 'virtual');
+        dispatchNoteOn(midi, velocity, 'virtual', undefined, explicitNoteD);
       }
     },
     [dispatchNoteOff, dispatchNoteOn]

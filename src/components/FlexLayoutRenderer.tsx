@@ -24,6 +24,8 @@ interface FlexLayoutRendererProps {
   // Layout Edit Mode Props
   isEditMode?: boolean;
   isFilterEditMode?: boolean;
+  isStrumMode?: boolean;
+  onStrumStep?: (deltaSteps: number) => void;
   filterControlParam?: 'centre' | 'width' | 'skirt';
   canDelete?: boolean;
   onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
@@ -51,6 +53,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
   onOpenRadialMenuAt,
   isEditMode = false,
   isFilterEditMode = false,
+  isStrumMode = false,
+  onStrumStep,
   filterControlParam = 'centre',
   canDelete = false,
   onSplitCell,
@@ -84,6 +88,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
           onOpenRadialMenuAt={onOpenRadialMenuAt}
           isEditMode={isEditMode}
           isFilterEditMode={isFilterEditMode}
+          isStrumMode={isStrumMode}
+          onStrumStep={onStrumStep}
           filterControlParam={filterControlParam}
           canDelete={canDelete}
           onSplitCell={onSplitCell}
@@ -136,6 +142,8 @@ export const FlexLayoutRenderer: React.FC<FlexLayoutRendererProps> = ({
             onOpenRadialMenuAt={onOpenRadialMenuAt}
             isEditMode={isEditMode}
             isFilterEditMode={isFilterEditMode}
+            isStrumMode={isStrumMode}
+            onStrumStep={onStrumStep}
             filterControlParam={filterControlParam}
             canDelete={canDelete}
             onSplitCell={onSplitCell}

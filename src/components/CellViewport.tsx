@@ -54,6 +54,8 @@ interface CellViewportProps {
   // Layout Edit Mode Props
   isEditMode?: boolean;
   isFilterEditMode?: boolean;
+  isStrumMode?: boolean;
+  onStrumStep?: (deltaSteps: number) => void;
   filterControlParam?: 'centre' | 'width' | 'skirt';
   canDelete?: boolean;
   onSplitCell?: (targetCellId: string, direction: LayoutFlexDirection, newModule: SpectrumLensType) => void;
@@ -80,6 +82,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   onOpenRadialMenuAt,
   isEditMode = false,
   isFilterEditMode = false,
+  isStrumMode = false,
+  onStrumStep,
   filterControlParam = 'centre',
   canDelete = false,
   onSplitCell,
@@ -93,6 +97,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const strumDragStepsRef = useRef<number>(0);
+  const strumDialAngleRef = useRef<number>(0);
 
   // Double-tap to play/pause state
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
@@ -264,6 +270,16 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         return;
       }
 
+      if (isStrumMode && onStrumStep) {
+        const stepOffset = Math.trunc(dx / 28);
+        const delta = stepOffset - strumDragStepsRef.current;
+        if (delta !== 0) {
+          strumDragStepsRef.current = stepOffset;
+          onStrumStep(delta);
+        }
+        return;
+      }
+
       // Normal drag without shift: placement d scrubbing
       setFilterGestureMode('none');
       if (!onUpdatePlacementD) return;
@@ -275,6 +291,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
       isDragging,
       dragStartPos,
       processFilterDrag,
+      isStrumMode,
+      onStrumStep,
       onUpdatePlacementD,
       setFilterGestureMode,
     ]
@@ -282,6 +300,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    strumDragStepsRef.current = 0;
     setFilterGestureMode('none');
     onFlushScene?.();
   }, [setFilterGestureMode, onFlushScene]);
@@ -300,6 +319,10 @@ export const CellViewport: React.FC<CellViewportProps> = ({
   // Mouse wheel fine scrub on canvas (Shift + Wheel scrubs Filter width/centre, Ctrl+Shift scrubs skirt)
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    if (isStrumMode && onStrumStep) {
+      onStrumStep(e.deltaY < 0 ? 1 : -1);
+      return;
+    }
     if (processFilterWheel(e)) return;
 
     if (!onUpdatePlacementD) return;
@@ -420,10 +443,20 @@ export const CellViewport: React.FC<CellViewportProps> = ({
         if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
 
         // 1 full clockwise rotation (2π) = shifts spectrum by -1.5 DuPeriods (faster/higher pitch)
-        const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
-        const targetD = Math.max(-7, Math.min(7, currentDRef.current + deltaD));
-        onUpdatePlacementD(targetD);
-        currentDRef.current = targetD;
+        if (isStrumMode && onStrumStep) {
+          strumDialAngleRef.current += deltaAngle;
+          const stepThreshold = Math.PI / 6;
+          const steps = Math.trunc(strumDialAngleRef.current / stepThreshold);
+          if (steps !== 0) {
+            strumDialAngleRef.current -= steps * stepThreshold;
+            onStrumStep(steps);
+          }
+        } else {
+          const deltaD = -(deltaAngle / (2 * Math.PI)) * 1.5;
+          const targetD = Math.max(-7, Math.min(7, currentDRef.current + deltaD));
+          onUpdatePlacementD(targetD);
+          currentDRef.current = targetD;
+        }
       }
       lastAngleRef.current = currentAngle;
       setJogAngle(currentAngle);
@@ -443,6 +476,7 @@ export const CellViewport: React.FC<CellViewportProps> = ({
     }
     setIsTouchScrubbing(false);
     lastAngleRef.current = null;
+    strumDialAngleRef.current = 0;
     onFlushScene?.();
   };
 
@@ -478,6 +512,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
           ? 'border-purple-500/50 ring-1 ring-purple-500/30'
           : isFilterEditMode
           ? 'border-sky-500/60 ring-1 ring-sky-500/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
+          : isStrumMode
+          ? 'border-rose-500/60 ring-1 ring-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.2)]'
           : 'border-slate-800/80 hover:border-slate-700/80'
       }`}
     >

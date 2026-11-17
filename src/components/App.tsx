@@ -11,6 +11,7 @@ import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { STORAGE_KEY_DONT_SHOW_INTRO } from './info-modal/tutorial-demos';
 import { FilterEditHud } from './FilterEditHud';
+import { TuningStrumHud } from './TuningStrumHud';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { TutorialReturnToast } from './TutorialReturnToast';
 import { AppModals } from './AppModals';
@@ -27,6 +28,7 @@ import { useFullscreen } from './hooks/useFullscreen';
 import { useMidi } from './hooks/useMidi';
 import { useEnvelopes } from './hooks/useEnvelopes';
 import { useLibraryBundles } from './hooks/useLibraryBundles';
+import { useTuningStrum } from './hooks/useTuningStrum';
 import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
@@ -200,6 +202,12 @@ export const App: React.FC = () => {
     handleRenameFilter,
   } = useFilters({ scene, updateScene, updateSceneFast });
 
+  const tuningStrum = useTuningStrum({ scene, midi });
+  const handleToggleStrumMode = useCallback(() => {
+    if (!tuningStrum.isStrumMode && isFilterEditMode) setIsFilterEditMode(false);
+    tuningStrum.toggleStrumMode();
+  }, [tuningStrum, isFilterEditMode, setIsFilterEditMode]);
+
   // Cross-Limen Coupling handlers (Pitch Carrier & Rhythm Container)
   const handleUpdatePitchCarrier = useCallback(
     (pitchCarrier: PitchCarrierMode) =>
@@ -284,37 +292,29 @@ export const App: React.FC = () => {
   return (
     <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#0b0d13] text-slate-100 font-sans">
       <ControlToolbar
-        scene={scene}
-        isPlaying={isPlaying}
-        currentLayoutId={layout.id}
-        customLayout={customLayout}
-        isEditMode={isEditMode}
-        isFullscreen={isFullscreen}
-        isShapeEditorOpen={isShapeEditorOpen}
-        isOscillating={isOscillating}
-        onToggleOscillate={toggleOscillating}
-        onOpenBookmarks={() => setIsBookmarksOpen(true)}
-        bookmarks={bookmarks}
-        onSelectLayout={setLayout}
-        onTogglePlay={handleTogglePlay}
-        onUpdatePlacementD={handleManualPlacementD}
-        onUpdatePitchCarrier={handleUpdatePitchCarrier}
-        onUpdateRhythmContainer={handleUpdateRhythmContainer}
-        onToggleEditMode={() => setIsEditMode((prev) => !prev)}
-        onShareLayout={handleShareLayout}
-        onToggleFullscreen={toggleFullscreen}
-        onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
+        scene={scene} isPlaying={isPlaying} currentLayoutId={layout.id} customLayout={customLayout}
+        isEditMode={isEditMode} isFullscreen={isFullscreen} isShapeEditorOpen={isShapeEditorOpen}
+        isOscillating={isOscillating} onToggleOscillate={toggleOscillating}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)} bookmarks={bookmarks} onSelectLayout={setLayout}
+        onTogglePlay={handleTogglePlay} onUpdatePlacementD={handleManualPlacementD}
+        onUpdatePitchCarrier={handleUpdatePitchCarrier} onUpdateRhythmContainer={handleUpdateRhythmContainer}
+        onToggleEditMode={() => setIsEditMode((prev) => !prev)} onShareLayout={handleShareLayout}
+        onToggleFullscreen={toggleFullscreen} onToggleSettings={() => setIsSettingsOpen((prev) => !prev)}
         onToggleShapeEditor={() => setIsShapeEditorOpen((prev) => !prev)}
-        onToggleFilter={toggleFilter}
-        onOpenFilters={openFilters}
-        onOpenEnvelopes={envelopes.openEnvelopes}
-        onToggleEnvelope={envelopes.handleToggleEnvelopeEnabled}
-        onOpenBundles={bundlesApi.openBundleModal}
-        onOpenCapture={() => setIsCaptureOpen(true)}
-        onOpenInfo={teachingDemo.handleReturnToTutorial}
-        onOpenRadialMenu={handleOpenRadialMenu}
-        midi={midi}
+        onToggleFilter={toggleFilter} onOpenFilters={openFilters}
+        isStrumMode={tuningStrum.isStrumMode} onToggleStrumMode={handleToggleStrumMode}
+        onOpenEnvelopes={envelopes.openEnvelopes} onToggleEnvelope={envelopes.handleToggleEnvelopeEnabled}
+        onOpenBundles={bundlesApi.openBundleModal} onOpenCapture={() => setIsCaptureOpen(true)}
+        onOpenInfo={teachingDemo.handleReturnToTutorial} onOpenRadialMenu={handleOpenRadialMenu} midi={midi}
       />
+
+      {tuningStrum.isStrumMode && (
+        <TuningStrumHud
+          midiTuning={midi.midiTuning}
+          tuningStrum={tuningStrum}
+          onOpenTuningStudio={midi.openTuningModal}
+        />
+      )}
 
       {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
       {isFilterEditMode && (
@@ -355,6 +355,8 @@ export const App: React.FC = () => {
             onOpenRadialMenuAt={handleOpenRadialMenuAt}
             isEditMode={isEditMode}
             isFilterEditMode={isFilterEditMode}
+            isStrumMode={tuningStrum.isStrumMode}
+            onStrumStep={tuningStrum.strumStep}
             filterControlParam={filterControlParam}
             canDelete={canDelete}
             onSplitCell={handleSplitCell}

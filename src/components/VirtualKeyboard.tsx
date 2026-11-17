@@ -29,7 +29,14 @@ import {
   saveKeyboardRange,
   VirtualKeyItem,
 } from './keyboard/keyboard-layout';
-import { IntervalBandsStrip } from './keyboard/IntervalBandsStrip';
+import { AlternateSurfaces } from './keyboard/AlternateSurfaces';
+import { PianoKeybed } from './keyboard/PianoKeybed';
+import {
+  InstrumentSurfaceMode,
+  buildGuitarFretboard,
+  buildIsomorphicGrid,
+  buildScaleStripPads,
+} from './keyboard/instrument-layouts';
 import { UseMidiResult } from './hooks/useMidi';
 
 export interface VirtualKeyboardProps {
@@ -65,6 +72,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [octaveOffset, setOctaveOffset] = useState<number>(0);
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
   const [showIntervals, setShowIntervals] = useState<boolean>(false);
+  const [surfaceMode, setSurfaceMode] = useState<InstrumentSurfaceMode>('piano');
   const containerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
@@ -119,6 +127,28 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const { bands: intervalBands, rowCount: intervalRowCount } = useMemo(
     () => (showIntervals ? buildIntervalBands(keys, activeSet, isRhythm) : { bands: [], rowCount: 0 }),
     [showIntervals, keys, activeSet, isRhythm]
+  );
+
+  const stripPads = useMemo(
+    () =>
+      surfaceMode === 'scale-strip'
+        ? buildScaleStripPads(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        : [],
+    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+  );
+  const isoGrid = useMemo(
+    () =>
+      surfaceMode === 'isomorphic'
+        ? buildIsomorphicGrid(4, 8, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        : [],
+    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+  );
+  const guitarStrings = useMemo(
+    () =>
+      surfaceMode === 'guitar'
+        ? buildGuitarFretboard(12, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        : [],
+    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
   );
 
   const keyCenterMap = useMemo(() => {
@@ -189,6 +219,29 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <span className="text-slate-500 hidden sm:inline">·</span>
             <span className="font-mono text-amber-300">{formatMidiShort(rootMidi)}</span>
           </button>
+
+          {/* Surface Mode Switcher: Piano | Scale | Iso | Guitar */}
+          <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 shrink-0">
+            {(
+              [
+                { id: 'piano', label: 'Piano' },
+                { id: 'scale-strip', label: 'Scale' },
+                { id: 'isomorphic', label: 'Iso' },
+                { id: 'guitar', label: 'Guitar' },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setSurfaceMode(m.id)}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                  surfaceMode === m.id ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
 
           {/* Range Selector */}
           <select
@@ -320,115 +373,38 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Keybed + Stacked Interval Bands */}
-      <div className="w-full overflow-x-auto">
-        <div
-          style={{ width: isFitMode ? '100%' : `${keyboardWidthPx}px` }}
-          className="mx-auto"
-        >
-          {showIntervals && (
-            <IntervalBandsStrip
-              bands={intervalBands}
-              rowCount={intervalRowCount}
-              keyCenterMap={keyCenterMap}
-              semitoneWidthPx={semitoneWidthPx}
-            />
-          )}
-
-          {/* Keybed */}
-          <div className="relative h-24 sm:h-28 w-full flex">
-            {whiteKeys.map((k) => {
-              const isActive = activeSet.has(k.midi);
-              const darkInk = k.semitoneFromRoot === 3 || k.semitoneFromRoot === 4;
-              return (
-                <button
-                  key={k.midi}
-                  type="button"
-                  onPointerDown={(e) => handleKeyPointerDown(k, e)}
-                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
-                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: k.colorHex,
-                          borderColor: '#0f172a',
-                          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.45)',
-                        }
-                      : undefined
-                  }
-                  className={`relative flex-1 h-full border rounded-b-lg flex flex-col items-center justify-end pb-1.5 transition-colors cursor-pointer ${
-                    isActive
-                      ? darkInk
-                        ? 'text-slate-950 font-semibold'
-                        : 'text-white font-semibold'
-                      : 'bg-slate-100 hover:bg-white border-slate-400 text-slate-800'
-                  }`}
-                >
-                  {k.isTonic && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full mb-0.5"
-                      style={{ backgroundColor: isActive ? '#ffffff' : k.colorHex }}
-                      title="Tonic (Do)"
-                    />
-                  )}
-                  {!isUltraCompact && (
-                    <span className="text-[10px] font-mono leading-none">{k.syllable}</span>
-                  )}
-                  {!isCompact && (
-                    <span className="text-[8px] opacity-65 font-mono leading-none mt-0.5">{k.noteName}</span>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Black Keys */}
-            {blackKeys.map((k) => {
-              const isActive = activeSet.has(k.midi);
-              const centerPct = (keyCenterMap.get(k.midi) ?? 0) * 100;
-              const widthPct = (1 / totalWhite) * 58;
-              const darkInk = k.semitoneFromRoot === 3 || k.semitoneFromRoot === 4;
-              return (
-                <button
-                  key={k.midi}
-                  type="button"
-                  onPointerDown={(e) => handleKeyPointerDown(k, e)}
-                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
-                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
-                  style={{
-                    left: `calc(${centerPct}% - ${widthPct / 2}%)`,
-                    width: `${widthPct}%`,
-                    ...(isActive
-                      ? {
-                          backgroundColor: k.colorHex,
-                          borderColor: '#020617',
-                          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.45)',
-                        }
-                      : {}),
-                  }}
-                  className={`absolute top-0 h-[62%] z-10 border rounded-b-md flex flex-col items-center justify-end pb-1 shadow-md transition-colors cursor-pointer ${
-                    isActive
-                      ? darkInk
-                        ? 'text-slate-950 font-semibold'
-                        : 'text-white font-semibold'
-                      : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  {k.isTonic && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full mb-0.5"
-                      style={{ backgroundColor: isActive ? '#ffffff' : k.colorHex }}
-                      title="Tonic (Do)"
-                    />
-                  )}
-                  {!isCompact && (
-                    <span className="text-[9px] font-mono leading-none">{k.syllable}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      {/* Scrollable Keybed / Alternate Surface */}
+      {surfaceMode !== 'piano' ? (
+        <AlternateSurfaces
+          mode={surfaceMode}
+          stripPads={stripPads}
+          isoGrid={isoGrid}
+          guitarStrings={guitarStrings}
+          activeSet={activeSet}
+          isMidiHoldActive={isMidiHoldActive}
+          onNoteOn={(id, d) => onVirtualNoteOn(id, 0.85, undefined, d)}
+          onNoteOff={onVirtualNoteOff}
+          onToggleLatch={(id, d) => onToggleLatchNote(id, 0.85, d)}
+        />
+      ) : (
+        <PianoKeybed
+          isFitMode={isFitMode}
+          keyboardWidthPx={keyboardWidthPx}
+          showIntervals={showIntervals}
+          intervalBands={intervalBands}
+          intervalRowCount={intervalRowCount}
+          keyCenterMap={keyCenterMap}
+          semitoneWidthPx={semitoneWidthPx}
+          whiteKeys={whiteKeys}
+          blackKeys={blackKeys}
+          activeSet={activeSet}
+          totalWhite={totalWhite}
+          isCompact={isCompact}
+          isUltraCompact={isUltraCompact}
+          onKeyDown={handleKeyPointerDown}
+          onKeyUpOrLeave={handleKeyPointerUpOrLeave}
+        />
+      )}
     </div>
   );
 };
