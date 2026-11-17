@@ -5,7 +5,8 @@ import { OvertoneTimbreDiagram } from './OvertoneTimbreDiagram';
 import { DuMetricCycleDiagram } from './DuMetricCycleDiagram';
 import { PrimeFamiliesDiagram } from './PrimeFamiliesDiagram';
 import { FractalCouplingDiagram } from './FractalCouplingDiagram';
-import { BookOpen, Sparkles, Disc, Music, Repeat } from 'lucide-react';
+import { KeyboardTuningDiagram } from './KeyboardTuningDiagram';
+import { BookOpen, Sparkles, Disc, Music, Repeat, Keyboard } from 'lucide-react';
 import {
   TutorialDemoId,
   TutorialSectionId,
@@ -36,12 +37,12 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
       <div className="rounded-xl border border-amber-500/25 bg-amber-950/20 p-4 text-xs leading-relaxed text-stone-300">
         <div className="flex items-center gap-2 font-semibold text-amber-300 mb-1">
           <BookOpen className="h-4 w-4" />
-          <span>Six Thought Experiments: Music as Amplitude Organised Across Time</span>
+          <span>Seven Thought Experiments: Music as Amplitude Organised Across Time</span>
         </div>
         <p>
           Traditional music lessons teach rhythm, harmony, and instrument tone as completely separate subjects with separate
           vocabularies. Prime Period Theory (PPT) starts from a simpler truth: <strong>sound is air moving back and forth</strong>,
-          and <strong>amplitude</strong> is how big each push is. Test these six thought experiments right here with your own
+          and <strong>amplitude</strong> is how big each push is. Test these seven thought experiments right here with your own
           ears and eyes.
         </p>
       </div>
@@ -285,6 +286,50 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
         </p>
 
         <FractalCouplingDiagram onPlayDemo={handleTriggerDemo} />
+      </div>
+
+      {/* Thought Experiment 7: Playing Tempo Melodies & Polyrhythms on the Solfège Keyboard */}
+      <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-800/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500/20 text-xs font-bold text-cyan-300 shrink-0">
+              7
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-stone-100">
+                Playing &ldquo;Melodies&rdquo; and &ldquo;Chords&rdquo; with Tempo: Why Tuning Matters in Rhythm Space
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                How the Solfège Keyboard (<span className="font-mono text-cyan-300">K</span>), Hold (<span className="font-mono text-amber-300">H</span>), and Tuning Systems (<span className="font-mono text-purple-300">Shift+T</span>) unlock tempo cadences and polyrhythmic lock
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="rounded-md border border-cyan-500/30 bg-cyan-950/40 px-2 py-0.5 font-mono text-[10px] text-cyan-300">
+              UI Badge: Keys (K) · Hold (H) · Tab
+            </span>
+            <Keyboard className="h-4 w-4 text-cyan-400 hidden sm:block" />
+          </div>
+        </div>
+
+        <p className="text-xs text-stone-300 leading-relaxed">
+          We usually think of a piano keyboard as a tool for playing high and low notes. But what happens when you open the{' '}
+          <strong>Solfège Keyboard (K)</strong> below 25.8 Hz in Rhythm Space? Playing <strong>one key at a time</strong> steps your
+          tempo by exact musical ratios—creating <strong>melodic rhythm and tempo cadences</strong> (like stepping from{' '}
+          <span className="font-mono text-emerald-300">So</span> at 145 BPM down to{' '}
+          <span className="font-mono text-red-400">Do</span> at 96.75 BPM for a 3:2 Perfect Cadence in tempo).
+        </p>
+        <p className="text-xs text-stone-300 leading-relaxed">
+          Even more remarkably, if you turn on <strong>Hold (H)</strong> and press <strong>two or more keys at once</strong>—even on a
+          plain <strong>Pure Sine</strong> (which is just a single 1× click per bar)—each key launches its own rhythmic stream at that
+          key&apos;s tempo! And this reveals why <strong>Tuning Systems (Shift+T)</strong> matter in rhythm: on a standard{' '}
+          <strong>12-TET</strong> piano, a Major Third (<span className="font-mono">Do + Mi</span>) is slightly sharp (1.2599×), so the
+          two drummers slowly drift out of phase. Switch to <strong>5-Limit Just (Qui)</strong> and{' '}
+          <span className="font-mono">Mi</span> snaps to an exact <strong>5:4</strong> ratio, locking both rhythms onto The Sam every 4
+          bars! Hit <strong>Tab</strong> at any time to flip your held rhythm into Pitch Space and hear the exact same keys as a chord.
+        </p>
+
+        <KeyboardTuningDiagram onPlayDemo={handleTriggerDemo} />
       </div>
     </div>
   );

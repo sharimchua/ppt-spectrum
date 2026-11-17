@@ -35,6 +35,7 @@ export interface VirtualKeyboardProps {
   currentFundamentalD: number;
   tuningA4Hz: number;
   tplFrequencyHz: number;
+  autoShowIntervals?: boolean;
 }
 
 function formatMidiShort(midi: number): string {
@@ -48,22 +49,14 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   currentFundamentalD,
   tuningA4Hz,
   tplFrequencyHz,
+  autoShowIntervals = false,
 }) => {
   const {
-    isKeyboardOpen: isOpen,
-    closeKeyboard: onClose,
-    midiTuning,
-    activeMidiNumbers,
-    latchedMidiNumbers,
-    midiState,
-    toggleVirtualNote: onToggleLatchNote,
-    virtualNoteOn: onVirtualNoteOn,
-    virtualNoteOff: onVirtualNoteOff,
-    isMidiHoldActive,
-    toggleMidiHold,
-    clearAllNotes: onClearAllNotes,
-    openTuningModal: onOpenTuningModal,
-    openMidiModal: onOpenMidiModal,
+    isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers,
+    latchedMidiNumbers, midiState, toggleVirtualNote: onToggleLatchNote,
+    virtualNoteOn: onVirtualNoteOn, virtualNoteOff: onVirtualNoteOff,
+    isMidiHoldActive, toggleMidiHold, clearAllNotes: onClearAllNotes,
+    openTuningModal: onOpenTuningModal, openMidiModal: onOpenMidiModal,
   } = midi;
 
   const [rangePresetId, setRangePresetId] = useState<string>('2oct-f');
@@ -74,6 +67,10 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [availableWidth, setAvailableWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
+
+  useEffect(() => {
+    if (autoShowIntervals) setShowIntervals(true);
+  }, [autoShowIntervals]);
 
   useEffect(() => {
     if (!isOpen) return;

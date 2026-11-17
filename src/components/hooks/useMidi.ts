@@ -126,11 +126,10 @@ export function useMidi({
 
   const setMidiTuning = useCallback(
     (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => {
-      setMidiTuningState((prev) => {
-        const next = typeof updater === 'function' ? updater(prev) : updater;
-        saveMidiTuningConfig(next);
-        return next;
-      });
+      const next = typeof updater === 'function' ? updater(midiTuningRef.current) : updater;
+      midiTuningRef.current = next;
+      saveMidiTuningConfig(next);
+      setMidiTuningState(next);
     },
     []
   );

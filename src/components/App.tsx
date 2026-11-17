@@ -12,6 +12,7 @@ import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { STORAGE_KEY_DONT_SHOW_INTRO } from './info-modal/tutorial-demos';
 import { FilterEditHud } from './FilterEditHud';
 import { VirtualKeyboard } from './VirtualKeyboard';
+import { TutorialReturnToast } from './TutorialReturnToast';
 import { AppModals } from './AppModals';
 import { useTeachingDemo } from './hooks/useTeachingDemo';
 import { useSceneEngine } from './hooks/useSceneEngine';
@@ -280,7 +281,7 @@ export const App: React.FC = () => {
   const teachingDemo = useTeachingDemo({
     handleSelectPreset, setBookmarks, handleUpdatePlacementD, updateScene,
     layout, setLayout, scene, toggleFilter, isOscillating, toggleOscillating,
-    isPlaying, handleTogglePlay, setIsInfoOpen,
+    isPlaying, handleTogglePlay, setIsInfoOpen, midi,
   });
 
   return (
@@ -365,10 +366,11 @@ export const App: React.FC = () => {
             onNudgeCellFlex={handleNudgeCellFlex}
             onEqualiseCellFlex={handleEqualiseCellFlex}
           />
+          <TutorialReturnToast activeDemo={teachingDemo.activeDemo} isInfoOpen={isInfoOpen} isKeyboardOpen={midi.isKeyboardOpen} onFlipPolarity={midi.flipPolarity} onReturnToTutorial={teachingDemo.handleReturnToTutorial} onCycleDemo={teachingDemo.handleCycleDemo} onDismiss={teachingDemo.handleDismissDemoToast} />
         </div>
       </SpectrumViewport>
 
-      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} />
+      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} />
 
       <AppModals
         isCaptureOpen={isCaptureOpen}

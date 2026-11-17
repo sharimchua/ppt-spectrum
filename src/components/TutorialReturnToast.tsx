@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Volume2, X } from 'lucide-react';
+import { ArrowLeftRight, BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Keyboard, Volume2, X } from 'lucide-react';
 import { TutorialDemoConfig, FEATURED_TOUR_DEMOS } from './info-modal/tutorial-demos';
 
 interface TutorialReturnToastProps {
   activeDemo: TutorialDemoConfig | null;
   isInfoOpen: boolean;
+  isKeyboardOpen?: boolean;
+  onFlipPolarity?: () => void;
   onReturnToTutorial: () => void;
   onCycleDemo: (direction: -1 | 1) => void;
   onDismiss: () => void;
@@ -13,6 +15,8 @@ interface TutorialReturnToastProps {
 export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   activeDemo,
   isInfoOpen,
+  isKeyboardOpen = false,
+  onFlipPolarity,
   onReturnToTutorial,
   onCycleDemo,
   onDismiss,
@@ -22,8 +26,11 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   useEffect(() => {
     if (!activeDemo) {
       setIsMinimised(false);
+      return;
     }
-  }, [activeDemo]);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    setIsMinimised(Boolean(isMobile && (isKeyboardOpen || activeDemo.requiresKeyboard)));
+  }, [activeDemo, isKeyboardOpen]);
 
   if (!activeDemo || isInfoOpen) return null;
 
@@ -35,8 +42,8 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
 
   if (isMinimised) {
     return (
-      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100%-1.5rem)] pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
-        <div className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-[#0b0f19]/95 backdrop-blur-md pl-2.5 pr-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20">
+      <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100%-1rem)] pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-amber-500/40 bg-[#0b0f19]/95 backdrop-blur-md pl-2.5 pr-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20">
           <button
             type="button"
             onClick={() => setIsMinimised(false)}
@@ -44,14 +51,49 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             title="Expand tutorial banner"
             aria-label="Expand tutorial banner"
           >
-            <Volume2 className="h-3.5 w-3.5 shrink-0 text-amber-300 animate-pulse" />
-            <span className="text-[11px] font-semibold text-stone-100 truncate max-w-[140px] sm:max-w-[220px] group-hover:text-amber-200 transition">
-              {activeDemo.title}
+            {activeDemo.requiresKeyboard ? (
+              <Keyboard className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5 shrink-0 text-amber-300 animate-pulse" />
+            )}
+            <span className="text-[11px] font-semibold text-stone-100 truncate max-w-[115px] sm:max-w-[220px] group-hover:text-amber-200 transition">
+              {activeDemo.shortTitle || activeDemo.title}
             </span>
             <ChevronUp className="h-3.5 w-3.5 shrink-0 text-stone-400 group-hover:text-white transition" />
           </button>
 
-          <div className="h-3.5 w-px bg-stone-800 mx-0.5 shrink-0" />
+          {activeDemo.requiresKeyboard && onFlipPolarity && (
+            <button
+              type="button"
+              onClick={onFlipPolarity}
+              className="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-200 transition cursor-pointer shrink-0"
+              title="Flip between Rhythm and Pitch space (Tab)"
+            >
+              <ArrowLeftRight className="h-2.5 w-2.5" />
+              <span>R↔P</span>
+            </button>
+          )}
+
+          <div className="flex items-center rounded-full border border-stone-700/80 bg-stone-900/90 px-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onCycleDemo(-1)}
+              className="p-0.5 text-stone-300 hover:text-white transition cursor-pointer"
+              title="Previous Guided Demo"
+              aria-label="Previous Guided Demo"
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onCycleDemo(1)}
+              className="p-0.5 text-stone-300 hover:text-white transition cursor-pointer"
+              title="Next Guided Demo"
+              aria-label="Next Guided Demo"
+            >
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
 
           <button
             type="button"
@@ -78,19 +120,28 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   }
 
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
+    <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1rem)] sm:w-[calc(100%-1.5rem)] max-w-2xl pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
       <div className="rounded-xl border border-amber-500/40 bg-[#0b0f19]/95 backdrop-blur-md px-3.5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Left: Active Demo Info & Listen Hint */}
           <div className="flex items-start gap-2.5 min-w-0">
             <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300">
-              <Volume2 className="h-3.5 w-3.5 animate-pulse" />
+              {activeDemo.requiresKeyboard ? (
+                <Keyboard className="h-3.5 w-3.5 text-cyan-300" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 animate-pulse" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                   {badgeLabel}
                 </span>
+                {activeDemo.requiresKeyboard && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 font-semibold">
+                    Keyboard Active
+                  </span>
+                )}
                 <span className="text-xs font-bold text-stone-100 truncate">
                   {activeDemo.title}
                 </span>
@@ -106,6 +157,18 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
 
           {/* Right: Step Demos, Back to Tutorial, Minimise & Dismiss */}
           <div className="flex items-center justify-end gap-1.5 shrink-0 border-t sm:border-t-0 border-stone-800/80 pt-2 sm:pt-0">
+            {activeDemo.requiresKeyboard && onFlipPolarity && (
+              <button
+                type="button"
+                onClick={onFlipPolarity}
+                className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 px-2.5 py-1.5 text-xs font-mono font-bold text-cyan-200 transition cursor-pointer"
+                title="Flip between Rhythm and Pitch space (Tab)"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                <span>Flip R↔P</span>
+              </button>
+            )}
+
             <div className="flex items-center rounded-lg border border-stone-700/80 bg-stone-900/90 p-0.5">
               <button
                 type="button"

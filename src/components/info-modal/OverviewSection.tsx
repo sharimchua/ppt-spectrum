@@ -1,10 +1,10 @@
 import React from 'react';
-import { Play, Sparkles, Layers, Sliders, Volume2, Compass, Activity, AudioWaveform } from 'lucide-react';
+import { Play, Sparkles, Layers, Sliders, Volume2, Compass, Activity, AudioWaveform, Keyboard } from 'lucide-react';
 import {
   TutorialDemoId,
   TutorialSectionId,
   CustomTutorialDemoOverride,
-  FEATURED_TOUR_DEMOS,
+  getTutorialDemoById,
 } from './tutorial-demos';
 import { LensPreviewGrid } from './LensPreviewGrid';
 
@@ -16,8 +16,15 @@ interface OverviewSectionProps {
   ) => void;
 }
 
+const OVERVIEW_FEATURED_IDS: TutorialDemoId[] = [
+  'hemiola-sweep',
+  'triad-sweep',
+  'sawtooth-timbre',
+  'keyboard-5limit-lock',
+];
+
 export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) => {
-  const featuredDemos = FEATURED_TOUR_DEMOS.slice(0, 4);
+  const featuredDemos = OVERVIEW_FEATURED_IDS.map((id) => getTutorialDemoById(id));
 
   return (
     <div className="space-y-6">
@@ -93,7 +100,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
         </div>
 
         {/* UI Reference Badges Strip */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-stone-800/80 pt-4 text-xs text-stone-300">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-stone-800/80 pt-4 text-xs text-stone-300">
           <div className="flex items-start gap-2">
             <Activity className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
@@ -121,6 +128,15 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
               <span className="text-stone-400">One pattern of ratios &amp; amplitudes that plays as a groove on the left and a tone on the right.</span>
             </div>
           </div>
+          <div className="flex items-start gap-2">
+            <Keyboard className="h-4 w-4 text-purple-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30 mr-1.5">
+                Keys (K) · Shift+T
+              </span>
+              <span className="text-stone-400">Play tempo cadences &amp; polyrhythms on the Solfège Keyboard, switch tunings, and press <strong>Tab</strong> to flip R↔P.</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -134,7 +150,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
             </h3>
           </div>
           <span className="text-[11px] text-stone-400">
-            Launching any demo keeps a floating <strong>&ldquo;Back to Guide&rdquo;</strong> bar at the bottom of your screen.
+            Launching any demo keeps a floating <strong>&ldquo;Back to Guide&rdquo;</strong> bar above the bottom edge (or above the keyboard).
           </span>
         </div>
 
@@ -147,10 +163,20 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
             >
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1.5">
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                      demo.requiresKeyboard
+                        ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                    }`}
+                  >
                     {demo.badge}
                   </span>
-                  <Play className="h-3.5 w-3.5 text-stone-500 group-hover:text-amber-400 fill-current transition-colors" />
+                  {demo.requiresKeyboard ? (
+                    <Keyboard className="h-3.5 w-3.5 text-cyan-400 transition-colors" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 text-stone-500 group-hover:text-amber-400 fill-current transition-colors" />
+                  )}
                 </div>
                 <h4 className="text-xs font-bold text-stone-100 group-hover:text-amber-300 transition-colors">
                   {demo.title}
@@ -158,7 +184,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
                 <p className="mt-1 text-[11px] leading-relaxed text-stone-400">{demo.summary}</p>
               </div>
               <div className="mt-3 text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-                <span>Listen in Studio</span>
+                <span>{demo.requiresKeyboard ? 'Open Keyboard & Listen' : 'Listen in Studio'}</span>
                 <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </div>
             </button>

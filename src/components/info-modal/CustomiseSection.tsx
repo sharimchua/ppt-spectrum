@@ -22,6 +22,10 @@ interface KeyShortcut {
 
 const DESKTOP_SHORTCUTS: KeyShortcut[] = [
   { key: 'Space', desc: 'Play / pause audio and timeline' },
+  { key: 'K', desc: 'Open / close on-screen Solfège Keyboard' },
+  { key: 'T', shift: true, desc: 'Quick Tuning Search (Shift+Enter: open studio)' },
+  { key: 'H', desc: 'Toggle Hold (Sostenuto for MIDI / Latch for Keyboard)' },
+  { key: 'Tab', desc: 'Flip TPL polarity (Rhythm ↔ Pitch), keeping held keys' },
   { key: 'L', desc: 'Open / close Shape Studio (Voice Anchors & Overtones)' },
   { key: 'L', shift: true, desc: 'Quick Shape Search (Shift+Enter: open studio)' },
   { key: 'S', desc: 'Start / stop automatic Bookmark A ↔ B sweep' },
@@ -29,7 +33,6 @@ const DESKTOP_SHORTCUTS: KeyShortcut[] = [
   { key: 'A', shift: true, desc: 'Save current speed to Bookmark A' },
   { key: 'B', desc: 'Jump speed directly to Bookmark B' },
   { key: 'B', shift: true, desc: 'Save current speed to Bookmark B' },
-  { key: 'T', desc: 'Strike note with active ADSR envelope' },
   { key: 'F', desc: 'Toggle Filters & Rhythm Sieves on / off' },
   { key: 'F', shift: true, desc: 'Quick Filter Search (Shift+Enter: open studio)' },
   { key: 'V', desc: 'Toggle Envelope / Supercycle on / off' },
@@ -38,8 +41,9 @@ const DESKTOP_SHORTCUTS: KeyShortcut[] = [
   { key: 'U', desc: 'Open Library Bundles & link sharing' },
   { key: 'M', desc: 'Open Musical Bookmarks & Sweep settings' },
   { key: 'P', desc: 'Open Mic Rhythm & 24-Partial Pitch Sampler' },
-  { key: '← / →', desc: 'Step speed by 1 octave (Shift: half octave)' },
+  { key: '← / →', desc: 'Step speed or transpose held keys ±1 oct (Shift: ±½ oct)' },
   { key: '↑ / ↓', desc: 'Step backward / forward through shape history' },
+  { key: 'Esc', desc: 'Panic clear: release held keys & stop playback' },
 ];
 
 export const CustomiseSection: React.FC = () => {
@@ -139,15 +143,16 @@ export const CustomiseSection: React.FC = () => {
               </p>
             </div>
 
-            {/* Bottom Sheets & Touch Filter Pinch */}
+            {/* Bottom Sheets, Mobile Keyboard & Polarity Flip */}
             <div className="rounded-xl border border-purple-500/30 bg-stone-900/40 p-4 space-y-2">
               <div className="flex items-center gap-2 text-purple-300 font-semibold text-xs">
                 <Sliders className="h-4 w-4 text-purple-400" />
-                <span>Bottom Drawers &amp; Touch Filter Scrub</span>
+                <span>Mobile Solfège Keyboard, Hold &amp; Polarity Flip</span>
               </div>
               <p className="text-xs text-stone-300 leading-relaxed">
-                Swipe up from the bottom bar to expand the Shape Synthesiser or Filter Drawers. When in Filter HUD mode,
-                touch and slide the lower and upper frequency boundaries directly on the Spectrum Ruler.
+                Open the <strong>Solfège Keyboard</strong> from the <strong>North (Library)</strong> radial wedge. Enable{' '}
+                <strong>Hold</strong> on the compact keyboard header to latch chords and polyrhythms with one finger, and tap{' '}
+                <strong>To Pitch / To Rhythm</strong> in the <strong>East (Transport)</strong> radial menu to flip polarity!
               </p>
             </div>
           </div>

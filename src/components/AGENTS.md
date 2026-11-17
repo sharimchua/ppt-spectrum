@@ -51,8 +51,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `tutorial-demos.ts` — Guided tutorial demo configurations, custom override contracts, section identifiers, and intro storage key.
 - `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time & the Bicycle-Spoke thought experiment, 4 guided live demo launchers, interactive `<LensPreviewGrid />`, and quick interaction tips.
 - `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.
-- `ConceptsSection.tsx` — 5 intuition-first musical thought experiments with UI reference badges and embedded interactive exploration diagrams.
-- `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors vs Overtones, Inharmonic Stretch ($B$), Rhythm Sieves & Formants (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Mic Capture, Web MIDI, and Audio Modes.
+- `ConceptsSection.tsx` — 7 intuition-first musical thought experiments with UI reference badges and embedded interactive exploration diagrams.
+- `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors vs Overtones, Inharmonic Stretch ($B$), Rhythm Sieves & Formants (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Tuning Studio & Solfège Keyboard, Mic Capture, Web MIDI, and Audio Modes.
 - `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
 - `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, and lesson archives.
 - `TplContinuumDiagram.tsx` — Interactive continuum ruler with continuous draggable speed slider, clickable landmarks, DuPeriod vs Physical Hz scale switch, and TPL crossover zone.
@@ -61,6 +61,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove/chord overlays.
 - `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
 - `FractalCouplingDiagram.tsx` — Interactive Cross-Limen Coupling explorer (`Pitch Carrier` & `Rhythm Container`) comparing `Self` (Fractal Mirror), `Neutral` (Drum Kit / Static), and `Cross-Shape Coupling` with live demo launchers.
+- `KeyboardTuningDiagram.tsx` — Interactive Solfège Keyboard & Tuning explorer comparing `12-TET` drift vs `5-Limit` Super-Cycle lock on a 4-bar coincidence timeline and demonstrating melodic rhythm / tempo cadences (`3:2` and `4:3`).
 
 ### Envelopes (`src/components/envelopes/`)
 

@@ -21,7 +21,6 @@ import { TuningQuickSearchModal } from './TuningQuickSearchModal';
 import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
-import { TutorialReturnToast } from './TutorialReturnToast';
 
 export interface AppModalsProps {
   // Capture Modal
@@ -206,14 +205,6 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onClose={onCloseCapture}
         onCaptureShape={onCaptureShape}
         tplHz={scene.anchors.tplFrequencyHz}
-      />
-
-      <TutorialReturnToast
-        activeDemo={teachingDemo.activeDemo}
-        isInfoOpen={isInfoOpen}
-        onReturnToTutorial={teachingDemo.handleReturnToTutorial}
-        onCycleDemo={teachingDemo.handleCycleDemo}
-        onDismiss={teachingDemo.handleDismissDemoToast}
       />
 
       <InfoModal

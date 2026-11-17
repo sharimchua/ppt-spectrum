@@ -244,7 +244,7 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
                 3. Envelopes Across Two Timescales: Shaping Amplitude Over Macro Time
               </h3>
               <p className="text-[11px] text-stone-400">
-                Shaping a single note strike (Press T) vs making a groove swell and breathe across multiple bars
+                Shaping a single note strike (Keyboard K or MIDI) vs making a groove swell and breathe across multiple bars
               </p>
             </div>
           </div>
@@ -255,10 +255,10 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
 
         <p className="text-xs text-stone-300 leading-relaxed">
           An <strong>envelope</strong> is simply a curve that controls how overall <strong>amplitude rises and falls over time</strong>.
-          In Pitch space, it shapes the Attack, Decay, Sustain, and Release (<strong>ADSR</strong>) of each note strike (press{' '}
-          <kbd className="font-mono text-amber-300">T</kbd> or play a MIDI key) so a note can pluck like a harp or bow like a cello.
-          In Rhythm space, that exact same idea becomes a <strong>Supercycle Envelope</strong> that swells, gates, or accents your
-          groove across 2, 4, or 8 bars so repeating loops feel alive and phrased.
+          In Pitch space, it shapes the Attack, Decay, Sustain, and Release (<strong>ADSR</strong>) of each note strike (play the{' '}
+          <kbd className="font-mono text-amber-300">Solfège Keyboard (K)</kbd> or a MIDI controller) so a note can pluck like a harp or
+          bow like a cello. In Rhythm space, that exact same idea becomes a <strong>Supercycle Envelope</strong> that swells, gates, or
+          accents your groove across 2, 4, or 8 bars so repeating loops feel alive and phrased.
         </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-emerald-500/20 bg-emerald-950/15 px-3.5 py-2.5 text-xs">
@@ -275,7 +275,57 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
         </div>
       </div>
 
-      {/* 4. Mic Sampling, Web MIDI & Library Bundles */}
+      {/* 4. Tuning Systems & The Solfège Keyboard */}
+      <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <Keyboard className="h-4 w-4 text-purple-400 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-stone-100">
+                4. The Tuning Studio, Solfège Keyboard &amp; Phase Lock
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                Prime Family tuning matrices, stacked interval ratio bands, Hold/Sostenuto, and Sam-Aligned polyrhythms
+              </p>
+            </div>
+          </div>
+          <span className="self-start sm:self-auto rounded-md border border-purple-500/30 bg-purple-950/40 px-2 py-0.5 font-mono text-[10px] text-purple-300">
+            Keys (K) · Tuning (Shift+T) · Hold (H)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
+            <strong className="text-purple-300">Prime Family Tuning Matrix:</strong>
+            <p className="text-stone-300 leading-relaxed">
+              Press <kbd className="font-mono text-purple-300">Shift+T</kbd> to switch between <strong>5-Limit Just (Qui)</strong>,{' '}
+              <strong>Pythagorean (Tri)</strong>, <strong>7-Limit (Sep)</strong>, <strong>12-TET</strong>,{' '}
+              <strong>DuTri Closure</strong> (alternating ~102¢ / ~96¢ steps built purely from 2 and 3), and{' '}
+              <strong>PPT Native</strong> (with <span className="font-mono">Fi</span> at the exact √2 halfway point)—or mix prime
+              families per interval!
+            </p>
+          </div>
+          <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
+            <strong className="text-cyan-300">Interval Bands &amp; Hold (H):</strong>
+            <p className="text-stone-300 leading-relaxed">
+              Toggle <strong>Intervals</strong> on the keyboard header to see unique adjacent step sizes when idle, or stacked,
+              Solfège-coloured <strong>pairwise ratio bands</strong> (<span className="font-mono">3:2</span>,{' '}
+              <span className="font-mono">5:4</span>, <span className="font-mono">6:5</span>) when holding 2+ keys.{' '}
+              <strong>Hold (H)</strong> acts as a latch for on-screen keys and Sostenuto for hardware MIDI.
+            </p>
+          </div>
+          <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
+            <strong className="text-amber-300">Sam-Aligned vs Key-Strike Phase:</strong>
+            <p className="text-stone-300 leading-relaxed">
+              In Rhythm Space, <strong>Sam-Aligned</strong> mode locks newly pressed keys to the running master bar clock so multi-key
+              polyrhythms stay laser-tight even with human finger timing. Switch to <strong>Key-Strike</strong> in the Tuning Studio if
+              you want each key&apos;s cycle to start at the exact moment your finger strikes it.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Mic Sampling & Library Bundles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-4 space-y-2">
           <div className="flex items-center justify-between">
@@ -298,16 +348,16 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-purple-300 font-bold text-xs">
               <Keyboard className="h-4 w-4 text-purple-400" />
-              <span>Web MIDI Performance &amp; Library Bundles</span>
+              <span>Web MIDI Hardware &amp; Library Bundles</span>
             </div>
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-purple-950/50 text-purple-300 border border-purple-500/30">
               MIDI · Bundles (U)
             </span>
           </div>
           <p className="text-xs text-stone-300 leading-relaxed">
-            Plug in a <strong>MIDI keyboard</strong> to play shapes polyphonically with velocity-sensitive amplitude and see harmonic
-            ghost notes light up on the Spectrum Ruler. Use <strong>Bundles (U)</strong> to explore curated musical scenes or share
-            complete Shape + Filter + Envelope patches via a single link.
+            Plug in a <strong>MIDI controller</strong> to play shapes polyphonically across both Rhythm and Pitch space, use arrow keys
+            to transpose held chords by octaves, and use <strong>Bundles (U)</strong> to explore or share complete Shape + Filter +
+            Envelope scenes via a single link.
           </p>
         </div>
       </div>

@@ -10,7 +10,9 @@ import { Scene, Shape, Filter } from '../../core/types';
 import { PRESET_TRIO, LayoutDefinition } from '../../core/layout-models';
 import { PRESET_LIBRARY_BUNDLES, applyLibraryBundleToScene } from '../../core/library-models';
 import { PRESET_FILTERS } from '../../core/filter-presets';
+import { createDefaultMidiTuningConfig } from '../../core/midi-tuning';
 import { BookmarkSettings } from '../bookmarks-storage';
+import { UseMidiResult } from './useMidi';
 import {
   TutorialDemoId,
   TutorialDemoConfig,
@@ -34,6 +36,7 @@ export interface UseTeachingDemoOptions {
   isPlaying: boolean;
   handleTogglePlay: () => void;
   setIsInfoOpen: (open: boolean) => void;
+  midi: UseMidiResult;
 }
 
 export interface UseTeachingDemoResult {
@@ -68,6 +71,7 @@ export function useTeachingDemo({
   isPlaying,
   handleTogglePlay,
   setIsInfoOpen,
+  midi,
 }: UseTeachingDemoOptions): UseTeachingDemoResult {
   const [activeDemo, setActiveDemo] = useState<TutorialDemoConfig | null>(null);
   const [tutorialSection, setTutorialSection] = useState<TutorialSectionId>('overview');
@@ -94,6 +98,12 @@ export function useTeachingDemo({
 
       if (layout.id === 'solo') {
         setLayout(PRESET_TRIO);
+      }
+
+      // Explicitly clear any previous keyboard notes before configuring the scene
+      midi.clearAllNotes();
+      if (!effectiveDemo.requiresKeyboard) {
+        midi.closeKeyboard();
       }
 
       if (baseDemo.mode === 'bundle' && baseDemo.bundleId) {
@@ -271,6 +281,20 @@ export function useTeachingDemo({
         }
       }
 
+      if (effectiveDemo.requiresKeyboard && effectiveDemo.keyboardConfig) {
+        const { tuningPresetId, latchedMidiNotes, rhythmPhaseMode } = effectiveDemo.keyboardConfig;
+        const presetCfg = createDefaultMidiTuningConfig(tuningPresetId);
+        if (rhythmPhaseMode) presetCfg.rhythmPhaseMode = rhythmPhaseMode;
+        midi.setMidiTuning(presetCfg);
+        midi.openKeyboard();
+        if (!midi.isMidiHoldActive) {
+          midi.toggleMidiHold();
+        }
+        for (const note of latchedMidiNotes) {
+          midi.virtualNoteOn(note, 0.85);
+        }
+      }
+
       if (!isPlaying) {
         handleTogglePlay();
       }
@@ -280,6 +304,7 @@ export function useTeachingDemo({
     [
       layout.id,
       setLayout,
+      midi,
       isOscillating,
       toggleOscillating,
       updateScene,
@@ -321,6 +346,9 @@ export function useTeachingDemo({
   );
 
   const handleReturnToTutorial = useCallback(() => {
+    if (activeDemo?.requiresKeyboard) {
+      midi.clearAllNotes();
+    }
     if (isPlaying) {
       handleTogglePlay();
     } else if (isOscillating) {
@@ -328,7 +356,7 @@ export function useTeachingDemo({
     }
     setActiveDemo(null);
     setIsInfoOpen(true);
-  }, [isPlaying, handleTogglePlay, isOscillating, toggleOscillating, setIsInfoOpen]);
+  }, [activeDemo, midi, isPlaying, handleTogglePlay, isOscillating, toggleOscillating, setIsInfoOpen]);
 
   const handleDismissDemoToast = useCallback(() => {
     setActiveDemo(null);

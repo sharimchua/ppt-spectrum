@@ -5,6 +5,7 @@
  */
 
 import { PitchCarrierMode, RhythmContainerMode } from '../../core/types';
+import { MidiPhaseMode } from '../../core/midi-tuning';
 
 export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
 
@@ -23,7 +24,17 @@ export type TutorialDemoId =
   | 'bowl-swell'
   | 'fractal-self-triad'
   | 'neutral-limen-hemiola'
-  | 'cross-shape-clarinet-hemiola';
+  | 'cross-shape-clarinet-hemiola'
+  | 'keyboard-12tet-drift'
+  | 'keyboard-5limit-lock'
+  | 'keyboard-tempo-triad';
+
+export interface KeyboardDemoConfig {
+  tuningPresetId: '12tet' | 'dutri' | 'ppt-native' | '5-limit' | 'pythagorean' | '7-limit';
+  latchedMidiNotes: number[];
+  showIntervals?: boolean;
+  rhythmPhaseMode?: MidiPhaseMode;
+}
 
 export interface CustomTutorialDemoOverride {
   title?: string;
@@ -57,7 +68,11 @@ export interface TutorialDemoConfig {
   octave?: number;
   pitchCarrier?: PitchCarrierMode;
   rhythmContainer?: RhythmContainerMode;
-  /** Whether this demo appears in the main 6-demo tour cycle */
+  /** Explicit flag indicating whether this demo opens and latches the on-screen Solfège Keyboard */
+  requiresKeyboard?: boolean;
+  /** Configuration for demos that open and latch the on-screen Solfège Keyboard */
+  keyboardConfig?: KeyboardDemoConfig;
+  /** Whether this demo appears in the main featured tour cycle */
   featuredInTour?: boolean;
 }
 
@@ -325,6 +340,73 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     octave: 3,
     pitchCarrier: 'auto',
     rhythmContainer: 'shape:hemiola-3-2',
+  },
+  {
+    id: 'keyboard-5limit-lock',
+    title: 'Keyboard & Tuning: 5-Limit 5:4 Lock (Do + Mi)',
+    shortTitle: '5-Limit 5:4 Lock',
+    badge: 'Keyboard · 5-Limit (Qui)',
+    summary: 'Opens the Solfège Keyboard with Do + Mi latched in 5-Limit Just tuning so a Pure Sine locks into a 5:4 polyrhythm.',
+    listenHint:
+      'Do + Mi are latched in 5-Limit (Qui) tuning (exact 5:4 ratio). Watch the Cycle Wheel lock every 4 bars—press Tab (or Flip R↔P) to hear it as a beatless Major Third!',
+    fromSection: 'concepts',
+    mode: 'static-place',
+    shapeId: 'pure-tone',
+    rhythmBpm: 96.75,
+    rhythmD: 4.0,
+    pitchD: 4.0,
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: '5-limit',
+      latchedMidiNotes: [68, 72],
+      showIntervals: true,
+      rhythmPhaseMode: 'sam-aligned',
+    },
+    featuredInTour: true,
+  },
+  {
+    id: 'keyboard-12tet-drift',
+    title: 'Keyboard & Tuning: 12-TET Drift in Rhythm (Do + Mi)',
+    shortTitle: '12-TET Rhythm Drift',
+    badge: 'Keyboard · 12-TET Drift',
+    summary: 'Opens the Solfège Keyboard with Do + Mi latched in standard 12-TET piano tuning—watch the two tempos slowly drift out of phase.',
+    listenHint:
+      'In 12-TET, Mi is slightly sharp (1.2599× instead of 5:4). In Rhythm Space the yellow Mi beat drifts across the barline and never locks onto The Sam!',
+    fromSection: 'concepts',
+    mode: 'static-place',
+    shapeId: 'pure-tone',
+    rhythmBpm: 96.75,
+    rhythmD: 4.0,
+    pitchD: 4.0,
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: '12tet',
+      latchedMidiNotes: [68, 72],
+      showIntervals: true,
+      rhythmPhaseMode: 'sam-aligned',
+    },
+  },
+  {
+    id: 'keyboard-tempo-triad',
+    title: 'Keyboard Polyrhythm Triad: 4:5:6 from One Pulse (Do + Mi + So)',
+    shortTitle: 'Keyboard 4:5:6 Triad',
+    badge: 'Keyboard · Do+Mi+So',
+    summary: 'Latches Do, Mi, and So on a single Pure Sine pulse to build a 4:5:6 polyrhythm—tap other keys to play tempo cadences!',
+    listenHint:
+      'Three keys on a single-pulse Sine create a full 4:5:6 groove. Tap extra keys to add voices, or press Tab to flip your held rhythm into a glowing Major chord!',
+    fromSection: 'concepts',
+    mode: 'static-place',
+    shapeId: 'pure-tone',
+    rhythmBpm: 96.75,
+    rhythmD: 4.0,
+    pitchD: 4.0,
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: '5-limit',
+      latchedMidiNotes: [68, 72, 75],
+      showIntervals: true,
+      rhythmPhaseMode: 'sam-aligned',
+    },
   },
 ];
 
