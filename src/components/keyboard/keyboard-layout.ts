@@ -207,22 +207,26 @@ export function buildIntervalBands(
     return { bands, rowCount: Math.max(1, rowRanges.length) };
   }
 
-  // Adjacent semitone step sizes across visible keys
+  // Unique adjacent semitone step sizes across the visible octave/range
+  const seenCents = new Set<string>();
   for (let i = 0; i < keys.length - 1; i++) {
     const a = keys[i];
     const b = keys[i + 1];
     const ratio = b.mapping.freqHz / Math.max(1e-6, a.mapping.freqHz);
     const cents = Math.round(1200 * Math.log2(ratio));
-    const deltaHz = Math.abs(b.mapping.freqHz - a.mapping.freqHz);
+    const centsLabel = `${cents}¢`;
+    if (seenCents.has(centsLabel)) continue;
+    seenCents.add(centsLabel);
 
+    const deltaHz = Math.abs(b.mapping.freqHz - a.mapping.freqHz);
     bands.push({
-      id: `step-${a.midi}-${b.midi}`,
+      id: `step-${cents}`,
       leftMidi: a.midi,
       rightMidi: b.midi,
       row: 0,
-      ratioLabel: `${cents}¢`,
+      ratioLabel: `${a.syllable}→${b.syllable}`,
       deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
-      centsLabel: `${cents}¢`,
+      centsLabel,
       colorHex: SOLFEGE_COLORS[1] || '#F98016',
       neonHex: SOLFEGE_COLORS[1] || '#F98016',
       isSubtleStep: true,

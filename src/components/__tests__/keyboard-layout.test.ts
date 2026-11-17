@@ -35,13 +35,19 @@ describe('keyboard-layout', () => {
     const tuning = createDefaultMidiTuningConfig('dutri');
     const keys = buildVirtualKeys(68, 80, tuning, -4.0, 440, 25.8);
 
-    // Idle: 12 adjacent semitone steps showing alternating ~102c / ~96c DuTri pattern
+    // Idle: DuTri has exactly 2 unique semitone step sizes (102c and 96c)
     const stepRes = buildIntervalBands(keys, new Set(), false);
     expect(stepRes.rowCount).toBe(1);
-    expect(stepRes.bands).toHaveLength(12);
+    expect(stepRes.bands).toHaveLength(2);
     expect(stepRes.bands[0].isSubtleStep).toBe(true);
-    expect(stepRes.bands[0].centsLabel).toBe('102¢');
-    expect(stepRes.bands[1].centsLabel).toBe('96¢');
+    expect(stepRes.bands.map((b) => b.centsLabel)).toEqual(['102¢', '96¢']);
+
+    // 12-TET has exactly 1 unique semitone step size (100c)
+    const tet12 = createDefaultMidiTuningConfig('12tet');
+    const tetKeys = buildVirtualKeys(68, 80, tet12, -4.0, 440, 25.8);
+    const tetSteps = buildIntervalBands(tetKeys, new Set(), false);
+    expect(tetSteps.bands).toHaveLength(1);
+    expect(tetSteps.bands[0].centsLabel).toBe('100¢');
 
     // 3-note triad (Do + Mi + So in 5-limit): 3 pairwise relationships (5:4, 6:5, 3:2)
     const just5 = createDefaultMidiTuningConfig('5-limit');

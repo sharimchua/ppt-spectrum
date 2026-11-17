@@ -11,8 +11,8 @@ export interface IntervalBandsStripProps {
   bands: IntervalBandItem[];
   rowCount: number;
   keyCenterMap: Map<number, number>;
-  /** Width in px per semitone step, used to prevent adjacent step labels from colliding on 3+ octave views. */
-  semitoneWidthPx: number;
+  /** Kept for API compatibility; unique step pills no longer collide on narrow screens. */
+  semitoneWidthPx?: number;
 }
 
 const BAND_ROW_HEIGHT = 22;
@@ -22,11 +22,32 @@ export const IntervalBandsStrip: React.FC<IntervalBandsStripProps> = ({
   bands,
   rowCount,
   keyCenterMap,
-  semitoneWidthPx,
 }) => {
+  const isStepSummary = bands.length > 0 && bands.every((b) => b.isSubtleStep);
   const innerHeight = Math.max(FIXED_STRIP_HEIGHT_PX - 2, rowCount * BAND_ROW_HEIGHT + 4);
-  const showStepText = semitoneWidthPx >= 24;
-  const showCompactStepNumber = semitoneWidthPx >= 15 && semitoneWidthPx < 24;
+
+  if (isStepSummary) {
+    return (
+      <div
+        style={{ height: `${FIXED_STRIP_HEIGHT_PX}px` }}
+        className="mb-1.5 bg-slate-900/70 border border-slate-800/80 rounded-lg px-2 py-1 flex flex-wrap items-center justify-center gap-1.5 overflow-y-auto"
+      >
+        <span className="text-[10px] font-mono text-slate-400 mr-1">
+          Unique steps ({bands.length}):
+        </span>
+        {bands.map((b) => (
+          <span
+            key={b.id}
+            title={`Example: ${b.ratioLabel} (${b.centsLabel} · ${b.deltaLabel})`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700/80 text-[10px] font-mono text-slate-200"
+          >
+            <strong className="text-white">{b.centsLabel}</strong>
+            <span className="text-slate-400 text-[9px]">({b.ratioLabel})</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -48,39 +69,17 @@ export const IntervalBandsStrip: React.FC<IntervalBandsStripProps> = ({
                 width: `calc(${widthPct}% - 1px)`,
                 bottom: `${bottomPx}px`,
                 height: `${BAND_ROW_HEIGHT - 2}px`,
-                ...(b.isSubtleStep
-                  ? {}
-                  : {
-                      backgroundColor: `${b.colorHex}40`,
-                      borderColor: b.colorHex,
-                    }),
+                backgroundColor: `${b.colorHex}40`,
+                borderColor: b.colorHex,
               }}
-              className={`absolute flex items-center justify-center gap-1.5 px-0.5 ${
-                b.isSubtleStep
-                  ? 'border-r border-slate-700/50 text-slate-300'
-                  : 'border text-white rounded'
-              }`}
+              className="absolute flex items-center justify-center gap-1.5 px-1 border text-white rounded"
             >
-              {b.isSubtleStep ? (
-                showStepText ? (
-                  <span className="text-[9px] font-mono leading-none truncate">{b.centsLabel}</span>
-                ) : showCompactStepNumber ? (
-                  <span className="text-[8px] font-mono leading-none opacity-80">
-                    {b.centsLabel.replace('¢', '')}
-                  </span>
-                ) : (
-                  <span className="w-1 h-1 rounded-full bg-slate-500/70" />
-                )
-              ) : (
-                <>
-                  <span className="text-[9.5px] font-mono font-semibold leading-none truncate">
-                    {b.ratioLabel}
-                  </span>
-                  <span className="text-[8.5px] font-mono opacity-85 leading-none truncate hidden sm:inline">
-                    {b.centsLabel} · {b.deltaLabel}
-                  </span>
-                </>
-              )}
+              <span className="text-[9.5px] font-mono font-semibold leading-none truncate">
+                {b.ratioLabel}
+              </span>
+              <span className="text-[8.5px] font-mono opacity-85 leading-none truncate hidden sm:inline">
+                {b.centsLabel} · {b.deltaLabel}
+              </span>
             </div>
           );
         })}
