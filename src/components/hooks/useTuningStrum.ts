@@ -17,7 +17,7 @@ import {
 } from '../../core/scale-sequencer';
 import { UseMidiResult } from './useMidi';
 
-const STRUM_SYNTH_MIDI = 1099;
+const SCALE_STRIP_MIDI_BASE = 2000;
 
 export interface UseTuningStrumOptions {
   scene: Scene;
@@ -62,6 +62,7 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   }, [midi.midiTuning.harmonyStructure]);
 
   const seqStartTimeRef = useRef<number>(0);
+  const activeVoiceMidiRef = useRef<number | null>(null);
   const placementD = scene.placements[0]?.d ?? -3.0;
 
   const allDegrees = useMemo(
@@ -74,20 +75,31 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     [allDegrees]
   );
 
+  const releaseActiveVoice = useCallback(() => {
+    if (activeVoiceMidiRef.current !== null) {
+      midi.virtualNoteOff(activeVoiceMidiRef.current);
+      activeVoiceMidiRef.current = null;
+    }
+  }, [midi]);
+
   const playDegreeAtIndex = useCallback(
     (index: number, list: TuningDegree[]) => {
       if (list.length === 0) return;
       const clamped = Math.max(0, Math.min(list.length - 1, index));
       const deg = list[clamped];
+      const nextMidiId = SCALE_STRIP_MIDI_BASE + deg.index;
       const mapping = tuningDegreeToRelativeMapping(
         deg,
         0,
-        STRUM_SYNTH_MIDI,
+        nextMidiId,
         placementD,
         scene.anchors.tplFrequencyHz
       );
-      midi.virtualNoteOff(STRUM_SYNTH_MIDI);
-      midi.virtualNoteOn(STRUM_SYNTH_MIDI, 0.85, undefined, mapping.d);
+      if (activeVoiceMidiRef.current !== null && activeVoiceMidiRef.current !== nextMidiId) {
+        midi.virtualNoteOff(activeVoiceMidiRef.current);
+      }
+      activeVoiceMidiRef.current = nextMidiId;
+      midi.virtualNoteOn(nextMidiId, 0.85, undefined, mapping.d);
       setActiveIndex(clamped);
     },
     [midi, placementD, scene.anchors.tplFrequencyHz]
@@ -97,16 +109,13 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     (active: boolean) => {
       if (active) {
         setIsStrumModeState(true);
-        if (activeDegrees.length > 0) {
-          playDegreeAtIndex(Math.min(activeIndex, activeDegrees.length - 1), activeDegrees);
-        }
       } else {
         setIsSequencing(false);
         setIsStrumModeState(false);
-        midi.virtualNoteOff(STRUM_SYNTH_MIDI);
+        releaseActiveVoice();
       }
     },
-    [activeDegrees, activeIndex, midi, playDegreeAtIndex]
+    [releaseActiveVoice]
   );
 
   const toggleStrumMode = useCallback(() => {
@@ -141,8 +150,8 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
 
   const stopSequencer = useCallback(() => {
     setIsSequencing(false);
-    midi.virtualNoteOff(STRUM_SYNTH_MIDI);
-  }, [midi]);
+    releaseActiveVoice();
+  }, [releaseActiveVoice]);
 
   const toggleSequencer = useCallback(() => {
     if (isSequencing) {

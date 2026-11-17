@@ -40,7 +40,7 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold text-rose-300">
-            Strum ({activeDegrees.length} active · drag/scroll canvas)
+            Strum &amp; Auto-Play ({activeDegrees.length} active · drag across Scale keys)
           </span>
 
           {midiTuning.systemMode === 'pythagorean-chain' && (
@@ -139,7 +139,7 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
             }`}
           >
             {isSequencing ? <Square className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
-            {isSequencing ? 'Stop' : 'Walk'}
+            {isSequencing ? 'Stop' : 'Auto'}
           </button>
         </div>
       </div>

@@ -102,10 +102,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const startMidi = is88 ? preset.startMidi : Math.max(21, preset.startMidi + octaveOffset * 12);
   const endMidi = is88 ? preset.endMidi : Math.min(108, preset.endMidi + octaveOffset * 12);
 
-  // Auto-shift octave or expand range preset when active/latched notes fall outside visible keys
+  // Auto-shift octave or expand range preset when physical/piano MIDI notes fall outside visible keys
   useEffect(() => {
     if (!isOpen) return;
-    const next = resolveVisibleRangeForNotes(activeMidiNumbers, rangePresetId, octaveOffset);
+    const pianoNotes = activeMidiNumbers.filter((m) => m >= 0 && m <= 127);
+    if (pianoNotes.length === 0) return;
+    const next = resolveVisibleRangeForNotes(pianoNotes, rangePresetId, octaveOffset);
     if (next) {
       if (next.rangePresetId !== rangePresetId) setRangePresetId(next.rangePresetId);
       if (next.octaveOffset !== octaveOffset) setOctaveOffset(next.octaveOffset);

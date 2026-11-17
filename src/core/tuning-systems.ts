@@ -238,7 +238,7 @@ export function tuningDegreeToRelativeMapping(
 ): MidiNoteMappingResult {
   const polarity: TplPolarity = getPolarityFromD(currentFundamentalD);
   const fullMultiplier = degree.ratioValue * Math.pow(2, octaveOffset);
-  let d = currentFundamentalD - Math.log2(fullMultiplier);
+  let d = Math.max(-7.0, Math.min(7.0, currentFundamentalD - Math.log2(fullMultiplier)));
 
   let clampedToPolarity = false;
   if (polarity === 'rhythm' && d < TPL_POLARITY_EPSILON_D) {

@@ -4,7 +4,7 @@
  * Australian English spelling maintained.
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GuitarStringRow, InstrumentSurfaceMode, SurfacePad } from './instrument-layouts';
 
 export interface AlternateSurfacesProps {
@@ -30,8 +30,29 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
   onNoteOff,
   onToggleLatch,
 }) => {
+  const isPointerDownRef = useRef(false);
+  const lastStrumPadRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleGlobalUp = () => {
+      if (isPointerDownRef.current && !isMidiHoldActive && lastStrumPadRef.current !== null) {
+        onNoteOff(lastStrumPadRef.current);
+      }
+      isPointerDownRef.current = false;
+      lastStrumPadRef.current = null;
+    };
+    window.addEventListener('pointerup', handleGlobalUp);
+    window.addEventListener('pointercancel', handleGlobalUp);
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalUp);
+      window.removeEventListener('pointercancel', handleGlobalUp);
+    };
+  }, [isMidiHoldActive, onNoteOff]);
+
   const handleDown = (pad: SurfacePad, e: React.PointerEvent) => {
     e.preventDefault();
+    isPointerDownRef.current = true;
+    lastStrumPadRef.current = pad.midiId;
     if (isMidiHoldActive) {
       onToggleLatch(pad.midiId, pad.d);
     } else {
@@ -39,8 +60,17 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
     }
   };
 
+  const handleEnter = (pad: SurfacePad) => {
+    if (!isPointerDownRef.current || isMidiHoldActive) return;
+    if (lastStrumPadRef.current !== null && lastStrumPadRef.current !== pad.midiId) {
+      onNoteOff(lastStrumPadRef.current);
+    }
+    lastStrumPadRef.current = pad.midiId;
+    onNoteOn(pad.midiId, pad.d);
+  };
+
   const handleUpOrLeave = (pad: SurfacePad) => {
-    if (!isMidiHoldActive && activeSet.has(pad.midiId)) {
+    if (!isMidiHoldActive && !isPointerDownRef.current && activeSet.has(pad.midiId)) {
       onNoteOff(pad.midiId);
     }
   };
@@ -55,6 +85,7 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
               key={pad.id}
               type="button"
               onPointerDown={(e) => handleDown(pad, e)}
+              onPointerEnter={() => handleEnter(pad)}
               onPointerUp={() => handleUpOrLeave(pad)}
               onPointerLeave={() => handleUpOrLeave(pad)}
               className={`min-w-[44px] flex-1 h-20 rounded-lg border flex flex-col items-center justify-between py-2 px-1 transition cursor-pointer ${
