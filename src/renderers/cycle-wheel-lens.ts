@@ -7,7 +7,6 @@ import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
-import { evaluateRhythmEnvelopeGain } from '../core/envelope-presets';
 
 export class CycleWheelLensRenderer implements RegisteredLensRenderer {
   public id = 'cycle-wheel';
@@ -254,13 +253,10 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
               ctx.stroke();
             }
           } else {
-            const envGain = evaluateRhythmEnvelopeGain(scene.envelope, onsetSceneTurns, p.ratioValue);
-            const dotEnvScale = 0.55 + 0.45 * envGain;
-            const effectiveAmp = p.amp * onsetGain * dotEnvScale;
-            const shouldFlash = isStrike && !isHighFreq && envGain > 0.02;
+            const effectiveAmp = p.amp * onsetGain;
+            const shouldFlash = isStrike && !isHighFreq;
             const dotRadius = (2.4 + effectiveAmp * 3.6) * densityScale * (shouldFlash ? 1.65 : 1.0);
 
-            ctx.globalAlpha = 0.55 + 0.45 * envGain;
             ctx.fillStyle = shouldFlash ? '#ffffff' : neonCol;
             ctx.beginPath();
             ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
@@ -314,13 +310,10 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
           ctx.arc(px, py, 3.5, 0, Math.PI * 2);
           ctx.stroke();
         } else {
-          const envGain = evaluateRhythmEnvelopeGain(scene.envelope, unwrappedRootTurns, p.ratioValue);
-          const dotEnvScale = 0.55 + 0.45 * envGain;
-          const effectiveAmp = p.amp * onsetGain * dotEnvScale;
-          const shouldFlash = isStrike && !isHighFreq && envGain > 0.02;
+          const effectiveAmp = p.amp * onsetGain;
+          const shouldFlash = isStrike && !isHighFreq;
           const dotRadius = (2.8 + effectiveAmp * 3.7) * (shouldFlash ? 1.6 : 1.0);
 
-          ctx.globalAlpha = 0.55 + 0.45 * envGain;
           ctx.beginPath();
           ctx.moveTo(centerX, centerY);
           ctx.lineTo(px, py);

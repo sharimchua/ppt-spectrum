@@ -7,7 +7,6 @@ import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
-import { evaluateRhythmEnvelopeGain } from '../core/envelope-presets';
 
 export class EventLanesLensRenderer implements RegisteredLensRenderer {
   public id = 'event-lanes';
@@ -198,12 +197,9 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
         } else {
           if (isHit) compositeHits++;
 
-          const envGain = evaluateRhythmEnvelopeGain(scene.envelope, eventTurn, p.ratioValue);
-          const shouldFlash = isHit && !isHighFreq && envGain > 0.02;
-          const envScale = 0.58 + 0.42 * envGain;
-          const tickH = (laneHeight * 0.48) * envScale * (shouldFlash ? 1.35 : 1.0);
+          const shouldFlash = isHit && !isHighFreq;
+          const tickH = (laneHeight * 0.48) * (shouldFlash ? 1.35 : 1.0);
           ctx.save();
-          ctx.globalAlpha = 0.55 + 0.45 * envGain;
           ctx.fillStyle = shouldFlash ? '#ffffff' : col;
           ctx.beginPath();
           ctx.roundRect(tickX - (shouldFlash ? 2 : 1), y + (laneHeight - tickH) / 2, shouldFlash ? 4 : 2, tickH, 2);
@@ -214,7 +210,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
             this.dynamicLights.push({
               x: tickX,
               y: y + laneHeight / 2,
-              velocity: Math.max(0.4, envGain),
+              velocity: 0.85,
               colorHex: neonCol,
             });
           }
