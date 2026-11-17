@@ -32,6 +32,8 @@ export interface KeyboardActions {
   onToggleEnvelopesOpen?: () => void;
   onToggleEnvelopeQuickSearch?: () => void;
   onToggleBundlesOpen?: () => void;
+  onToggleKeyboard?: () => void;
+  onFlipPolarity?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
   onJumpBookmarkA: () => void;
@@ -174,6 +176,12 @@ export function useKeyboardShortcuts({
         } else {
           actionsRef.current.onJumpBookmarkB();
         }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        actionsRef.current.onFlipPolarity?.();
+      } else if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        actionsRef.current.onToggleKeyboard?.();
       } else if (e.key === 'ArrowRight') {
         // Move UP in frequency / pitch (decrease d)
         e.preventDefault();

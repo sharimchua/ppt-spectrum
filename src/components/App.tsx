@@ -11,6 +11,7 @@ import { ControlToolbar } from './ControlToolbar';
 import { FlexLayoutRenderer } from './FlexLayoutRenderer';
 import { STORAGE_KEY_DONT_SHOW_INTRO } from './info-modal/tutorial-demos';
 import { FilterEditHud } from './FilterEditHud';
+import { VirtualKeyboard } from './VirtualKeyboard';
 import { AppModals } from './AppModals';
 import { useTeachingDemo } from './hooks/useTeachingDemo';
 import { useSceneEngine } from './hooks/useSceneEngine';
@@ -98,7 +99,8 @@ export const App: React.FC = () => {
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
-  const { midiState, openMidiModal } = midi;
+  const { clearAllNotes, flipPolarity, toggleKeyboard } = midi;
+  const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
 
   // Dedicated Envelopes Sheet state & library
   const envelopes = useEnvelopes({ scene, updateScene });
@@ -256,12 +258,15 @@ export const App: React.FC = () => {
       onToggleEnvelopesOpen: () => (envelopes.isEnvelopesOpen ? envelopes.closeEnvelopes() : envelopes.openEnvelopes()),
       onToggleEnvelopeQuickSearch: () => setIsEnvelopeQuickSearchOpen((prev) => !prev),
       onToggleBundlesOpen: () => (bundlesApi.isBundleModalOpen ? bundlesApi.closeBundleModal() : bundlesApi.openBundleModal()),
+      onToggleKeyboard: toggleKeyboard,
+      onFlipPolarity: flipPolarity,
     }),
     [
       handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode,
       toggleFilter, toggleFiltersOpen, handleNoteOn, handleNoteOff,
       handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
       handleStepPrimaryD, historyBack, historyForward, envelopes, bundlesApi,
+      toggleKeyboard, flipPolarity,
     ]
   );
 
@@ -294,7 +299,7 @@ export const App: React.FC = () => {
         bookmarks={bookmarks}
         onSelectLayout={setLayout}
         onTogglePlay={handleTogglePlay}
-        onUpdatePlacementD={handleUpdatePlacementD}
+        onUpdatePlacementD={handleManualPlacementD}
         onUpdatePitchCarrier={handleUpdatePitchCarrier}
         onUpdateRhythmContainer={handleUpdateRhythmContainer}
         onToggleEditMode={() => setIsEditMode((prev) => !prev)}
@@ -310,8 +315,7 @@ export const App: React.FC = () => {
         onOpenCapture={() => setIsCaptureOpen(true)}
         onOpenInfo={teachingDemo.handleReturnToTutorial}
         onOpenRadialMenu={handleOpenRadialMenu}
-        midiState={midiState}
-        onOpenMidiModal={openMidiModal}
+        midi={midi}
       />
 
       {/* Floating Filter Edit HUD Banner (Visible when Filter Edit mode is active) */}
@@ -343,7 +347,7 @@ export const App: React.FC = () => {
             node={layout.root}
             scene={scene}
             coordinator={coordinator}
-            onUpdatePlacementD={handleUpdatePlacementD}
+            onUpdatePlacementD={handleManualPlacementD}
             onUpdateFilterCentreD={handleUpdateFilterCentreD}
             onUpdateFilterParams={handleUpdateFilterParams}
             onFlushScene={flushSceneToReact}
@@ -363,6 +367,8 @@ export const App: React.FC = () => {
           />
         </div>
       </SpectrumViewport>
+
+      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} />
 
       <AppModals
         isCaptureOpen={isCaptureOpen}
@@ -406,7 +412,7 @@ export const App: React.FC = () => {
         radialMenuAnchor={radialMenuAnchor}
         isPlaying={isPlaying}
         onTogglePlay={handleTogglePlay}
-        onUpdatePlacementD={handleUpdatePlacementD}
+        onUpdatePlacementD={handleManualPlacementD}
         onUpdateFilterParams={handleUpdateFilterParams}
         toggleFilter={toggleFilter}
         onCycleFilterMode={handleCycleFilterMode}

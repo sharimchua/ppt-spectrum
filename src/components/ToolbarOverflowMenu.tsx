@@ -20,6 +20,7 @@ import {
   Repeat,
   Settings,
   Share2,
+  Sliders,
 } from 'lucide-react';
 import { LayoutDefinition, PRESET_LAYOUTS } from '../core/layout-models';
 import { MidiDeviceState } from '../audio/midi-manager';
@@ -40,6 +41,9 @@ export interface ToolbarOverflowMenuProps {
   onShareClick?: () => void;
   onOpenBundles?: () => void;
   onOpenMidiModal?: () => void;
+  isKeyboardOpen?: boolean;
+  onToggleKeyboard?: () => void;
+  onOpenTuningModal?: () => void;
   onOpenInfo: () => void;
   onToggleSettings?: () => void;
   onToggleFullscreen?: () => void;
@@ -61,6 +65,9 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
   onShareClick,
   onOpenBundles,
   onOpenMidiModal,
+  isKeyboardOpen,
+  onToggleKeyboard,
+  onOpenTuningModal,
   onOpenInfo,
   onToggleSettings,
   onToggleFullscreen,
@@ -171,15 +178,42 @@ export const ToolbarOverflowMenu: React.FC<ToolbarOverflowMenuProps> = ({
             <kbd className="text-[10px] font-mono text-slate-500">P</kbd>
           </button>
 
+          {onToggleKeyboard && (
+            <button
+              type="button"
+              onClick={() => act(onToggleKeyboard)}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Keyboard className={`w-3.5 h-3.5 ${isKeyboardOpen ? 'text-amber-400' : 'text-slate-400'}`} />
+                <span>On-Screen Keyboard</span>
+              </span>
+              <kbd className="text-[10px] font-mono text-slate-500">K</kbd>
+            </button>
+          )}
+
+          {onOpenTuningModal && (
+            <button
+              type="button"
+              onClick={() => act(onOpenTuningModal)}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                <span>Tuning &amp; Rhythm Map</span>
+              </span>
+            </button>
+          )}
+
           {onOpenMidiModal && (
             <button
               type="button"
               onClick={() => act(onOpenMidiModal)}
-              className="2xl:hidden w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <Keyboard className={`w-3.5 h-3.5 ${midiState?.isConnected ? 'text-emerald-400' : 'text-slate-400'}`} />
-                <span>MIDI Keyboard</span>
+                <span>MIDI Hardware</span>
               </span>
               {midiState?.isConnected && (
                 <span className="text-[10px] font-mono text-emerald-400">{midiState.inputs.length} on</span>

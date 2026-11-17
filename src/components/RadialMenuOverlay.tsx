@@ -15,6 +15,7 @@ export interface RadialMenuOverlayProps {
   scene: Scene;
   isPlaying: boolean;
   onTogglePlay: () => void;
+  onFlipPolarity?: () => void;
   onUpdatePlacementD: (d: number) => void;
   onUpdateFilterParams?: (params: Partial<SpanView>) => void;
   onToggleFilter: () => void;
@@ -83,6 +84,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   scene,
   isPlaying,
   onTogglePlay,
+  onFlipPolarity,
   onUpdatePlacementD,
   onUpdateFilterParams: _onUpdateFilterParams,
   onToggleFilter,
@@ -209,6 +211,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     onOpenEnvelopes,
     onToggleEnvelope,
     onTogglePlay,
+    onFlipPolarity,
     onToggleOscillate,
     onJumpBookmarkA,
     onJumpBookmarkB,

@@ -28,7 +28,6 @@ import {
   Activity,
   Package,
 } from 'lucide-react';
-import { MidiDeviceState } from '../audio/midi-manager';
 import { ToolbarOverflowMenu } from './ToolbarOverflowMenu';
 
 interface ControlToolbarProps {
@@ -61,8 +60,7 @@ interface ControlToolbarProps {
   onOpenCapture: () => void;
   onOpenInfo: () => void;
   onOpenRadialMenu?: () => void;
-  midiState?: MidiDeviceState;
-  onOpenMidiModal?: () => void;
+  midi?: import('./hooks/useMidi').UseMidiResult;
 }
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
@@ -95,8 +93,7 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onOpenCapture,
   onOpenInfo,
   onOpenRadialMenu,
-  midiState,
-  onOpenMidiModal,
+  midi,
 }) => {
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -464,20 +461,22 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
             </button>
           )}
 
-          {/* MIDI Keyboard Connection Button (2xl+, otherwise in More menu) */}
-          {onOpenMidiModal && (
+          {/* Virtual Keyboard Toggle Button (replaces MIDI slot; MIDI Connect lives inside Keyboard & Overflow Menu) */}
+          {midi && (
             <button
-              onClick={onOpenMidiModal}
+              onClick={midi.toggleKeyboard}
               className={`hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-mono font-semibold transition cursor-pointer ${
-                midiState?.isConnected
-                  ? 'border-emerald-500/70 bg-emerald-950/60 text-emerald-300'
-                  : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:text-slate-200'
+                midi.isKeyboardOpen
+                  ? 'border-amber-500/80 bg-amber-950/60 text-amber-200'
+                  : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white'
               }`}
-              title={midiState?.isConnected ? `MIDI Connected (${midiState.inputs.length})` : 'Connect MIDI Keyboard'}
+              title="Toggle On-Screen Solfège Keyboard (K)"
             >
               <Keyboard className="w-3.5 h-3.5" />
-              <span>MIDI</span>
-              {midiState?.isConnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+              <span>Keys</span>
+              {midi.activeMidiNumbers.length > 0 && (
+                <span className="px-1 rounded bg-amber-500/20 text-amber-300">{midi.activeMidiNumbers.length}</span>
+              )}
             </button>
           )}
 
@@ -516,11 +515,15 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           <ToolbarOverflowMenu
             currentLayoutId={currentLayoutId} customLayout={customLayout}
             isEditMode={isEditMode} isFullscreen={isFullscreen} isOscillating={isOscillating}
-            copiedLink={copiedLink} midiState={midiState} onSelectLayout={onSelectLayout}
+            copiedLink={copiedLink} midiState={midi?.midiState} onSelectLayout={onSelectLayout}
             onToggleOscillate={onToggleOscillate} onOpenBookmarks={onOpenBookmarks}
             onOpenCapture={onOpenCapture} onToggleEditMode={onToggleEditMode}
             onShareClick={onShareLayout ? handleShareClick : undefined}
-            onOpenBundles={onOpenBundles} onOpenMidiModal={onOpenMidiModal}
+            onOpenBundles={onOpenBundles}
+            onOpenMidiModal={midi?.openMidiModal}
+            isKeyboardOpen={midi?.isKeyboardOpen}
+            onToggleKeyboard={midi?.toggleKeyboard}
+            onOpenTuningModal={midi?.openTuningModal}
             onOpenInfo={onOpenInfo} onToggleSettings={onToggleSettings}
             onToggleFullscreen={onToggleFullscreen}
           />

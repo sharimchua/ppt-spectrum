@@ -1,41 +1,24 @@
 /**
- * Web MIDI permission request modal.
- * Mirrors the ppt-visualiser MIDI permission dialogue with Australian English spelling.
+ * Web MIDI permission request and device selection dialogue.
+ * Streamlined to focus strictly on MIDI hardware connection and port status.
  */
 
 import React, { useEffect, useState } from 'react';
-import { Keyboard, RefreshCw, Sliders, Unplug } from 'lucide-react';
+import { Keyboard, RefreshCw, Unplug } from 'lucide-react';
 import { midiManagerInstance, MidiDeviceState } from '../audio/midi-manager';
-import { MidiNoteMappingResult, MidiTuningConfig } from '../core/midi-tuning';
-import { MidiTuningPanel } from './MidiTuningPanel';
 
 export interface MidiPermissionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  midiTuning: MidiTuningConfig;
-  onChangeTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
-  currentFundamentalD: number;
-  tplFrequencyHz?: number;
-  lastMapping: MidiNoteMappingResult | null;
-  heldMappings: MidiNoteMappingResult[];
 }
-
-type MidiModalTab = 'device' | 'tuning';
 
 export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
   isOpen,
   onClose,
-  midiTuning,
-  onChangeTuning,
-  currentFundamentalD,
-  tplFrequencyHz,
-  lastMapping,
-  heldMappings,
 }) => {
   const [midiState, setMidiState] = useState<MidiDeviceState>(midiManagerInstance.state);
   const [isConnecting, setIsConnecting] = useState(false);
   const [lastNote, setLastNote] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<MidiModalTab>('device');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,7 +67,7 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
       aria-labelledby="midi-modal-title"
     >
       <div
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-6 text-slate-100 space-y-5"
+        className="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-6 text-slate-100 space-y-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
@@ -94,9 +77,9 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
             </div>
             <div>
               <h2 id="midi-modal-title" className="text-lg font-semibold text-white tracking-wide">
-                MIDI &amp; Tuning Map
+                Connect MIDI Keyboard
               </h2>
-              <p className="text-xs text-slate-400">Web MIDI &amp; Harmonic Profiler Mapping</p>
+              <p className="text-xs text-slate-400">Web MIDI Hardware Connection</p>
             </div>
           </div>
           <button
@@ -111,47 +94,9 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Bar */}
-        <div className="flex gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setActiveTab('device')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'device'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Keyboard className="w-3.5 h-3.5" />
-            <span>MIDI Device</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('tuning')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'tuning'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Tuning &amp; Rhythm Map</span>
-          </button>
-        </div>
-
-        {activeTab === 'tuning' ? (
-          <MidiTuningPanel
-            midiTuning={midiTuning}
-            onChangeTuning={onChangeTuning}
-            currentFundamentalD={currentFundamentalD}
-            tplFrequencyHz={tplFrequencyHz}
-            lastMapping={lastMapping}
-            heldMappings={heldMappings}
-          />
-        ) : (
         <div className="text-sm text-slate-300 space-y-3 leading-relaxed">
           <p>
-            To play and visualise shapes from your instrument, the app needs permission to listen to notes from your MIDI keyboard or controller.
+            To play and visualise shapes from your hardware instrument, the app needs permission to listen to notes from your MIDI keyboard or controller.
           </p>
           <p className="text-xs text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
             This app only reads incoming notes and velocities as you play them. It cannot alter anything on your instrument, install software, or modify device settings.
@@ -208,7 +153,6 @@ export const MidiPermissionModal: React.FC<MidiPermissionModalProps> = ({
             </p>
           )}
         </div>
-        )}
 
         <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
           <button

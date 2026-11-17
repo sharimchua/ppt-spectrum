@@ -16,6 +16,7 @@ import { UseEnvelopesResult } from './hooks/useEnvelopes';
 import { LibraryShareModal } from './LibraryShareModal';
 import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
+import { TuningModal } from './TuningModal';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
 import { TutorialReturnToast } from './TutorialReturnToast';
@@ -290,6 +291,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         scene={scene}
         isPlaying={isPlaying}
         onTogglePlay={onTogglePlay}
+        onFlipPolarity={midi.flipPolarity}
         onUpdatePlacementD={onUpdatePlacementD}
         onUpdateFilterParams={onUpdateFilterParams}
         onToggleFilter={toggleFilter}
@@ -348,6 +350,11 @@ export const AppModals: React.FC<AppModalsProps> = ({
       <MidiPermissionModal
         isOpen={midi.isMidiModalOpen}
         onClose={midi.closeMidiModal}
+      />
+
+      <TuningModal
+        isOpen={midi.isTuningModalOpen}
+        onClose={midi.closeTuningModal}
         midiTuning={midi.midiTuning}
         onChangeTuning={midi.setMidiTuning}
         currentFundamentalD={scene.placements[0]?.d ?? 2.0}

@@ -163,7 +163,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-200">Tuning System</span>
           {midiTuning.presetId === 'custom' && (
-            <span className="text-[10px] font-mono text-amber-300">Custom Profile</span>
+            <span className="text-[10px] font-mono text-amber-300">Mixed / Custom Profile</span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -199,6 +199,11 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
             Mixed / Custom
           </button>
         </div>
+        <p className="text-[11px] text-slate-400 bg-slate-950/60 border border-slate-800/80 rounded-lg px-2.5 py-2 leading-relaxed">
+          {midiTuning.presetId === 'custom'
+            ? 'Mixed / Custom: Combine rational Prime Family intervals with irrational Du, DuTri, or 12-TET steps per chromatic degree relative to Do.'
+            : MIDI_TUNING_PRESETS[midiTuning.presetId].description}
+        </p>
       </div>
 
       {/* Rhythm & Pitch Anchor Controls */}

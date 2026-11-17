@@ -1,6 +1,7 @@
 /**
- * MIDI input hook for polyphonic keyboard performance, polarity-aware tuning, and ruler ghosting.
- * Connects MidiManager events to AudioEngine polyphonic voices, scene frequency, and RenderCoordinator.
+ * Unified polyphonic input hook for hardware Web MIDI and the on-screen Virtual Keyboard.
+ * Supports polarity-aware tuning, live re-tuning of held/latched notes, TPL polarity
+ * flipping, and ruler/lens ghosting.
  */
 
 import { useState, useEffect, useRef, useCallback, MutableRefObject } from 'react';
@@ -16,6 +17,8 @@ import { midiManagerInstance, MidiDeviceState } from '../../audio/midi-manager';
 import { RenderCoordinator, HeldMidiNote } from '../../renderers/render-coordinator';
 
 const MIDI_TUNING_STORAGE_KEY = 'ppt_spectrum_midi_tuning_v1';
+
+export type NoteInputSource = 'midi' | 'virtual';
 
 function loadMidiTuningConfig(): MidiTuningConfig {
   const fallback = createDefaultMidiTuningConfig('5-limit');
@@ -60,12 +63,26 @@ export interface UseMidiResult {
   isMidiModalOpen: boolean;
   openMidiModal: () => void;
   closeMidiModal: () => void;
+  isTuningModalOpen: boolean;
+  openTuningModal: () => void;
+  closeTuningModal: () => void;
+  isKeyboardOpen: boolean;
+  openKeyboard: () => void;
+  closeKeyboard: () => void;
+  toggleKeyboard: () => void;
   requestMidiAccess: () => Promise<boolean>;
   selectMidiInput: (id: string) => void;
   midiTuning: MidiTuningConfig;
   setMidiTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
   lastMapping: MidiNoteMappingResult | null;
   heldMappings: MidiNoteMappingResult[];
+  activeMidiNumbers: number[];
+  latchedMidiNumbers: number[];
+  virtualNoteOn: (midi: number, velocity?: number) => void;
+  virtualNoteOff: (midi: number) => void;
+  toggleVirtualNote: (midi: number, velocity?: number) => void;
+  clearAllNotes: () => void;
+  flipPolarity: () => void;
 }
 
 interface HeldStackEntry {
@@ -83,12 +100,17 @@ export function useMidi({
 }: UseMidiOptions): UseMidiResult {
   const [midiState, setMidiState] = useState<MidiDeviceState>(midiManagerInstance.state);
   const [isMidiModalOpen, setIsMidiModalOpen] = useState<boolean>(false);
+  const [isTuningModalOpen, setIsTuningModalOpen] = useState<boolean>(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
   const [midiTuning, setMidiTuningState] = useState<MidiTuningConfig>(() => loadMidiTuningConfig());
   const [lastMapping, setLastMapping] = useState<MidiNoteMappingResult | null>(null);
   const [heldMappings, setHeldMappings] = useState<MidiNoteMappingResult[]>([]);
+  const [activeMidiNumbers, setActiveMidiNumbers] = useState<number[]>([]);
+  const [latchedMidiNumbers, setLatchedMidiNumbers] = useState<number[]>([]);
 
   // Ordered list of currently held MIDI notes (most recent at the end)
   const heldStackRef = useRef<HeldStackEntry[]>([]);
+  const sourcesByMidiRef = useRef<Map<number, Set<NoteInputSource>>>(new Map());
   const midiTuningRef = useRef<MidiTuningConfig>(midiTuning);
   midiTuningRef.current = midiTuning;
 
@@ -117,16 +139,26 @@ export function useMidi({
     }));
     coordinator.setHeldMidiNotes(ghosts);
     setHeldMappings(stack.map((item) => item.mapping));
+    setActiveMidiNumbers(stack.map((item) => item.midi));
+
+    const latched: number[] = [];
+    for (const [m, srcs] of sourcesByMidiRef.current.entries()) {
+      if (srcs.has('virtual')) latched.push(m);
+    }
+    setLatchedMidiNumbers(latched);
   }, [coordinator]);
 
-  useEffect(() => {
-    const unsubState = midiManagerInstance.onStateChange((next) => {
-      setMidiState(next);
-    });
+  const dispatchNoteOn = useCallback(
+    (midi: number, velocity: number, source: NoteInputSource, explicitPolarityD?: number) => {
+      let srcs = sourcesByMidiRef.current.get(midi);
+      if (!srcs) {
+        srcs = new Set();
+        sourcesByMidiRef.current.set(midi, srcs);
+      }
+      srcs.add(source);
 
-    const unsubOn = midiManagerInstance.onNoteOn((midi, velocity) => {
       const sc = sceneRef.current;
-      const currentD = sc.placements[0]?.d ?? 2.0;
+      const currentD = explicitPolarityD ?? (sc.placements[0]?.d ?? 2.0);
       const mapping = midiToDWithTuning(
         midi,
         midiTuningRef.current,
@@ -135,7 +167,6 @@ export function useMidi({
         sc.anchors.tplFrequencyHz
       );
 
-      // Dispatch audio note-on first for minimum keypress-to-sound latency
       void audioEngine.midiNoteOn(
         midi,
         velocity,
@@ -144,7 +175,6 @@ export function useMidi({
         midiTuningRef.current.rhythmPhaseMode
       );
 
-      // Move or append this note as the latest primary note
       const filtered = heldStackRef.current.filter((item) => item.midi !== midi);
       filtered.push({ midi, d: mapping.d, velocity, mapping });
       heldStackRef.current = filtered;
@@ -153,21 +183,112 @@ export function useMidi({
       syncGhostsToCoordinator();
       coordinator.triggerNoteStrike();
       onUpdatePlacementDRef.current(mapping.d);
-    });
+    },
+    [audioEngine, coordinator, sceneRef, syncGhostsToCoordinator]
+  );
 
-    const unsubOff = midiManagerInstance.onNoteOff((midi) => {
+  const dispatchNoteOff = useCallback(
+    (midi: number, source: NoteInputSource) => {
+      const srcs = sourcesByMidiRef.current.get(midi);
+      if (srcs) {
+        srcs.delete(source);
+        if (srcs.size > 0) {
+          syncGhostsToCoordinator();
+          return;
+        }
+        sourcesByMidiRef.current.delete(midi);
+      }
+
       audioEngine.midiNoteOff(midi);
 
       const prevTop = heldStackRef.current[heldStackRef.current.length - 1];
       heldStackRef.current = heldStackRef.current.filter((item) => item.midi !== midi);
       syncGhostsToCoordinator();
 
-      // If the released note was the active primary note and another note is still held,
-      // promote the most recent remaining held note to the scene frequency.
       const nextTop = heldStackRef.current[heldStackRef.current.length - 1];
       if (prevTop && prevTop.midi === midi && nextTop) {
         onUpdatePlacementDRef.current(nextTop.d);
       }
+    },
+    [audioEngine, syncGhostsToCoordinator]
+  );
+
+  const clearAllNotes = useCallback(() => {
+    if (heldStackRef.current.length === 0 && sourcesByMidiRef.current.size === 0) {
+      return;
+    }
+    heldStackRef.current = [];
+    sourcesByMidiRef.current.clear();
+    audioEngine.releaseAllMidiNotes();
+    syncGhostsToCoordinator();
+  }, [audioEngine, syncGhostsToCoordinator]);
+
+  const retargetHeldNotesToPolarityD = useCallback(
+    (polarityD: number, tuningCfg: MidiTuningConfig) => {
+      const stack = heldStackRef.current;
+      if (stack.length === 0) return;
+      const sc = sceneRef.current;
+      const nextStack: HeldStackEntry[] = [];
+      for (const item of stack) {
+        const mapping = midiToDWithTuning(
+          item.midi,
+          tuningCfg,
+          polarityD,
+          sc.anchors.tuningA4Hz,
+          sc.anchors.tplFrequencyHz
+        );
+        void audioEngine.midiNoteOn(
+          item.midi,
+          item.velocity,
+          mapping.d,
+          undefined,
+          tuningCfg.rhythmPhaseMode
+        );
+        nextStack.push({ ...item, d: mapping.d, mapping });
+      }
+      heldStackRef.current = nextStack;
+      const top = nextStack[nextStack.length - 1];
+      if (top) {
+        setLastMapping(top.mapping);
+        onUpdatePlacementDRef.current(top.d);
+      }
+      syncGhostsToCoordinator();
+    },
+    [audioEngine, sceneRef, syncGhostsToCoordinator]
+  );
+
+  const flipPolarity = useCallback(() => {
+    const sc = sceneRef.current;
+    const currentD = sc.placements[0]?.d ?? 2.0;
+    const flippedD =
+      Math.abs(currentD) < 0.01 ? (currentD >= 0 ? -2.0 : 2.0) : -currentD;
+
+    if (heldStackRef.current.length > 0) {
+      retargetHeldNotesToPolarityD(flippedD, midiTuningRef.current);
+    } else {
+      onUpdatePlacementDRef.current(flippedD);
+    }
+  }, [retargetHeldNotesToPolarityD, sceneRef]);
+
+  // Live re-resolve held/latched notes whenever tuning config changes
+  useEffect(() => {
+    if (heldStackRef.current.length === 0) return;
+    const currentD = sceneRef.current.placements[0]?.d ?? 2.0;
+    retargetHeldNotesToPolarityD(currentD, midiTuning);
+  }, [midiTuning, retargetHeldNotesToPolarityD, sceneRef]);
+
+  useEffect(() => {
+    const sourcesMap = sourcesByMidiRef.current;
+    const unsubState = midiManagerInstance.onStateChange((next) => {
+      setMidiState(next);
+    });
+
+    const unsubOn = midiManagerInstance.onNoteOn((midi, velocity) => {
+      dispatchNoteOn(midi, velocity, 'midi');
+    });
+
+    const unsubOff = midiManagerInstance.onNoteOff((midi) => {
+      dispatchNoteOff(midi, 'midi');
     });
 
     const unsubSustain = midiManagerInstance.onSustainChange((isDown) => {
@@ -180,15 +301,49 @@ export function useMidi({
       unsubOff();
       unsubSustain();
       heldStackRef.current = [];
+      sourcesMap.clear();
       setHeldMappings([]);
+      setActiveMidiNumbers([]);
+      setLatchedMidiNumbers([]);
       coordinator.setHeldMidiNotes([]);
       audioEngine.setMidiSustain(false);
       audioEngine.releaseAllMidiNotes();
     };
-  }, [audioEngine, coordinator, sceneRef, syncGhostsToCoordinator]);
+  }, [audioEngine, coordinator, dispatchNoteOff, dispatchNoteOn]);
+
+  const virtualNoteOn = useCallback(
+    (midi: number, velocity: number = 0.85) => {
+      dispatchNoteOn(midi, velocity, 'virtual');
+    },
+    [dispatchNoteOn]
+  );
+
+  const virtualNoteOff = useCallback(
+    (midi: number) => {
+      dispatchNoteOff(midi, 'virtual');
+    },
+    [dispatchNoteOff]
+  );
+
+  const toggleVirtualNote = useCallback(
+    (midi: number, velocity: number = 0.85) => {
+      const srcs = sourcesByMidiRef.current.get(midi);
+      if (srcs && srcs.has('virtual')) {
+        dispatchNoteOff(midi, 'virtual');
+      } else {
+        dispatchNoteOn(midi, velocity, 'virtual');
+      }
+    },
+    [dispatchNoteOff, dispatchNoteOn]
+  );
 
   const openMidiModal = useCallback(() => setIsMidiModalOpen(true), []);
   const closeMidiModal = useCallback(() => setIsMidiModalOpen(false), []);
+  const openTuningModal = useCallback(() => setIsTuningModalOpen(true), []);
+  const closeTuningModal = useCallback(() => setIsTuningModalOpen(false), []);
+  const openKeyboard = useCallback(() => setIsKeyboardOpen(true), []);
+  const closeKeyboard = useCallback(() => setIsKeyboardOpen(false), []);
+  const toggleKeyboard = useCallback(() => setIsKeyboardOpen((v) => !v), []);
 
   const requestMidiAccess = useCallback(async () => {
     return midiManagerInstance.requestAccess();
@@ -203,11 +358,25 @@ export function useMidi({
     isMidiModalOpen,
     openMidiModal,
     closeMidiModal,
+    isTuningModalOpen,
+    openTuningModal,
+    closeTuningModal,
+    isKeyboardOpen,
+    openKeyboard,
+    closeKeyboard,
+    toggleKeyboard,
     requestMidiAccess,
     selectMidiInput,
     midiTuning,
     setMidiTuning,
     lastMapping,
     heldMappings,
+    activeMidiNumbers,
+    latchedMidiNumbers,
+    virtualNoteOn,
+    virtualNoteOff,
+    toggleVirtualNote,
+    clearAllNotes,
+    flipPolarity,
   };
 }
