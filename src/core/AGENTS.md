@@ -17,6 +17,8 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/ppt-constants.ts` — Theory constants ($f_{\text{TPL}} = 25.8\text{ Hz}$, $T_{\text{TPL}} \approx 38.76\text{ ms}$), canonical Solfège palette, Prime palette, and Hann window decay.
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
 - `src/core/midi-tuning.ts` — Polarity-aware MIDI tuning and Prime Family interval mapping (`Du`, `Tri`, `Qui`, `Sep`, `Undec`) across Pitch Space and Rhythm Space.
+- `src/core/tuning-systems.ts` — Alternate tuning system degree generators (`pythagorean-chain`, `31edo`) and unified degree-to-DuPeriod mapping.
+- `src/core/scale-sequencer.ts` — Pure stepped scale sequencer patterns (`ascend`, `descend`, `pendulum`, `triads`, `fifths-chain`) and deterministic step timing.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
 - `src/core/ratio-suggestions.ts` — DuMetric octave conversions (`ratioToOctaves`, `octavesToRatio`) and nearby rational ratio snap suggestions.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
@@ -51,6 +53,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `shape-editing.test.ts` — VoiceAnchor and partial addition/removal guards, mute/unmute restoration, overtone presets, inharmonicity, and damping.
 - `shape-history.test.ts` — Shape history stack initialisation, push with redo truncation, bounded stepping, and shape removal.
 - `sweep.test.ts` — Bookmark sweep timing calculation, phase boundary progress evaluation, and cycle looping.
+- `tuning-systems.test.ts` — Pythagorean 3:2 chain, 31-EDO subsets, degree-to-DuPeriod polarity mapping, 31-EDO MIDI mapping, and sequencer patterns.
 
 ## Known Exceptions
 

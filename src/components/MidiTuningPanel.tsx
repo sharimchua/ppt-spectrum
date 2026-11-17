@@ -13,11 +13,13 @@ import {
   MidiTuningConfig,
   MidiTuningPresetId,
   PrimeFamilyLabel,
+  applyTuningPreset,
   getPolarityFromD,
   resolveSemitoneInterval,
 } from '../core/midi-tuning';
 import { PITCH_NAMES, dToBpm } from '../core/axis';
 import { TPL_FREQUENCY_HZ } from '../core/ppt-constants';
+import { TuningSystemExplorer } from './TuningSystemExplorer';
 
 export interface MidiTuningPanelProps {
   midiTuning: MidiTuningConfig;
@@ -86,17 +88,15 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   const activeMappings = heldMappings.length > 0 ? heldMappings : lastMapping ? [lastMapping] : [];
 
   const handleSelectPreset = (presetId: Exclude<MidiTuningPresetId, 'custom'>) => {
-    onChangeTuning((prev) => ({
-      ...prev,
-      presetId,
-      intervals: { ...MIDI_TUNING_PRESETS[presetId].intervals },
-    }));
+    onChangeTuning((prev) => applyTuningPreset(prev, presetId));
   };
 
   const handleIntervalChange = (key: keyof MidiIntervalTuningConfig, family: PrimeFamilyLabel) => {
     onChangeTuning((prev) => ({
       ...prev,
       presetId: 'custom',
+      systemMode: 'chromatic-12',
+      activeDegreeMask: undefined,
       intervals: {
         ...prev.intervals,
         [key]: family,
@@ -288,51 +288,55 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         </div>
       </div>
 
-      {/* Harmonic Profiler Interval Matrix */}
-      <div className="space-y-1.5">
-        <span className="text-xs font-semibold text-slate-200">
-          Harmonic Profiler Interval Matrix
-        </span>
-        <div className="max-h-52 overflow-y-auto pr-1 space-y-1">
-          {INTERVAL_ROWS.map((row) => {
-            const activeFamily = midiTuning.intervals[row.key];
-            const res = resolveSemitoneInterval(row.semitone, midiTuning.intervals);
-            return (
-              <div
-                key={row.key}
-                className="flex items-center justify-between gap-2 bg-slate-950/70 border border-slate-800/80 rounded-lg px-2.5 py-1.5 text-xs"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono font-semibold text-slate-200 w-6">{row.solfege}</span>
-                  <span className="text-slate-400 truncate">{row.label}</span>
-                  <span className="font-mono text-[11px] text-slate-300">
-                    {res.rational ? `${res.rational.num}:${res.rational.den}` : res.primeFamily}
-                  </span>
+      {/* Alternate System Explorer (3:2 Chain / 31-EDO) OR 12-Tone Interval Matrix */}
+      {midiTuning.systemMode === 'pythagorean-chain' || midiTuning.systemMode === '31edo' ? (
+        <TuningSystemExplorer midiTuning={midiTuning} onChangeTuning={onChangeTuning} />
+      ) : (
+        <div className="space-y-1.5">
+          <span className="text-xs font-semibold text-slate-200">
+            Harmonic Profiler Interval Matrix
+          </span>
+          <div className="max-h-52 overflow-y-auto pr-1 space-y-1">
+            {INTERVAL_ROWS.map((row) => {
+              const activeFamily = midiTuning.intervals[row.key];
+              const res = resolveSemitoneInterval(row.semitone, midiTuning.intervals);
+              return (
+                <div
+                  key={row.key}
+                  className="flex items-center justify-between gap-2 bg-slate-950/70 border border-slate-800/80 rounded-lg px-2.5 py-1.5 text-xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono font-semibold text-slate-200 w-6">{row.solfege}</span>
+                    <span className="text-slate-400 truncate">{row.label}</span>
+                    <span className="font-mono text-[11px] text-slate-300">
+                      {res.rational ? `${res.rational.num}:${res.rational.den}` : res.primeFamily}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {row.options.map((opt) => {
+                      const selected = activeFamily === opt;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => handleIntervalChange(row.key, opt)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border transition cursor-pointer ${
+                            selected
+                              ? FAMILY_BADGE_STYLES[opt]
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {row.options.map((opt) => {
-                    const selected = activeFamily === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => handleIntervalChange(row.key, opt)}
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium border transition cursor-pointer ${
-                          selected
-                            ? FAMILY_BADGE_STYLES[opt]
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

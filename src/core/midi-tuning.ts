@@ -53,6 +53,11 @@ export type MidiTuningPresetId =
   | '5-limit'
   | 'pythagorean'
   | '7-limit'
+  | 'pythagorean-pentatonic'
+  | 'pythagorean-heptatonic'
+  | '31edo-meantone'
+  | '31edo-septimal'
+  | '31edo-chromatic'
   | 'custom';
 
 export interface MidiTuningConfig {
@@ -66,6 +71,16 @@ export interface MidiTuningConfig {
   pitchRootMidi: number;
   /** Phase alignment for polyphonic Rhythm Space MIDI voices ('sam-aligned' vs 'key-strike'). */
   rhythmPhaseMode: MidiPhaseMode;
+  /** Tuning system architecture beyond 12-tone semitone matrices. */
+  systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo';
+  /** Number of 3:2 fifths active in 'pythagorean-chain' mode (5 = Pentatonic, 7 = Heptatonic, 12 = Full). */
+  pythagoreanChainLength?: number;
+  /** Active subset in '31edo' mode. */
+  edo31Subset?: 'chromatic' | 'meantone-7' | 'pentatonic-5' | 'septimal';
+  /** Optional per-degree activation override mask. */
+  activeDegreeMask?: boolean[];
+  /** Hardware MIDI key mapping mode ('12-key' standard vs '31edo' step-per-key). */
+  midiStepMap?: '12-key' | '31edo';
 }
 
 export interface IntervalTuningResolution {
@@ -105,7 +120,14 @@ const TPL_POLARITY_EPSILON_D = 0.01;
 
 export const MIDI_TUNING_PRESETS: Record<
   Exclude<MidiTuningPresetId, 'custom'>,
-  { label: string; description: string; intervals: MidiIntervalTuningConfig }
+  {
+    label: string;
+    description: string;
+    intervals: MidiIntervalTuningConfig;
+    systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo';
+    pythagoreanChainLength?: number;
+    edo31Subset?: 'chromatic' | 'meantone-7' | 'pentatonic-5' | 'septimal';
+  }
 > = {
   '12tet': {
     label: '12-TET',
@@ -209,18 +231,90 @@ export const MIDI_TUNING_PRESETS: Record<
       M7: 'Qui',
     },
   },
+  'pythagorean-pentatonic': {
+    label: 'Pythagorean Pentatonic (5× 3:2)',
+    description: 'First 5 steps of the 3:2 chain (1/1, 9/8, 81/64, 3/2, 27/16) — avoiding minor 2nds and tritones.',
+    systemMode: 'pythagorean-chain',
+    pythagoreanChainLength: 5,
+    intervals: {
+      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
+      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
+    },
+  },
+  'pythagorean-heptatonic': {
+    label: 'Pythagorean Heptatonic (7× 3:2)',
+    description: 'Extends the 3:2 chain to 7 steps, introducing the 729/512 tritone and two 90.2¢ minor 2nds.',
+    systemMode: 'pythagorean-chain',
+    pythagoreanChainLength: 7,
+    intervals: {
+      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
+      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
+    },
+  },
+  '31edo-meantone': {
+    label: '31-EDO Meantone Diatonic',
+    description: '7-note quarter-comma meantone diatonic subset in 31-EDO with near-pure 5/4 thirds (387.1¢).',
+    systemMode: '31edo',
+    edo31Subset: 'meantone-7',
+    intervals: {
+      m2: 'Qui', M2: 'Tri', m3: 'Qui', M3: 'Qui', P4: 'Tri', TT: 'Qui',
+      P5: 'Tri', m6: 'Qui', M6: 'Qui', m7: 'Tri', M7: 'Qui',
+    },
+  },
+  '31edo-septimal': {
+    label: '31-EDO Septimal (7-Limit)',
+    description: '31-EDO septimal subset approximating 7/6 (7\\31), 5/4 (10\\31), 3/2 (18\\31), and 7/4 (25\\31).',
+    systemMode: '31edo',
+    edo31Subset: 'septimal',
+    intervals: {
+      m2: 'Qui', M2: 'Tri', m3: 'Sep', M3: 'Qui', P4: 'Tri', TT: 'Sep',
+      P5: 'Tri', m6: 'Qui', M6: 'Qui', m7: 'Sep', M7: 'Qui',
+    },
+  },
+  '31edo-chromatic': {
+    label: '31-EDO Chromatic (31 Steps)',
+    description: 'All 31 equal divisions of the octave (38.7¢ per step) for microtonal exploration.',
+    systemMode: '31edo',
+    edo31Subset: 'chromatic',
+    intervals: {
+      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
+      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
+    },
+  },
 };
+
+export function applyTuningPreset(
+  prev: MidiTuningConfig,
+  presetId: Exclude<MidiTuningPresetId, 'custom'>
+): MidiTuningConfig {
+  const preset = MIDI_TUNING_PRESETS[presetId];
+  return {
+    ...prev,
+    presetId,
+    intervals: { ...preset.intervals },
+    systemMode: preset.systemMode ?? 'chromatic-12',
+    pythagoreanChainLength: preset.pythagoreanChainLength ?? prev.pythagoreanChainLength ?? 5,
+    edo31Subset: preset.edo31Subset ?? prev.edo31Subset ?? 'meantone-7',
+    activeDegreeMask: undefined,
+    midiStepMap: preset.systemMode === '31edo' && preset.edo31Subset === 'chromatic' ? '31edo' : '12-key',
+  };
+}
 
 export function createDefaultMidiTuningConfig(
   presetId: Exclude<MidiTuningPresetId, 'custom'> = '5-limit'
 ): MidiTuningConfig {
+  const preset = MIDI_TUNING_PRESETS[presetId];
   return {
     presetId,
-    intervals: { ...MIDI_TUNING_PRESETS[presetId].intervals },
+    intervals: { ...preset.intervals },
     rhythmAnchorBand: DEFAULT_RHYTHM_ANCHOR_BAND,
     rhythmRootMidi: DEFAULT_RHYTHM_ROOT_MIDI,
     pitchRootMidi: DEFAULT_PITCH_ROOT_MIDI,
     rhythmPhaseMode: 'sam-aligned',
+    systemMode: preset.systemMode ?? 'chromatic-12',
+    pythagoreanChainLength: preset.pythagoreanChainLength ?? 5,
+    edo31Subset: preset.edo31Subset ?? 'meantone-7',
+    midiStepMap: '12-key',
   };
 }
 
@@ -373,6 +467,41 @@ export function midiToDWithTuning(
   const polarity = getPolarityFromD(currentFundamentalD);
   const rootMidi = polarity === 'rhythm' ? config.rhythmRootMidi : config.pitchRootMidi;
   const delta = midi - rootMidi;
+
+  if (config.midiStepMap === '31edo') {
+    const octavesFromRoot = Math.floor(delta / 31);
+    const step = ((delta % 31) + 31) % 31;
+    const ratioValue = Math.pow(2, step / 31);
+    const fullMultiplier = Math.pow(2, delta / 31);
+    let rawD =
+      polarity === 'rhythm'
+        ? config.rhythmAnchorBand - Math.log2(fullMultiplier)
+        : freqToD(midiToFreq(rootMidi, a4Hz) * fullMultiplier, tplHz);
+    let clampedToPolarity = false;
+    if (polarity === 'rhythm' && rawD < TPL_POLARITY_EPSILON_D) {
+      rawD = TPL_POLARITY_EPSILON_D;
+      clampedToPolarity = true;
+    } else if (polarity === 'pitch' && rawD > -TPL_POLARITY_EPSILON_D) {
+      rawD = -TPL_POLARITY_EPSILON_D;
+      clampedToPolarity = true;
+    }
+    return {
+      midi,
+      d: rawD,
+      freqHz: dToFreq(rawD, tplHz),
+      bpm: dToBpm(rawD, tplHz),
+      polarity,
+      clampedToPolarity,
+      semitone: step,
+      octavesFromRoot,
+      ratioValue,
+      rational: null,
+      primeFamily: '12TET',
+      centsFromEdo: 0,
+      address: resolveDuPeriodAddress(rawD),
+    };
+  }
+
   const octavesFromRoot = Math.floor(delta / 12);
   const semitone = ((delta % 12) + 12) % 12;
 

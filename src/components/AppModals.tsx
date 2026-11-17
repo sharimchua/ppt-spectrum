@@ -18,7 +18,7 @@ import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
 import { TuningModal } from './TuningModal';
 import { TuningQuickSearchModal } from './TuningQuickSearchModal';
-import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
+import { applyTuningPreset } from '../core/midi-tuning';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
 
@@ -366,11 +366,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onClose={onCloseTuningQuickSearch}
         activePresetId={midi.midiTuning.presetId}
         onSelectPreset={(presetId) =>
-          midi.setMidiTuning((prev) => ({
-            ...prev,
-            presetId,
-            intervals: { ...MIDI_TUNING_PRESETS[presetId].intervals },
-          }))
+          midi.setMidiTuning((prev) => applyTuningPreset(prev, presetId))
         }
         onOpenTuningStudio={midi.openTuningModal}
       />

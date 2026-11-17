@@ -40,6 +40,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/TuningModal.tsx` — Dedicated Tuning & Rhythm Map floating studio window wrapping `MidiTuningPanel`.
 - `src/components/TuningQuickSearchModal.tsx` — Command palette (`Shift+T`) for searching and applying tuning presets (`Shift+Enter` opens Tuning Studio).
 - `src/components/MidiTuningPanel.tsx` — Harmonic Profiler-style Prime Family tuning matrix, preset philosophy descriptions, Rhythm Space anchor selector, and live PPT Lens readout.
+- `src/components/TuningSystemExplorer.tsx` — Interactive explorer for 3:2 Pythagorean chains and 31-EDO subsets inside `MidiTuningPanel`.
 - `src/components/VirtualKeyboard.tsx` — On-screen Solfège piano keyboard supporting Latch/Hold play, hardware MIDI key lighting, TPL polarity flip, and optional interval distance bands.
 - `src/components/keyboard/keyboard-layout.ts` — Pure key geometry, Solfège colouring, and interval distance band builders for `VirtualKeyboard`.
 - `src/components/keyboard/IntervalBandsStrip.tsx` — Stacked Harmonic-Geometry-style interval ratio & frequency distance bands above the keybed.
