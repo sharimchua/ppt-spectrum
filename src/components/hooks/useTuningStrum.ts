@@ -62,6 +62,7 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   }, [midi.midiTuning.harmonyStructure]);
 
   const seqStartTimeRef = useRef<number>(0);
+  const seqIntervalRef = useRef<number | null>(null);
   const activeVoiceMidiRef = useRef<number | null>(null);
   const playDegreeRef = useRef<(index: number, list: TuningDegree[]) => void>(() => {});
   const placementD = scene.placements[0]?.d ?? -3.0;
@@ -150,6 +151,10 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   );
 
   const stopSequencer = useCallback(() => {
+    if (seqIntervalRef.current !== null) {
+      window.clearInterval(seqIntervalRef.current);
+      seqIntervalRef.current = null;
+    }
     setIsSequencing(false);
     releaseActiveVoice();
   }, [releaseActiveVoice]);
@@ -186,7 +191,13 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
 
     tick();
     const intervalId = window.setInterval(tick, Math.min(40, Math.floor(stepMs / 3)));
-    return () => window.clearInterval(intervalId);
+    seqIntervalRef.current = intervalId;
+    return () => {
+      window.clearInterval(intervalId);
+      if (seqIntervalRef.current === intervalId) {
+        seqIntervalRef.current = null;
+      }
+    };
   }, [isSequencing, activeDegrees, sequencePattern, sequenceTempoBpm]);
 
   return {
