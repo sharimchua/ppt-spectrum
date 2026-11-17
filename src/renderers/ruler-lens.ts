@@ -11,6 +11,7 @@ import { getApertureColours, endpointToRulerD } from './filter-render-utils';
 import { evaluateDutyGain } from '../core/filter-eval';
 import { formatEndpoint } from '../core/endpoint-parse';
 import { RangeCondition } from '../core/filter-types';
+import { canPlaceHorizontalLabel, HorizontalInterval } from './label-layout-utils';
 
 export class RulerLensRenderer implements RegisteredLensRenderer {
   public id = 'ruler';
@@ -83,7 +84,8 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
     // TPL Label
     ctx.fillStyle = '#E13610';
     ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'TPL (25.8Hz)' : 'TPL (25.8 Hz / 38.7 ms)', xTPL + 5, isShort ? 22 : 30);
+    ctx.textAlign = 'left';
+    ctx.fillText(isCompact ? 'TPL (25.8Hz)' : 'TPL (25.8 Hz / 38.7 ms)', xTPL + 5, isShort ? 14 : 18);
     ctx.restore();
 
     // 2. Main baseline ruler
@@ -189,6 +191,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
 
       // Range condition span boundaries & ratio/cents labels
       const rangeConditions = filter.conditions.filter((c): c is RangeCondition => c.kind === 'range');
+      const occupiedSpanLabels: HorizontalInterval[] = [];
       for (const rc of rangeConditions) {
         for (const span of rc.spans) {
           if (span.lo) {
@@ -205,11 +208,15 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
               ctx.setLineDash([]);
 
               if (!isCompact && span.lo.unit !== 'd') {
+                const loText = formatEndpoint(span.lo);
                 ctx.font = '7px JetBrains Mono, monospace';
-                ctx.fillStyle = colours.text;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText(formatEndpoint(span.lo), loX, baselineY - apertureMaxH * 0.7 - 2);
+                const hw = ctx.measureText(loText).width / 2;
+                if (canPlaceHorizontalLabel(loX, hw, occupiedSpanLabels, 4)) {
+                  ctx.fillStyle = colours.text;
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'bottom';
+                  ctx.fillText(loText, loX, baselineY - apertureMaxH * 0.7 - 2);
+                }
               }
             }
           }
@@ -227,11 +234,15 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
               ctx.setLineDash([]);
 
               if (!isCompact && span.hi.unit !== 'd') {
+                const hiText = formatEndpoint(span.hi);
                 ctx.font = '7px JetBrains Mono, monospace';
-                ctx.fillStyle = colours.text;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText(formatEndpoint(span.hi), hiX, baselineY - apertureMaxH * 0.7 - 2);
+                const hw = ctx.measureText(hiText).width / 2;
+                if (canPlaceHorizontalLabel(hiX, hw, occupiedSpanLabels, 4)) {
+                  ctx.fillStyle = colours.text;
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'bottom';
+                  ctx.fillText(hiText, hiX, baselineY - apertureMaxH * 0.7 - 2);
+                }
               }
             }
           }
@@ -266,7 +277,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
       ctx.font = 'bold 8px JetBrains Mono, monospace';
       const bWidth = ctx.measureText(badgeText).width;
       const badgeX = Math.max(bWidth / 2 + 8, Math.min(width - bWidth / 2 - 8, filterCenterX));
-      const badgeY = Math.max(14, baselineY - apertureMaxH - 8);
+      const badgeY = Math.max(isShort ? 28 : 34, baselineY - apertureMaxH - 8);
 
       ctx.fillStyle = 'rgba(11, 14, 23, 0.9)';
       ctx.fillRect(badgeX - bWidth / 2 - 4, badgeY - 6, bWidth + 8, 13);
@@ -351,7 +362,7 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
         envEnabled &&
         scene.envelope?.rhythmMode === 'supercycle';
       const envTurns = audioPhase > 0 ? audioPhase : transportTime * f0;
-      const labelledDs: number[] = [];
+      const occupiedPartialLabels: HorizontalInterval[] = [];
 
       for (const p of partials) {
         if (p.filteredAmp <= 0.001 && p.amp <= 0.001) continue;
@@ -460,30 +471,28 @@ export class RulerLensRenderer implements RegisteredLensRenderer {
           }
         }
 
-        // Label anchored to structural tip (avoid overdrawing when partials are close on mobile)
-        const minLabelGapD = isCompact ? 0.42 : 0.008;
-        const alreadyLabelledAtD = labelledDs.some((dVal) => Math.abs(dVal - p.d) < minLabelGapD);
-        if (!alreadyLabelledAtD) {
-          labelledDs.push(p.d);
-          let displayLabel = p.label || addr.syllable;
-          if (labelMode === 'pitch') {
-            const pReg = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz);
-            displayLabel = isCompact ? `${pReg.note}${pReg.octave}` : pReg.formatted;
-          } else if (labelMode === 'bpm') {
-            displayLabel = isCompact
-              ? `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)}`
-              : `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
-          } else if (labelMode === 'solfege') {
-            displayLabel = addr.formatted;
-          } else if (labelMode === 'duperiod') {
-            displayLabel = isCompact ? `${p.d.toFixed(1)}` : `d: ${p.d.toFixed(2)}`;
-          }
+        // Label anchored to structural tip (pixel-based collision guard across desktop and mobile)
+        let displayLabel = p.label || addr.syllable;
+        if (labelMode === 'pitch') {
+          const pReg = freqToPitchRegister(p.freqHz, scene.anchors.tuningA4Hz);
+          displayLabel = isCompact ? `${pReg.note}${pReg.octave}` : pReg.formatted;
+        } else if (labelMode === 'bpm') {
+          displayLabel = isCompact
+            ? `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)}`
+            : `${dToBpm(p.d, scene.anchors.tplFrequencyHz).toFixed(0)} BPM`;
+        } else if (labelMode === 'solfege') {
+          displayLabel = addr.formatted;
+        } else if (labelMode === 'duperiod') {
+          displayLabel = isCompact ? `${p.d.toFixed(1)}` : `d: ${p.d.toFixed(2)}`;
+        }
 
+        ctx.font = isCompact ? '8px Inter, sans-serif' : '9px Inter, sans-serif';
+        const labelHalfW = ctx.measureText(displayLabel).width / 2;
+        const clampedX = Math.max(labelHalfW + 6, Math.min(width - labelHalfW - 6, px));
+        if (canPlaceHorizontalLabel(clampedX, labelHalfW, occupiedPartialLabels, isCompact ? 6 : 4)) {
           ctx.fillStyle = '#ffffff';
-          ctx.font = isCompact ? '8px Inter, sans-serif' : '9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          const clampedX = Math.max(20, Math.min(width - 20, px));
-          ctx.fillText(displayLabel, clampedX, Math.max(12, py - 7));
+          ctx.fillText(displayLabel, clampedX, Math.max(isShort ? 26 : 32, py - 7));
         }
         ctx.restore();
 

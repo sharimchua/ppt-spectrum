@@ -20,7 +20,9 @@ The `src/renderers` domain contains all high-performance 2D Canvas and WebGL gra
 - `src/renderers/alignment-meter-lens.ts` — Real-time Plomp-Levelt sensory roughness curve and Tenney harmonic complexity meter.
 - `src/renderers/filter-render-utils.ts` — Pure rendering utilities for filter aperture overlays and onset ghosting, adhering to WCAG 2.2 Three-Flashes safety.
 - `src/renderers/midi-polyphony-utils.ts` — Synthesises a unified virtual polyphonic MIDI `Scene` (with exact rational snapping for Just ratios) so all lenses render held chords/polyrhythms identically to authored shapes.
+- `src/renderers/label-layout-utils.ts` — Pure canvas text truncation, tick label step thinning, and horizontal interval collision helpers.
 - `src/renderers/__tests__/filter-overlay.test.ts` — Unit test suite for aperture colour palettes, endpoint ruler mapping, and photosensitivity governor.
+- `src/renderers/__tests__/label-layout-utils.test.ts` — Unit test suite for canvas label truncation, tick thinning, and horizontal overlap prevention.
 - `src/renderers/__tests__/midi-polyphony.test.ts` — Unit test suite for polyphonic MIDI stream ratios, Sam-Aligned phase offsets, and partial capping.
 - `src/renderers/__tests__/performance-profile.test.ts` — Unit test suite for performance band particle budgets and DPR caps.
 

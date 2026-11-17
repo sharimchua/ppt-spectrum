@@ -7,6 +7,12 @@ import {
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import {
+  truncateTextToFit,
+  computeTickLabelStep,
+  canPlaceHorizontalLabel,
+  HorizontalInterval,
+} from './label-layout-utils';
 
 export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
   public id = 'alignment-meter';
@@ -114,16 +120,19 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     const windowCycles = analysis.windowCycles;
 
     ctx.save();
+    ctx.textAlign = 'left';
 
     const isCompact = width < 480;
     const isShort = height < 300;
+    const measure = (s: string) => ctx.measureText(s).width;
 
     // 1. Metric Cards
-    const padX = isCompact ? 12 : 20;
+    const padX = isCompact ? 10 : 20;
     const gapX = isCompact ? 6 : 10;
     const boxY = isShort ? 8 : 12;
     const boxH = isShort ? 36 : 44;
     const boxW = (width - padX * 2 - gapX * 2) / 3;
+    const cardInnerW = Math.max(16, boxW - 12);
 
     // Metric 1: Realignment Coherence Score
     const coherencePercent = Math.round(analysis.coherenceScore * 100);
@@ -136,10 +145,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         : '#fb7185';
     const coherenceStatus =
       analysis.coherenceScore >= 0.7
-        ? 'HARMONIC CADENCE'
+        ? (isCompact ? 'HARMONIC' : 'HARMONIC CADENCE')
         : analysis.coherenceScore >= 0.4
-        ? 'COMPOUND STRIDE'
-        : 'INHARMONIC DISPERSED';
+        ? (isCompact ? 'COMPOUND' : 'COMPOUND STRIDE')
+        : (isCompact ? 'INHARMONIC' : 'INHARMONIC DISPERSED');
 
     ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -152,19 +161,13 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = '#94a3b8';
     ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
     const coherenceLabel = analysis.hasActiveFilter && baseCoherencePercent !== undefined
-      ? (isCompact ? `COHERENCE (BASE ${baseCoherencePercent}%)` : `REALIGNMENT COHERENCE • BASE ${baseCoherencePercent}%`)
+      ? (isCompact ? `COHERENCE · B${baseCoherencePercent}%` : `REALIGNMENT COHERENCE • BASE ${baseCoherencePercent}%`)
       : (isCompact ? 'COHERENCE' : 'REALIGNMENT COHERENCE');
-    ctx.fillText(coherenceLabel, padX + 6, boxY + 12);
+    ctx.fillText(truncateTextToFit(measure, coherenceLabel, cardInnerW), padX + 6, boxY + 12);
 
     ctx.fillStyle = coherenceColor;
     ctx.font = isCompact ? 'bold 11px JetBrains Mono, monospace' : 'bold 13px JetBrains Mono, monospace';
-    ctx.fillText(`${coherencePercent}%`, padX + 6, boxY + (isShort ? 26 : 30));
-
-    if (analysis.hasActiveFilter && baseCoherencePercent !== undefined && !isCompact && boxW > 110) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '8px JetBrains Mono, monospace';
-      ctx.fillText(`(Base: ${baseCoherencePercent}%)`, padX + 44, boxY + (isShort ? 26 : 30));
-    }
+    ctx.fillText(truncateTextToFit(measure, `${coherencePercent}%`, cardInnerW), padX + 6, boxY + (isShort ? 26 : 30));
 
     // Mini coherence status bar
     const barW = Math.max(20, boxW - 12);
@@ -183,16 +186,16 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'STRIDE' : 'CADENCE STRIDE', padX + boxW + gapX + 6, boxY + 12);
+    ctx.fillText(truncateTextToFit(measure, isCompact ? 'STRIDE' : 'CADENCE STRIDE', cardInnerW), padX + boxW + gapX + 6, boxY + 12);
 
     ctx.fillStyle = '#c084fc';
     ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 12px JetBrains Mono, monospace';
     const strideText = analysis.isAperiodic
-      ? '∞ Aperiodic'
+      ? (isCompact ? '∞ Aper.' : '∞ Aperiodic')
       : analysis.coincidenceStride === 1
-      ? '1 Root Turn'
-      : `${analysis.coincidenceStride} Root Turns`;
-    ctx.fillText(strideText, padX + boxW + gapX + 6, boxY + (isShort ? 26 : 30));
+      ? (isCompact ? '1 Turn' : '1 Root Turn')
+      : (isCompact ? `${analysis.coincidenceStride} Turns` : `${analysis.coincidenceStride} Root Turns`);
+    ctx.fillText(truncateTextToFit(measure, strideText, cardInnerW), padX + boxW + gapX + 6, boxY + (isShort ? 26 : 30));
 
     // Metric 3: Active Architecture
     ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
@@ -203,22 +206,22 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = isCompact ? '7px JetBrains Mono, monospace' : '7.5px JetBrains Mono, monospace';
-    ctx.fillText(isCompact ? 'SPECTRUM' : 'ACTIVE ARCHITECTURE', padX + (boxW + gapX) * 2 + 6, boxY + 12);
+    ctx.fillText(truncateTextToFit(measure, isCompact ? 'SPECTRUM' : 'ACTIVE ARCHITECTURE', cardInnerW), padX + (boxW + gapX) * 2 + 6, boxY + 12);
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = isCompact ? 'bold 10px JetBrains Mono, monospace' : 'bold 11px JetBrains Mono, monospace';
     const archText = analysis.hasActiveFilter
-      ? `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P (Filt)`
+      ? (isCompact ? `${analysis.activeVoicesCount}V·${analysis.activePartialsCount}P*` : `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P (Filt)`)
       : `${analysis.activeVoicesCount}V • ${analysis.activePartialsCount}P`;
-    ctx.fillText(archText, padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 26 : 30));
+    ctx.fillText(truncateTextToFit(measure, archText, cardInnerW), padX + (boxW + gapX) * 2 + 6, boxY + (isShort ? 26 : 30));
 
     // Layout partitioning: Tracks area vs Convergence wave
     const mainTop = boxY + boxH + (isShort ? 8 : 12);
     const mainBottom = height - (isShort ? 16 : 22);
     const mainH = Math.max(60, mainBottom - mainTop);
 
-    const plotLeft = isCompact ? 72 : 115;
-    const plotRight = width - (isCompact ? 12 : 20);
+    const plotLeft = isCompact ? Math.min(68, Math.max(52, Math.floor(width * 0.24))) : 115;
+    const plotRight = width - (isCompact ? 10 : 20);
     const plotW = Math.max(40, plotRight - plotLeft);
 
     const trackCount = Math.min(5, analysis.tracks.length);
@@ -249,9 +252,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         // Voice track label pill
         ctx.fillStyle = baseColor;
         ctx.font = isCompact ? 'bold 7.5px JetBrains Mono, monospace' : 'bold 8px JetBrains Mono, monospace';
-        const labelText = track.name.length > (isCompact ? 10 : 16)
-          ? `${track.name.slice(0, isCompact ? 9 : 15)}â€¦`
-          : track.name;
+        const labelText = truncateTextToFit(measure, track.name, Math.max(24, plotLeft - padX - 6));
         ctx.fillText(labelText, padX, rowCenterY + 3);
 
         if (isAperiodic) {
@@ -420,8 +421,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 7px JetBrains Mono, monospace';
-      ctx.fillText('ONSET ð„€ð„€', plotLeft + pickupW - (isCompact ? 28 : 36), waveTop + 8);
-      ctx.fillText('Ï„=0 (Strike)', plotLeft, waveBottom + 10);
+      if (pickupW >= 32) {
+        ctx.fillText(truncateTextToFit(measure, 'ONSET', pickupW - 4), plotLeft + 4, waveTop + 8);
+      }
+      ctx.fillText(pickupW >= 62 ? 'τ=0 (Strike)' : 'τ=0', plotLeft, waveBottom + 10);
 
       // Render pickup curve from tau = 0 to tau = 0.35
       const pickupSamples = 24;
@@ -466,8 +469,10 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.lineTo(plotLeft - 3.5, waveBottom - waveH);
       ctx.closePath();
       ctx.fill();
-      ctx.font = 'bold 7px JetBrains Mono, monospace';
-      ctx.fillText(isCompact ? '100%' : '100% STRIKE', plotLeft + 5, waveBottom - waveH + 3);
+      if (!isCompact && waveH >= 42) {
+        ctx.font = 'bold 7px JetBrains Mono, monospace';
+        ctx.fillText('100% STRIKE', plotLeft + 5, waveBottom - waveH + 16);
+      }
 
       // Section B: Ongoing Inharmonic Horizon (Block-advancing Window)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -487,8 +492,11 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       ctx.stroke();
       ctx.fillStyle = '#f87171';
       ctx.font = '7px JetBrains Mono, monospace';
+      const thresholdText = isCompact || ongoingW < 280
+        ? '100% UNREACHED'
+        : '100% REALIGNMENT THRESHOLD (UNREACHED IN APERIODIC SPACE)';
       ctx.fillText(
-        isCompact ? '100% UNREACHED' : '100% REALIGNMENT THRESHOLD (UNREACHED IN APERIODIC SPACE)',
+        truncateTextToFit(measure, thresholdText, Math.max(40, ongoingW - 12)),
         ongoingLeft + 6,
         waveTop + 8
       );
@@ -551,10 +559,11 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       // Ongoing window bottom label
       ctx.fillStyle = '#64748b';
       ctx.font = '7.5px JetBrains Mono, monospace';
+      const horizonLabel = isAudioActive
+        ? (isCompact ? `τ=${ongoingStartTurn.toFixed(0)}–${(ongoingStartTurn + ongoingSpan).toFixed(0)}` : `Ongoing Horizon: τ=${ongoingStartTurn.toFixed(0)} to ${(ongoingStartTurn + ongoingSpan).toFixed(0)}`)
+        : (isCompact ? `τ=0–${ongoingSpan.toFixed(0)}` : `Ongoing Horizon: τ=0 to ${ongoingSpan.toFixed(0)}`);
       ctx.fillText(
-        isAudioActive
-          ? `Ongoing Horizon: Ï„=${ongoingStartTurn.toFixed(0)} to ${(ongoingStartTurn + ongoingSpan).toFixed(0)}`
-          : `Ongoing Horizon: Ï„=0 to ${ongoingSpan.toFixed(0)}`,
+        truncateTextToFit(measure, horizonLabel, Math.max(40, ongoingW - 4)),
         ongoingLeft,
         waveBottom + 10
       );
@@ -589,7 +598,11 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
 
       ctx.save();
       ctx.setLineDash([2, 3]);
-      for (let c = 0; c <= Math.floor(windowCycles); c++) {
+      const maxCycleIdx = Math.floor(windowCycles);
+      const tickStep = computeTickLabelStep(Math.max(1, maxCycleIdx), plotW, isCompact ? 42 : 52);
+      const occupiedTickLabels: HorizontalInterval[] = [];
+
+      for (let c = 0; c <= maxCycleIdx; c++) {
         const cx = plotLeft + (c / windowCycles) * plotW;
         ctx.strokeStyle = c === 0 || c === windowCycles ? 'rgba(251, 191, 36, 0.45)' : 'rgba(56, 189, 248, 0.25)';
         ctx.beginPath();
@@ -597,14 +610,22 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.lineTo(cx, waveBottom);
         ctx.stroke();
 
-        ctx.fillStyle = c === 0 || c === windowCycles ? '#fbbf24' : '#64748b';
+        const isEndpoint = c === 0 || c === maxCycleIdx;
+        if (!isEndpoint && c % tickStep !== 0) continue;
+
+        ctx.fillStyle = isEndpoint ? '#fbbf24' : '#64748b';
         ctx.font = '7.5px JetBrains Mono, monospace';
         const cycleLabel = c === 0
-          ? 'Ï„=0 (Downbeat)'
-          : c === windowCycles
-          ? `Ï„=${c} (Realign)`
-          : `Ï„=${c}`;
-        ctx.fillText(cycleLabel, cx - (c === 0 ? 0 : (c === windowCycles ? 32 : 12)), waveBottom + (isShort ? 10 : 12));
+          ? (isCompact ? 'τ=0' : 'τ=0 (Downbeat)')
+          : c === maxCycleIdx
+          ? (isCompact ? `τ=${c}` : `τ=${c} (Realign)`)
+          : `τ=${c}`;
+        const labelW = measure(cycleLabel);
+        const alignX = c === 0 ? cx + labelW / 2 : c === maxCycleIdx ? cx - labelW / 2 : cx;
+        if (canPlaceHorizontalLabel(alignX, labelW / 2, occupiedTickLabels, 6)) {
+          ctx.textAlign = c === 0 ? 'left' : c === maxCycleIdx ? 'right' : 'center';
+          ctx.fillText(cycleLabel, cx, waveBottom + (isShort ? 10 : 12));
+        }
       }
       ctx.restore();
 
@@ -642,12 +663,18 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.stroke();
         ctx.restore();
 
-        // Legend
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+        // Legend (right-aligned with guaranteed gap)
+        ctx.save();
         ctx.font = '7px JetBrains Mono, monospace';
-        ctx.fillText('╌╌ Base Shape', plotRight - (isCompact ? 95 : 125), waveTop + 8);
+        ctx.textAlign = 'right';
+        const filtLabel = isCompact ? '— Filt' : '— Filtered Wave';
+        const baseLabel = isCompact ? '╌╌ Base' : '╌╌ Base Shape';
+        const filtW = measure(filtLabel);
         ctx.fillStyle = '#38bdf8';
-        ctx.fillText('— Filtered Wave', plotRight - (isCompact ? 45 : 55), waveTop + 8);
+        ctx.fillText(filtLabel, plotRight, waveTop + 8);
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+        ctx.fillText(baseLabel, plotRight - filtW - 10, waveTop + 8);
+        ctx.restore();
       }
 
       if (numS > 1) {
@@ -681,6 +708,7 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
       }
 
       // Convergence Diamond Markers for periodic shapes
+      const occupiedPeakLabels: HorizontalInterval[] = [];
       for (const peak of analysis.peaks) {
         if (peak.value < 0.62) continue;
         const px = plotLeft + (peak.tau / windowCycles) * plotW;
@@ -696,9 +724,18 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
         ctx.fill();
 
         if (peak.value >= 0.72) {
-          ctx.fillStyle = peak.isDownbeat ? '#fde047' : '#7dd3fc';
+          const peakLabel = peak.isDownbeat ? 'REALIGN' : 'COINCIDE';
           ctx.font = 'bold 7px JetBrains Mono, monospace';
-          ctx.fillText(peak.isDownbeat ? 'REALIGN' : 'COINCIDE', px - 12, py - 6);
+          const halfW = measure(peakLabel) / 2;
+          const clampedX = Math.max(plotLeft + halfW, Math.min(plotRight - halfW, px));
+          const collidesWithLegend = analysis.hasActiveFilter && clampedX + halfW > plotRight - (isCompact ? 80 : 140) && py - 6 < waveTop + 14;
+          if (!collidesWithLegend && canPlaceHorizontalLabel(clampedX, halfW, occupiedPeakLabels, 6)) {
+            ctx.save();
+            ctx.fillStyle = peak.isDownbeat ? '#fde047' : '#7dd3fc';
+            ctx.textAlign = 'center';
+            ctx.fillText(peakLabel, clampedX, Math.max(waveTop + 8, py - 6));
+            ctx.restore();
+          }
 
           if (isAudioActive) {
             this.dynamicLights.push({
@@ -733,8 +770,9 @@ export class AlignmentMeterLensRenderer implements RegisteredLensRenderer {
     // Status label at bottom-left
     ctx.fillStyle = coherenceColor;
     ctx.font = 'bold 7.5px JetBrains Mono, monospace';
-    const domainLabel = isPitchSpace ? 'PITCH SPACE' : 'RHYTHM SPACE';
-    ctx.fillText(`${domainLabel} â€¢ ${coherenceStatus}`, padX, height - 6);
+    ctx.textAlign = 'left';
+    const domainLabel = isPitchSpace ? (isCompact ? 'PITCH' : 'PITCH SPACE') : (isCompact ? 'RHYTHM' : 'RHYTHM SPACE');
+    ctx.fillText(truncateTextToFit(measure, `${domainLabel} • ${coherenceStatus}`, width - padX * 2), padX, height - 6);
 
     ctx.restore();
   }

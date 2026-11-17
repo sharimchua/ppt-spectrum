@@ -5,6 +5,7 @@ import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import { truncateTextToFit } from './label-layout-utils';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
 
@@ -144,13 +145,13 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     const headerTitle = coincidence.isAperiodic
-      ? (isCompact ? 'APERIODIC ORBITS (Inharmonic)' : 'APERIODIC ORBITS (Inharmonic • Never Aligns)')
+      ? (isCompact ? 'APERIODIC ORBITS' : 'APERIODIC ORBITS (Inharmonic • Never Aligns)')
       : !isCompactSuperCycle
-      ? `CONTINUOUS ORBITS (${coincidence.rootTurnsToAlign} Root Turns)`
+      ? (isCompact ? `ORBITS (${coincidence.rootTurnsToAlign}T)` : `CONTINUOUS ORBITS (${coincidence.rootTurnsToAlign} Root Turns)`)
       : superD === 1
-      ? `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms • 1 Turn)`
-      : `SUPER-CYCLE (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms • ${superD} Turns)`;
-    ctx.fillText(headerTitle, centerX, Math.max(14, centerY - maxR - 12));
+      ? (isCompact ? `SAM (${(ghost.cycleDurationSec * 1000).toFixed(0)}ms · 1T)` : `CYCLE / SAM (${(ghost.cycleDurationSec * 1000).toFixed(1)} ms • 1 Turn)`)
+      : (isCompact ? `SUPER (${(coincidence.superCycleDurationSec * 1000).toFixed(0)}ms · ${superD}T)` : `SUPER-CYCLE (${(coincidence.superCycleDurationSec * 1000).toFixed(1)} ms • ${superD} Turns)`);
+    ctx.fillText(truncateTextToFit((s) => ctx.measureText(s).width, headerTitle, width - 16), centerX, Math.max(14, centerY - maxR - 12));
     ctx.restore();
 
     // Filter Supercycle Indicator (when any active condition has supercycle length > 1)

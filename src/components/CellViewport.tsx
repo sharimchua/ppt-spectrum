@@ -602,7 +602,8 @@ export const CellViewport: React.FC<CellViewportProps> = ({
                 <MoveVertical className="w-3.5 h-3.5 text-purple-400 shrink-0" />
               )}
               <span className="text-[10px] font-mono font-semibold text-slate-200">
-                {parentDirection === 'row' ? 'Width' : 'Height'} {localSharePercent ?? 50}%
+                <span className="hidden sm:inline">{parentDirection === 'row' ? 'Width' : 'Height'} </span>
+                {localSharePercent ?? 50}%
               </span>
               <button
                 onClick={() => onNudgeCellFlex(cell.id, -0.25)}

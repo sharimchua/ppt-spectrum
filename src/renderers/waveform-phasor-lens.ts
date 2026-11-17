@@ -4,6 +4,7 @@ import { calculateCoincidenceCycle } from '../core/alignment';
 import { dToFreq } from '../core/axis';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import { canPlaceHorizontalLabel, HorizontalInterval } from './label-layout-utils';
 
 export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
   public id = 'waveform-phasor';
@@ -139,6 +140,8 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
     let currentFrameHitWall = false;
     let hitWallY = waveCenterY;
     const superD = coincidence.isAperiodic ? Infinity : coincidence.rootTurnsToAlign;
+    const isCompact = width < 480;
+    const occupiedBoundaryLabels: HorizontalInterval[] = [];
 
     for (let c = startCycle; c <= endCycle; c++) {
       const tBoundary = c + rotationTurns;
@@ -198,17 +201,25 @@ export class WaveformPhasorLensRenderer implements RegisteredLensRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Boundary label
-        ctx.fillStyle = isSuperSam ? (isAtContact ? '#ffffff' : '#E13610') : 'rgba(148, 163, 184, 0.75)';
-        ctx.font = 'bold 8px JetBrains Mono, monospace';
-        ctx.textAlign = 'center';
-        const turnWithinSuper = !coincidence.isAperiodic
-          ? (((rootTurnIndex % superD) + superD) % superD) + 1
-          : Math.abs(rootTurnIndex) + 1;
-        const boundaryLabel = isSuperSam
-          ? (superD > 1 ? `SAM (1/${superD})` : 'SAM / APEX')
-          : (coincidence.isAperiodic ? `ROOT #${turnWithinSuper}` : `ROOT ${turnWithinSuper}/${superD}`);
-        ctx.fillText(boundaryLabel, bx, waveCenterY - waveAmpScale - 18);
+        // Boundary label (skip non-Sam on compact, and prevent overlapping neighbours or TERMINUS)
+        const shouldShowLabel = !isCompact || isSuperSam;
+        if (shouldShowLabel) {
+          ctx.fillStyle = isSuperSam ? (isAtContact ? '#ffffff' : '#E13610') : 'rgba(148, 163, 184, 0.75)';
+          ctx.font = 'bold 8px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          const turnWithinSuper = !coincidence.isAperiodic
+            ? (((rootTurnIndex % superD) + superD) % superD) + 1
+            : Math.abs(rootTurnIndex) + 1;
+          const boundaryLabel = isSuperSam
+            ? (superD > 1 ? `SAM (1/${superD})` : 'SAM / APEX')
+            : (coincidence.isAperiodic ? `ROOT #${turnWithinSuper}` : `ROOT ${turnWithinSuper}/${superD}`);
+          const halfW = ctx.measureText(boundaryLabel).width / 2;
+          const labelY = Math.max(yTop + 14, waveCenterY - waveAmpScale - 18);
+          const nearTerminus = bx + halfW > xEnd - 56 && labelY < yTop + 18;
+          if (!nearTerminus && canPlaceHorizontalLabel(bx, halfW, occupiedBoundaryLabels, 6)) {
+            ctx.fillText(boundaryLabel, bx, labelY);
+          }
+        }
 
         // Travelling waveform node
         const nodeRadius = isSuperSam ? (isAtContact ? 5.5 : 4.5) : 3.2;

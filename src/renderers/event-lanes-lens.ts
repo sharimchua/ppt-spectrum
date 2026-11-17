@@ -7,6 +7,7 @@ import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
+import { truncateTextToFit, computeTickLabelStep } from './label-layout-utils';
 
 export class EventLanesLensRenderer implements RegisteredLensRenderer {
   public id = 'event-lanes';
@@ -82,19 +83,41 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     const isCompact = width < 480;
 
     ctx.save();
+    const measure = (s: string) => ctx.measureText(s).width;
 
     const topMargin = 18;
-    const bottomMargin = 32;
-    const availableHeight = height - topMargin - bottomMargin;
-    const numLanes = activePartials.length;
-    const laneHeight = Math.max(10, availableHeight / Math.max(1, numLanes));
+    const bottomMargin = 34;
+    const availableHeight = Math.max(24, height - topMargin - bottomMargin);
+    const minLaneHeight = isCompact ? 11 : 12;
+    const maxVisibleLanes = Math.max(1, Math.floor(availableHeight / minLaneHeight));
 
-    const leftX = isCompact ? 76 : 110;
-    const rightX = width - (isCompact ? 16 : 25);
-    const laneWidth = rightX - leftX;
+    // When there are more partials than can fit without overflowing COMPOSITE,
+    // keep the fundamental + highest-amplitude partials in their original order.
+    let visiblePartials = activePartials;
+    let hiddenCount = 0;
+    if (activePartials.length > maxVisibleLanes) {
+      hiddenCount = activePartials.length - maxVisibleLanes;
+      const indexed = activePartials.map((p, idx) => ({ p, idx }));
+      const selected = new Set<number>([0]);
+      indexed
+        .slice(1)
+        .sort((a, b) => b.p.amp - a.p.amp)
+        .slice(0, maxVisibleLanes - 1)
+        .forEach((item) => selected.add(item.idx));
+      visiblePartials = indexed.filter((item) => selected.has(item.idx)).map((item) => item.p);
+    }
+
+    const numLanes = visiblePartials.length;
+    const laneHeight = availableHeight / Math.max(1, numLanes);
+
+    const leftX = isCompact ? Math.min(76, Math.max(54, Math.floor(width * 0.26))) : 110;
+    const rightX = width - (isCompact ? 14 : 25);
+    const laneWidth = Math.max(40, rightX - leftX);
+    const labelMaxW = Math.max(24, leftX - 10);
 
     // Draw Root Turn subdivision lines when window spans multiple Root Turns
     if (windowTurns > 1) {
+      const turnLabelStep = computeTickLabelStep(windowTurns, laneWidth, isCompact ? 22 : 28);
       for (let b = 0; b <= windowTurns; b++) {
         const bx = leftX + (b / windowTurns) * laneWidth;
         ctx.strokeStyle = b === 0 || b === windowTurns
@@ -106,7 +129,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
         ctx.lineTo(bx, height - 22);
         ctx.stroke();
 
-        if (b < windowTurns) {
+        if (b < windowTurns && b % turnLabelStep === 0) {
           ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
           ctx.font = '7.5px JetBrains Mono, monospace';
           ctx.textAlign = 'left';
@@ -129,8 +152,9 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     let compositeHits = 0;
 
     // Render individual partial lanes
+    const laneFontSize = laneHeight < 14 ? 7.5 : isCompact ? 8.5 : 10;
     for (let i = 0; i < numLanes; i++) {
-      const p = activePartials[i];
+      const p = visiblePartials[i];
       const isAttenuated = p.filteredAmp <= 0.001;
       const y = topMargin + i * laneHeight;
       const addr = resolveDuPeriodAddress(p.d);
@@ -147,13 +171,13 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
 
       // Lane descriptor (dimmed if attenuated)
       ctx.fillStyle = isAttenuated ? 'rgba(148, 163, 184, 0.4)' : neonCol;
-      ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
+      ctx.font = `bold ${laneFontSize}px JetBrains Mono, monospace`;
       ctx.textAlign = 'right';
       const phaseTag = !isCompact && p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
       const laneText = isCompact
         ? `${addr.syllable} ${p.ratioValue.toFixed(2)}x`
         : `${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`;
-      ctx.fillText(laneText, leftX - 6, y + laneHeight / 2 + 3);
+      ctx.fillText(truncateTextToFit(measure, laneText, labelMaxW), leftX - 6, y + laneHeight / 2 + 3);
 
       const ctxPartial: PartialContext = {
         partialD: p.d,
@@ -228,9 +252,10 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     ctx.stroke();
 
     ctx.fillStyle = '#E13610';
-    ctx.font = 'bold 9px JetBrains Mono, monospace';
+    ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('COMPOSITE', leftX - 10, compositeY + 3);
+    const compositeLabel = hiddenCount > 0 ? `+${hiddenCount} · COMP` : (isCompact ? 'COMP' : 'COMPOSITE');
+    ctx.fillText(truncateTextToFit(measure, compositeLabel, labelMaxW), leftX - 6, compositeY + 3);
 
     if (compositeHits > 0) {
       const dotRadius = Math.min(10, 4 + compositeHits * 2);

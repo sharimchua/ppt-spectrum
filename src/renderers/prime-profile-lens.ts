@@ -3,6 +3,7 @@ import { calculatePrimeProfile } from '../core/shape';
 import { PRIME_FAMILY_COLORS } from '../core/ppt-constants';
 import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
+import { truncateTextToFit } from './label-layout-utils';
 
 export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
   public id = 'prime-profile';
@@ -42,14 +43,16 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
           'higher': '>11 (Inharmonic)',
         };
 
-    const barStartX = isCompact ? 16 : (width - width * 0.75) / 2;
-    const labelColW = isCompact ? 96 : 160;
+    const barStartX = isCompact ? 12 : Math.max(16, (width - width * 0.75) / 2);
+    const labelColW = isCompact ? Math.min(92, Math.floor(width * 0.4)) : 160;
+    const pctColW = isCompact ? 38 : 48;
     const startY = isShort ? 14 : 24;
     const barSpacing = Math.max(18, (height - startY - (isShort ? 12 : 20)) / families.length);
     const barH = Math.min(16, Math.max(10, barSpacing - 6));
-    const maxBarW = Math.max(60, width - barStartX * 2 - labelColW - 52);
+    const maxBarW = Math.max(20, width - barStartX * 2 - labelColW - pctColW - 8);
 
     ctx.save();
+    const measure = (s: string) => ctx.measureText(s).width;
 
     for (let i = 0; i < families.length; i++) {
       const fam = families[i];
@@ -63,7 +66,7 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = '#ffffff';
       ctx.font = isCompact ? '9px Inter, sans-serif' : '10px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(familyLabels[fam], barStartX, barY + barH * 0.8);
+      ctx.fillText(truncateTextToFit(measure, familyLabels[fam], labelColW - 6), barStartX, barY + barH * 0.8);
 
       // Bar background
       ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
@@ -73,10 +76,19 @@ export class PrimeProfileLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = col;
       ctx.fillRect(barStartX + labelColW, barY, barW, barH);
 
-      // Percentage label
+      // Percentage label (clamped inside right margin so it never clips)
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.font = isCompact ? '9px JetBrains Mono, monospace' : '10px JetBrains Mono, monospace';
-      ctx.fillText(`${(ratio * 100).toFixed(1)}%`, barStartX + labelColW + 8 + barW, barY + barH * 0.8);
+      const pctText = `${(ratio * 100).toFixed(1)}%`;
+      const idealPctX = barStartX + labelColW + 6 + barW;
+      const maxPctX = width - barStartX;
+      if (idealPctX + measure(pctText) > maxPctX) {
+        ctx.textAlign = 'right';
+        ctx.fillText(pctText, maxPctX, barY + barH * 0.8);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.fillText(pctText, idealPctX, barY + barH * 0.8);
+      }
 
       if (barW > 10) {
         this.dynamicLights.push({

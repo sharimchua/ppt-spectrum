@@ -198,6 +198,7 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
     }
 
     // Concentric rings
+    const bandLabelStep = Math.max(1, Math.ceil(14 / Math.max(1, ringSpacing)));
     for (let i = 0; i < bandCount; i++) {
       const bandVal = bandMin + i;
       const r = minRadius + i * ringSpacing;
@@ -221,12 +222,15 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
         ctx.stroke();
       }
 
-      // Band label formatted to current label scale
-      ctx.fillStyle = isLimen ? '#E13610' : 'rgba(255, 255, 255, 0.45)';
-      ctx.font = isLimen ? 'bold 9px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
-      ctx.textAlign = 'right';
-      const label = formatRingBandLabel(bandVal, labelMode, scene);
-      ctx.fillText(label, centerX - r - 4, centerY + 3);
+      // Band label formatted to current label scale (thinned when rings are tight, and clear of outer 9 o'clock spoke label)
+      const showBandLabel = (isLimen || i % bandLabelStep === 0) && r <= maxRadius - 10;
+      if (showBandLabel) {
+        ctx.fillStyle = isLimen ? '#E13610' : 'rgba(255, 255, 255, 0.45)';
+        ctx.font = isLimen ? 'bold 9px JetBrains Mono, monospace' : '8px JetBrains Mono, monospace';
+        ctx.textAlign = 'right';
+        const label = formatRingBandLabel(bandVal, labelMode, scene);
+        ctx.fillText(label, centerX - r - 4, centerY - 2);
+      }
     }
 
     // Limen title banner or off-screen beacon
@@ -305,6 +309,7 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
     ctx.restore();
 
     // 3. Render placed shapes as dots & spiral chords
+    const placedNodeLabels: Array<{ x: number; y: number }> = [];
     for (const placement of scene.placements) {
       const shape = scene.shapes.find((s) => s.id === placement.shapeId);
       if (!shape) continue;
@@ -362,10 +367,18 @@ export class RingClockLensRenderer implements RegisteredLensRenderer {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 8px JetBrains Mono, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(p.label || addr.syllable, px, py - nodeRadius - 3);
+        const labelX = px;
+        const labelY = py - nodeRadius - 3;
+        const overlapsExisting = placedNodeLabels.some(
+          (pos) => Math.abs(pos.x - labelX) < 26 && Math.abs(pos.y - labelY) < 11
+        );
+        if (!overlapsExisting) {
+          placedNodeLabels.push({ x: labelX, y: labelY });
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 8px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(p.label || addr.syllable, labelX, labelY);
+        }
         ctx.restore();
 
         this.dynamicLights.push({
