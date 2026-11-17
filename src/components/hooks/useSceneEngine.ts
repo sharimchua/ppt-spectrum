@@ -125,6 +125,7 @@ export function useSceneEngine(isOscillating: boolean): UseSceneEngineResult {
   // Connect AudioEngine sample-accurate telemetry to RenderCoordinator
   useEffect(() => {
     coordinator.setAudioPhaseProvider((shapeId) => audioEngine.getMasterPhase(shapeId));
+    coordinator.setMidiPhaseProvider((midi) => audioEngine.getMidiVoicePhase(midi));
     coordinator.setIsAudioActiveProvider(() => audioEngine.isAudioActive());
     coordinator.setNoteAgeProvider((shapeId) => audioEngine.getNoteAge(shapeId));
     return () => {

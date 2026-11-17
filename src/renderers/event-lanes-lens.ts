@@ -3,7 +3,8 @@ import { evaluatePlacedShape, resolveDuMetricOffsetToken } from '../core/shape';
 import { calculateCoincidenceCycle } from '../core/alignment';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
-import { RegisteredLensRenderer } from './render-coordinator';
+import { RegisteredLensRenderer, HeldMidiNote } from './render-coordinator';
+import { buildPolyphonicMidiBundle } from './midi-polyphony-utils';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
@@ -26,7 +27,9 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     scene: Scene,
     transportTime: number,
     audioPhase: number = 0,
-    isAudioActive: boolean = false
+    isAudioActive: boolean = false,
+    _labelMode?: string,
+    configOverrides?: Record<string, unknown>
   ): void {
     this.dynamicLights = [];
 
@@ -44,15 +47,18 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     const activePartials = partials.filter((p) => p.amp > 0.001);
     if (activePartials.length === 0) return;
 
-    const f0 = dToFreq(placement.d, scene.anchors.tplFrequencyHz);
+    const ghostMidiNotes = configOverrides?.ghostMidiNotes as HeldMidiNote[] | undefined;
+    const polyBundle = buildPolyphonicMidiBundle(ghostMidiNotes, shape, scene.anchors.tplFrequencyHz);
+
+    const f0 = polyBundle ? polyBundle.anchorFreqHz : dToFreq(placement.d, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
 
     // Unwrapped continuous root turns:
     let unwrappedRootTurns = 0;
     if (isAudioActive) {
       if (f0 <= 25.8) {
-        unwrappedRootTurns = audioPhase;
-        this.visualPitchTurns = audioPhase;
+        unwrappedRootTurns = polyBundle ? polyBundle.anchorLivePhase : audioPhase;
+        this.visualPitchTurns = unwrappedRootTurns;
       } else {
         this.visualPitchTurns += dt * 1.0;
         unwrappedRootTurns = this.visualPitchTurns;
@@ -87,8 +93,8 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
     const topMargin = 18;
     const bottomMargin = 32;
     const availableHeight = height - topMargin - bottomMargin;
-    const numLanes = activePartials.length;
-    const laneHeight = Math.max(14, availableHeight / Math.max(1, numLanes));
+    const numLanes = polyBundle ? polyBundle.streams.length : activePartials.length;
+    const laneHeight = Math.max(10, availableHeight / Math.max(1, numLanes));
 
     const leftX = isCompact ? 76 : 110;
     const rightX = width - (isCompact ? 16 : 25);
@@ -129,12 +135,17 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
 
     let compositeHits = 0;
 
-    // Render individual partial lanes
+    // Render individual partial lanes (or polyphonic MIDI streams when 2+ keys are held)
     for (let i = 0; i < numLanes; i++) {
-      const p = activePartials[i];
-      const isAttenuated = p.filteredAmp <= 0.001;
+      const polyStream = polyBundle ? polyBundle.streams[i] : null;
+      const p = polyStream ? null : activePartials[i];
+      const isAttenuated = p ? p.filteredAmp <= 0.001 : false;
       const y = topMargin + i * laneHeight;
-      const addr = resolveDuPeriodAddress(p.d);
+      const laneD = polyStream ? polyStream.d : p!.d;
+      const laneFreqHz = polyStream ? polyStream.freqHz : p!.freqHz;
+      const laneRatioVal = polyStream ? polyStream.ratioToRef : p!.ratioValue;
+      const lanePhase = polyStream ? polyStream.effectivePhase : p!.phase;
+      const addr = resolveDuPeriodAddress(laneD);
       const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#38bdf8';
       const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
 
@@ -150,40 +161,43 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
       ctx.fillStyle = isAttenuated ? 'rgba(148, 163, 184, 0.4)' : neonCol;
       ctx.font = isCompact ? 'bold 8.5px JetBrains Mono, monospace' : 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
-      const phaseTag = !isCompact && p.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p.phase).token}` : '';
-      const laneText = isCompact
-        ? `${addr.syllable} ${p.ratioValue.toFixed(2)}x`
-        : `${addr.formatted}${phaseTag} (${p.ratioValue.toFixed(2)}x)`;
+      const laneText = polyStream
+        ? polyStream.label
+        : isCompact
+        ? `${addr.syllable} ${p!.ratioValue.toFixed(2)}x`
+        : `${addr.formatted}${!isCompact && p!.phase > 0.001 ? ` @${resolveDuMetricOffsetToken(p!.phase).token}` : ''} (${p!.ratioValue.toFixed(2)}x)`;
       ctx.fillText(laneText, leftX - 6, y + laneHeight / 2 + 3);
 
-      const ctxPartial: PartialContext = {
-        partialD: p.d,
-        sceneD: placement.d,
-        placementD: placement.d,
-        ratio: p.ratio,
-        phase: p.phase,
-        anchorRatio: p.anchorRatio,
-        tplHz: scene.anchors.tplFrequencyHz,
-        ratioToScene: 1.0,
-        cyclePeriodTurns,
-      };
-      const isHighFreq = shouldUseDutyGain(p.freqHz);
+      const ctxPartial: PartialContext | null = p
+        ? {
+            partialD: p.d,
+            sceneD: placement.d,
+            placementD: placement.d,
+            ratio: p.ratio,
+            phase: p.phase,
+            anchorRatio: p.anchorRatio,
+            tplHz: scene.anchors.tplFrequencyHz,
+            ratioToScene: 1.0,
+            cyclePeriodTurns,
+          }
+        : null;
+      const isHighFreq = shouldUseDutyGain(laneFreqHz);
 
-      // Exact physical event timestamps t_k = (k / rVal) + p.phase within [windowStartTurn, windowStartTurn + windowTurns]
-      const rVal = Math.max(0.001, p.ratioValue);
-      const kMin = Math.ceil((windowStartTurn - p.phase) * rVal);
-      const kMax = Math.floor((windowStartTurn + windowTurns - p.phase - 1e-5) * rVal);
+      // Exact physical event timestamps t_k = (k / rVal) + lanePhase within [windowStartTurn, windowStartTurn + windowTurns]
+      const rVal = Math.max(0.001, laneRatioVal);
+      const kMin = Math.ceil((windowStartTurn - lanePhase) * rVal);
+      const kMax = Math.floor((windowStartTurn + windowTurns - lanePhase - 1e-5) * rVal);
       const totalEvents = Math.max(1, kMax - kMin + 1);
       const hitTol = Math.min(0.02, 0.35 / Math.max(1, totalEvents));
 
       for (let k = kMin; k <= kMax; k++) {
-        const eventTurn = k / rVal + p.phase;
+        const eventTurn = k / rVal + lanePhase;
         const eventFrac = (eventTurn - windowStartTurn) / windowTurns;
         const tickX = leftX + eventFrac * laneWidth;
         const tickDist = Math.abs(eventFrac - phaseProgress);
         const isHit = isAudioActive && (tickDist < hitTol || tickDist > 1.0 - hitTol);
 
-        const onsetGain = evaluateOnsetGain(scene.filter, ctxPartial, eventTurn);
+        const onsetGain = ctxPartial ? evaluateOnsetGain(scene.filter, ctxPartial, eventTurn) : 1.0;
         const isGatedOut = onsetGain < 0.05;
 
         if (isGatedOut) {
@@ -198,7 +212,7 @@ export class EventLanesLensRenderer implements RegisteredLensRenderer {
         } else {
           if (isHit) compositeHits++;
 
-          const envGain = evaluateRhythmEnvelopeGain(scene.envelope, eventTurn, p.ratioValue);
+          const envGain = evaluateRhythmEnvelopeGain(scene.envelope, eventTurn, laneRatioVal);
           const shouldFlash = isHit && !isHighFreq && envGain > 0.05;
           const envScale = 0.28 + 0.72 * envGain;
           const tickH = (laneHeight * 0.45) * envScale * (shouldFlash ? 1.4 : 1.0);

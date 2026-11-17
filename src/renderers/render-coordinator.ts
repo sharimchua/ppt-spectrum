@@ -17,6 +17,7 @@ export interface HeldMidiNote {
   d: number;
   velocity: number;
   isPrimary: boolean;
+  livePhase?: number;
 }
 
 export interface RegisteredLensRenderer {
@@ -78,6 +79,7 @@ export class RenderCoordinator {
 
   // Audio Sync Telemetry
   private audioPhaseProvider: ((shapeId: string) => number) | null = null;
+  private midiPhaseProvider: ((midi: number) => number) | null = null;
   private isAudioActiveProvider: (() => boolean) | null = null;
   private noteAgeProvider: ((shapeId: string) => number) | null = null;
   private internalNoteAge: number = 0;
@@ -144,6 +146,10 @@ export class RenderCoordinator {
 
   public setAudioPhaseProvider(provider: ((shapeId: string) => number) | null): void {
     this.audioPhaseProvider = provider;
+  }
+
+  public setMidiPhaseProvider(provider: ((midi: number) => number) | null): void {
+    this.midiPhaseProvider = provider;
   }
 
   public setIsAudioActiveProvider(provider: (() => boolean) | null): void {
@@ -293,7 +299,13 @@ export class RenderCoordinator {
       ctx.scale(scaleX, scaleY);
       ctx.clearRect(0, 0, w, h);
       const effectiveOverrides = this.heldMidiNotes.length > 0
-        ? { ...configOverrides, ghostMidiNotes: this.heldMidiNotes }
+        ? {
+            ...configOverrides,
+            ghostMidiNotes: this.heldMidiNotes.map((gn) => ({
+              ...gn,
+              livePhase: this.midiPhaseProvider ? this.midiPhaseProvider(gn.midi) : gn.livePhase,
+            })),
+          }
         : configOverrides;
       renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, effectiveOverrides, noteAge);
       ctx.restore();

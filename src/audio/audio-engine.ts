@@ -837,6 +837,21 @@ export class AudioEngine {
     return shapeData.masterPhase + shapeData.f0 * dt;
   }
 
+  /**
+   * Returns the live masterPhase of a specific held polyphonic MIDI voice.
+   */
+  public getMidiVoicePhase(midiNote: number): number {
+    if (!this.isUnlocked || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
+      return 0.0;
+    }
+    const midiData = this.latestTelemetry?.midiPhases?.[midiNote];
+    if (midiData) {
+      const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
+      return midiData.masterPhase + midiData.f0 * dt;
+    }
+    return 0.0;
+  }
+
   public isAudioActive(): boolean {
     if (
       this.activeMidiNotes.size === 0 &&
