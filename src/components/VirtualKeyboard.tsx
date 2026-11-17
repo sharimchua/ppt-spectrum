@@ -10,7 +10,7 @@ import {
   Eraser, Keyboard as MidiIcon, Minus, Plus, Sliders, Sparkles, X,
 } from 'lucide-react';
 import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
-import { PITCH_NAMES } from '../core/axis';
+import { PITCH_NAMES, dToBpm, dToFreq, resolveDuPeriodAddress } from '../core/axis';
 import {
   KEYBOARD_RANGE_PRESETS,
   buildIntervalBands,
@@ -189,24 +189,21 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const isUltraCompact = effectiveKeyWidth < 19;
 
   const rootMidi = isRhythm ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
-  const presetLabel =
-    midiTuning.presetId === 'custom'
-      ? 'Mixed / Custom'
-      : MIDI_TUNING_PRESETS[midiTuning.presetId].label;
+  const fundamentalLabel = surfaceMode === 'scale-strip'
+    ? `${resolveDuPeriodAddress(currentFundamentalD).formatted} · ${
+        isRhythm
+          ? `${dToBpm(currentFundamentalD, tplFrequencyHz).toFixed(0)}BPM`
+          : `${dToFreq(currentFundamentalD, tplFrequencyHz).toFixed(0)}Hz`
+      }`
+    : formatMidiShort(rootMidi);
+  const presetLabel = midiTuning.presetId === 'custom' ? 'Mixed / Custom' : MIDI_TUNING_PRESETS[midiTuning.presetId].label;
 
   const handleKeyPointerDown = (k: VirtualKeyItem, e: React.PointerEvent) => {
     e.preventDefault();
-    if (isMidiHoldActive) {
-      onToggleLatchNote(k.midi);
-    } else {
-      onVirtualNoteOn(k.midi);
-    }
+    if (isMidiHoldActive) onToggleLatchNote(k.midi); else onVirtualNoteOn(k.midi);
   };
-
   const handleKeyPointerUpOrLeave = (k: VirtualKeyItem) => {
-    if (!isMidiHoldActive && activeSet.has(k.midi)) {
-      onVirtualNoteOff(k.midi);
-    }
+    if (!isMidiHoldActive && activeSet.has(k.midi)) onVirtualNoteOff(k.midi);
   };
 
   return (
@@ -227,7 +224,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <Sliders className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
             <span className="font-medium max-w-[84px] sm:max-w-none truncate">{presetLabel}</span>
             <span className="text-slate-500 hidden sm:inline">·</span>
-            <span className="font-mono text-amber-300">{formatMidiShort(rootMidi)}</span>
+            <span className="font-mono text-amber-300">{fundamentalLabel}</span>
           </button>
 
           {/* Surface Mode Switcher: Piano | Scale | Iso | Guitar */}

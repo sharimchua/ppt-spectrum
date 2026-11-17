@@ -163,7 +163,7 @@ export function buildScaleStripPads(
         id: `strip-${idx}`,
         midiId,
         label: deg.label,
-        subLabel: deg.subLabel,
+        subLabel: i === 0 ? mapping.address.formatted : deg.subLabel,
         d: mapping.d,
         colorHex: solfegeColorForCents(cents),
         inScale: deg.active,
