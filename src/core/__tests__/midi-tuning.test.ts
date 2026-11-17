@@ -98,6 +98,14 @@ describe('midi-tuning', () => {
     expect(extreme.clampedToPolarity).toBe(true);
   });
 
+  it('never produces NaN or Infinity for synthetic or out-of-range MIDI numbers', () => {
+    const cfg = createDefaultMidiTuningConfig('5-limit');
+    const synthetic = midiToDWithTuning(4000, cfg, -3.0);
+    expect(Number.isFinite(synthetic.d)).toBe(true);
+    expect(Number.isFinite(synthetic.freqHz)).toBe(true);
+    expect(Number.isFinite(synthetic.bpm)).toBe(true);
+  });
+
   it('matches standard 12-TET midiToD in Pitch Space when preset is 12tet', () => {
     const cfg = createDefaultMidiTuningConfig('12tet');
     const pitchRes = midiToDWithTuning(69, cfg, -4.09, 440, 25.8);

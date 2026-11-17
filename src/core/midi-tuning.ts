@@ -524,7 +524,7 @@ export function midiToDWithTuning(
     }
   }
 
-  let d = rawD;
+  let d = Number.isFinite(rawD) ? Math.max(-12, Math.min(12, rawD)) : 0;
   let clampedToPolarity = false;
   if (polarity === 'rhythm' && d < TPL_POLARITY_EPSILON_D) {
     d = TPL_POLARITY_EPSILON_D;

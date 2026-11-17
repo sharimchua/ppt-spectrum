@@ -9,47 +9,14 @@ import { Scene } from '../../core/types';
 import {
   MidiNoteMappingResult,
   MidiTuningConfig,
-  createDefaultMidiTuningConfig,
   midiToDWithTuning,
 } from '../../core/midi-tuning';
 import { AudioEngine } from '../../audio/audio-engine';
 import { midiManagerInstance, MidiDeviceState } from '../../audio/midi-manager';
 import { RenderCoordinator, HeldMidiNote } from '../../renderers/render-coordinator';
-
-const MIDI_TUNING_STORAGE_KEY = 'ppt_spectrum_midi_tuning_v1';
+import { loadMidiTuningConfig, saveMidiTuningConfig } from './midi-storage';
 
 export type NoteInputSource = 'midi' | 'virtual';
-
-function loadMidiTuningConfig(): MidiTuningConfig {
-  const fallback = createDefaultMidiTuningConfig('5-limit');
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return fallback;
-  }
-  try {
-    const raw = window.localStorage.getItem(MIDI_TUNING_STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<MidiTuningConfig>;
-    return {
-      ...fallback,
-      ...parsed,
-      intervals: {
-        ...fallback.intervals,
-        ...(parsed.intervals ?? {}),
-      },
-    };
-  } catch {
-    return fallback;
-  }
-}
-
-function saveMidiTuningConfig(config: MidiTuningConfig): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(MIDI_TUNING_STORAGE_KEY, JSON.stringify(config));
-  } catch {
-    // Ignore storage quota errors
-  }
-}
 
 export interface UseMidiOptions {
   coordinator: RenderCoordinator;
@@ -93,6 +60,7 @@ interface HeldStackEntry {
   d: number;
   velocity: number;
   mapping: MidiNoteMappingResult;
+  explicitNoteD?: number;
 }
 
 export function useMidi({
@@ -190,7 +158,7 @@ export function useMidi({
       );
 
       const filtered = heldStackRef.current.filter((item) => item.midi !== midi);
-      filtered.push({ midi, d: mapping.d, velocity, mapping });
+      filtered.push({ midi, d: mapping.d, velocity, mapping, explicitNoteD });
       heldStackRef.current = filtered;
 
       setLastMapping(mapping);
@@ -244,21 +212,46 @@ export function useMidi({
       const sc = sceneRef.current;
       const nextStack: HeldStackEntry[] = [];
       for (const item of stack) {
-        const mapping = midiToDWithTuning(
-          item.midi,
-          tuningCfg,
-          polarityD,
-          sc.anchors.tuningA4Hz,
-          sc.anchors.tplFrequencyHz
-        );
+        let nextD: number;
+        let nextMapping: MidiNoteMappingResult;
+        if (item.explicitNoteD !== undefined || item.midi >= 1000) {
+          const targetIsRhythm = polarityD >= 0;
+          const currentlyRhythm = item.d >= 0;
+          const shifted =
+            targetIsRhythm === currentlyRhythm
+              ? item.d
+              : item.d >= 0
+              ? Math.max(-7.0, item.d - 8)
+              : Math.min(7.0, item.d + 8);
+          nextD = targetIsRhythm ? Math.max(0.01, shifted) : Math.min(-0.01, shifted);
+          nextMapping = {
+            ...item.mapping,
+            d: nextD,
+            polarity: targetIsRhythm ? 'rhythm' : 'pitch',
+          };
+        } else {
+          nextMapping = midiToDWithTuning(
+            item.midi,
+            tuningCfg,
+            polarityD,
+            sc.anchors.tuningA4Hz,
+            sc.anchors.tplFrequencyHz
+          );
+          nextD = nextMapping.d;
+        }
         void audioEngine.midiNoteOn(
           item.midi,
           item.velocity,
-          mapping.d,
+          nextD,
           undefined,
           tuningCfg.rhythmPhaseMode
         );
-        nextStack.push({ ...item, d: mapping.d, mapping });
+        nextStack.push({
+          ...item,
+          d: nextD,
+          mapping: nextMapping,
+          ...(item.explicitNoteD !== undefined ? { explicitNoteD: nextD } : {}),
+        });
       }
       heldStackRef.current = nextStack;
       const top = nextStack[nextStack.length - 1];
@@ -275,7 +268,7 @@ export function useMidi({
     const sc = sceneRef.current;
     const currentD = sc.placements[0]?.d ?? 2.0;
     const flippedD =
-      Math.abs(currentD) < 0.01 ? (currentD >= 0 ? -2.0 : 2.0) : -currentD;
+      currentD >= 0 ? Math.max(-7.0, currentD - 8) : Math.min(7.0, currentD + 8);
 
     if (heldStackRef.current.length > 0) {
       retargetHeldNotesToPolarityD(flippedD, midiTuningRef.current);
