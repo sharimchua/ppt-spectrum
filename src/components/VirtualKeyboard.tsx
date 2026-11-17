@@ -174,22 +174,22 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="shrink-0 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-md px-2 sm:px-4 py-2 select-none z-20"
+      className="shrink-0 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-md px-2 sm:px-4 py-1.5 sm:py-2 select-none z-20"
     >
-      {/* Control Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* Single-row responsive Control Strip (horizontally scrollable on narrow mobile) */}
+      <div className="flex items-center justify-between gap-1.5 mb-1.5 overflow-x-auto">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Tuning + Tonic Shortcut */}
           <button
             type="button"
             onClick={onOpenTuningModal}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-200 transition cursor-pointer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[11px] sm:text-xs text-slate-200 transition cursor-pointer shrink-0"
             title="Open Tuning & Rhythm Map"
           >
-            <Sliders className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-medium">{presetLabel}</span>
-            <span className="text-slate-500">·</span>
-            <span className="font-mono text-amber-300">Do={formatMidiShort(rootMidi)}</span>
+            <Sliders className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+            <span className="font-medium max-w-[84px] sm:max-w-none truncate">{presetLabel}</span>
+            <span className="text-slate-500 hidden sm:inline">·</span>
+            <span className="font-mono text-amber-300">{formatMidiShort(rootMidi)}</span>
           </button>
 
           {/* Range Selector */}
@@ -199,7 +199,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
               setRangePresetId(e.target.value);
               setOctaveOffset(0);
             }}
-            className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer"
+            className="bg-slate-900 border border-slate-700/80 rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer shrink-0"
             aria-label="Select visible key range"
           >
             {KEYBOARD_RANGE_PRESETS.map((p) => (
@@ -213,18 +213,18 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <button
             type="button"
             onClick={() => setIsFitMode((v) => !v)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[11px] text-slate-300 transition cursor-pointer"
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[11px] text-slate-300 transition cursor-pointer shrink-0"
             title={isFitMode ? 'Fit to window width (click for Fixed key size)' : 'Fixed key size (click to Fit window)'}
           >
             {isFitMode ? <Minimize2 className="w-3 h-3 text-sky-400" /> : <Maximize2 className="w-3 h-3 text-sky-400" />}
-            <span>{isFitMode ? 'Fit' : 'Fixed'}</span>
+            <span className="hidden sm:inline">{isFitMode ? 'Fit' : 'Fixed'}</span>
           </button>
 
           {/* MIDI Hold Toggle (H) */}
           <button
             type="button"
             onClick={toggleMidiHold}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+            className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
               isMidiHoldActive
                 ? 'bg-red-600/25 border-red-500/70 text-red-200'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -232,14 +232,14 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             title="Sostenuto for MIDI (captures currently held keys) & Sustain for Virtual Keyboard; turning off clears held keys (H)"
           >
             <span>Hold</span>
-            <kbd className="text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
+            <kbd className="hidden sm:inline text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
           </button>
 
           {/* Interval Bands Toggle */}
           <button
             type="button"
             onClick={() => setShowIntervals((v) => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+            className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
               showIntervals
                 ? 'bg-indigo-950/70 border-indigo-500/70 text-indigo-200'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -251,24 +251,25 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Clear Latched / Active Keys */}
           <button
             type="button"
             onClick={onClearAllNotes}
             disabled={activeMidiNumbers.length === 0}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-red-950/70 disabled:opacity-40 border border-slate-700/80 text-[11px] font-medium text-slate-200 transition cursor-pointer disabled:cursor-default"
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg bg-slate-900 hover:bg-red-950/70 disabled:opacity-40 border border-slate-700/80 text-[11px] font-medium text-slate-200 transition cursor-pointer disabled:cursor-default shrink-0"
             title="Clear all active & latched keys"
           >
             <Eraser className="w-3 h-3 text-red-400" />
-            <span>Clear{activeMidiNumbers.length > 0 ? ` (${activeMidiNumbers.length})` : ''}</span>
+            <span className="hidden sm:inline">Clear</span>
+            {activeMidiNumbers.length > 0 && <span>({activeMidiNumbers.length})</span>}
           </button>
 
           {/* MIDI Connect Shortcut */}
           <button
             type="button"
             onClick={onOpenMidiModal}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+            className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
               midiState.isConnected
                 ? 'bg-emerald-950/50 border-emerald-600/60 text-emerald-300'
                 : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:bg-slate-800'
@@ -283,7 +284,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
           {/* Octave Shift (disabled in 88-key mode) */}
           {!is88 && (
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg">
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg shrink-0">
               <button
                 type="button"
                 onClick={() => setOctaveOffset((o) => Math.max(-2, o - 1))}
@@ -310,7 +311,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0"
             aria-label="Close virtual keyboard"
           >
             <X className="w-4 h-4" />

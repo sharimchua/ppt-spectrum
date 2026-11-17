@@ -100,11 +100,11 @@ export const App: React.FC = () => {
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
-  const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, latchedMidiNumbers, toggleMidiHold } = midi;
+  const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, toggleMidiHold } = midi;
   const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
   const handleArrowStep = useCallback((step: number) => {
-    if (latchedMidiNumbers.length > 0) transposeLatchedNotes(Math.round(-step * 12)); else handleStepPrimaryD(step);
-  }, [latchedMidiNumbers.length, transposeLatchedNotes, handleStepPrimaryD]);
+    if (!transposeLatchedNotes(Math.round(-step * 12))) handleStepPrimaryD(step);
+  }, [transposeLatchedNotes, handleStepPrimaryD]);
 
   // Dedicated Envelopes Sheet state & library
   const envelopes = useEnvelopes({ scene, updateScene });

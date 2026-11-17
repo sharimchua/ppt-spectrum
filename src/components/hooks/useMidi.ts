@@ -81,7 +81,7 @@ export interface UseMidiResult {
   virtualNoteOn: (midi: number, velocity?: number) => void;
   virtualNoteOff: (midi: number) => void;
   toggleVirtualNote: (midi: number, velocity?: number) => void;
-  transposeLatchedNotes: (semitones: number) => void;
+  transposeLatchedNotes: (semitones: number) => boolean;
   isMidiHoldActive: boolean;
   toggleMidiHold: () => void;
   clearAllNotes: () => void;
@@ -352,27 +352,54 @@ export function useMidi({
   );
 
   const transposeLatchedNotes = useCallback(
-    (semitones: number) => {
-      if (semitones === 0) return;
-      const latchedEntries = heldStackRef.current.filter((item) =>
-        sourcesByMidiRef.current.get(item.midi)?.has('virtual')
-      );
-      if (latchedEntries.length === 0) return;
+    (semitones: number): boolean => {
+      if (semitones === 0) return false;
+      const movableEntries = heldStackRef.current.filter((item) => {
+        const srcs = sourcesByMidiRef.current.get(item.midi);
+        const isVirtual = Boolean(srcs?.has('virtual'));
+        const isSostenutoMidi = Boolean(
+          srcs?.has('midi') &&
+            isMidiHoldRef.current &&
+            sostenutoMidiRef.current.has(item.midi) &&
+            !physicalMidiDownRef.current.has(item.midi)
+        );
+        return isVirtual || isSostenutoMidi;
+      });
+      if (movableEntries.length === 0) return false;
 
-      // Ensure the whole latched chord stays within [0..127] without distorting intervals
-      const minMidi = Math.min(...latchedEntries.map((e) => e.midi));
-      const maxMidi = Math.max(...latchedEntries.map((e) => e.midi));
+      // Ensure the whole chord stays within [0..127] without distorting intervals
+      const minMidi = Math.min(...movableEntries.map((e) => e.midi));
+      const maxMidi = Math.max(...movableEntries.map((e) => e.midi));
       if (minMidi + semitones < 0 || maxMidi + semitones > 127) {
-        return;
+        return true;
       }
 
-      const oldLatched = latchedEntries.map((e) => ({ ...e }));
-      for (const item of oldLatched) {
-        dispatchNoteOff(item.midi, 'virtual');
+      const snapshot = movableEntries.map((e) => ({
+        ...e,
+        wasVirtual: Boolean(sourcesByMidiRef.current.get(e.midi)?.has('virtual')),
+        wasSostenuto: Boolean(
+          sourcesByMidiRef.current.get(e.midi)?.has('midi') &&
+            isMidiHoldRef.current &&
+            sostenutoMidiRef.current.has(e.midi)
+        ),
+      }));
+
+      for (const item of snapshot) {
+        if (item.wasVirtual) dispatchNoteOff(item.midi, 'virtual');
+        if (item.wasSostenuto) {
+          sostenutoMidiRef.current.delete(item.midi);
+          dispatchNoteOff(item.midi, 'midi');
+        }
       }
-      for (const item of oldLatched) {
-        dispatchNoteOn(item.midi + semitones, item.velocity, 'virtual');
+      for (const item of snapshot) {
+        const target = item.midi + semitones;
+        if (item.wasVirtual) dispatchNoteOn(target, item.velocity, 'virtual');
+        if (item.wasSostenuto) {
+          sostenutoMidiRef.current.add(target);
+          dispatchNoteOn(target, item.velocity, 'midi');
+        }
       }
+      return true;
     },
     [dispatchNoteOff, dispatchNoteOn]
   );
@@ -404,42 +431,16 @@ export function useMidi({
   const openKeyboard = useCallback(() => setIsKeyboardOpen(true), []);
   const closeKeyboard = useCallback(() => setIsKeyboardOpen(false), []);
   const toggleKeyboard = useCallback(() => setIsKeyboardOpen((v) => !v), []);
-
-  const requestMidiAccess = useCallback(async () => {
-    return midiManagerInstance.requestAccess();
-  }, []);
-
-  const selectMidiInput = useCallback((id: string) => {
-    midiManagerInstance.selectInput(id);
-  }, []);
+  const requestMidiAccess = useCallback(() => midiManagerInstance.requestAccess(), []);
+  const selectMidiInput = useCallback((id: string) => midiManagerInstance.selectInput(id), []);
 
   return {
-    midiState,
-    isMidiModalOpen,
-    openMidiModal,
-    closeMidiModal,
-    isTuningModalOpen,
-    openTuningModal,
-    closeTuningModal,
-    isKeyboardOpen,
-    openKeyboard,
-    closeKeyboard,
-    toggleKeyboard,
-    requestMidiAccess,
-    selectMidiInput,
-    midiTuning,
-    setMidiTuning,
-    lastMapping,
-    heldMappings,
-    activeMidiNumbers,
-    latchedMidiNumbers,
-    virtualNoteOn,
-    virtualNoteOff,
-    toggleVirtualNote,
-    transposeLatchedNotes,
-    isMidiHoldActive,
-    toggleMidiHold,
-    clearAllNotes,
-    flipPolarity,
+    midiState, isMidiModalOpen, openMidiModal, closeMidiModal,
+    isTuningModalOpen, openTuningModal, closeTuningModal,
+    isKeyboardOpen, openKeyboard, closeKeyboard, toggleKeyboard,
+    requestMidiAccess, selectMidiInput, midiTuning, setMidiTuning,
+    lastMapping, heldMappings, activeMidiNumbers, latchedMidiNumbers,
+    virtualNoteOn, virtualNoteOff, toggleVirtualNote, transposeLatchedNotes,
+    isMidiHoldActive, toggleMidiHold, clearAllNotes, flipPolarity,
   };
 }
