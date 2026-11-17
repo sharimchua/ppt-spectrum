@@ -284,7 +284,7 @@ export const App: React.FC = () => {
   });
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0d13] text-slate-100 font-sans">
+    <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#0b0d13] text-slate-100 font-sans">
       <ControlToolbar
         scene={scene}
         isPlaying={isPlaying}
@@ -410,8 +410,8 @@ export const App: React.FC = () => {
         isRadialMenuOpen={isRadialMenuOpen}
         onCloseRadialMenu={() => setIsRadialMenuOpen(false)}
         radialMenuAnchor={radialMenuAnchor}
-        isPlaying={isPlaying}
-        onTogglePlay={handleTogglePlay}
+        isPlaying={isPlaying} isFullscreen={isFullscreen}
+        onTogglePlay={handleTogglePlay} onToggleFullscreen={toggleFullscreen}
         onUpdatePlacementD={handleManualPlacementD}
         onUpdateFilterParams={handleUpdateFilterParams}
         toggleFilter={toggleFilter}

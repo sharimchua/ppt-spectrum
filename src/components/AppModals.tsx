@@ -80,7 +80,9 @@ export interface AppModalsProps {
   onCloseRadialMenu: () => void;
   radialMenuAnchor: { x: number; y: number } | null;
   isPlaying: boolean;
+  isFullscreen?: boolean;
   onTogglePlay: () => void;
+  onToggleFullscreen?: () => void;
   onUpdatePlacementD: (d: number) => void;
   onUpdateFilterParams: (params: Partial<Scene['filter']>) => void;
   toggleFilter: () => void;
@@ -166,7 +168,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onCloseRadialMenu,
   radialMenuAnchor,
   isPlaying,
+  isFullscreen,
   onTogglePlay,
+  onToggleFullscreen,
   onUpdatePlacementD,
   onUpdateFilterParams,
   toggleFilter,
@@ -296,7 +300,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onClose={onCloseRadialMenu}
         scene={scene}
         isPlaying={isPlaying}
+        isFullscreen={isFullscreen}
         onTogglePlay={onTogglePlay}
+        onToggleFullscreen={onToggleFullscreen}
         onFlipPolarity={midi.flipPolarity}
         onUpdatePlacementD={onUpdatePlacementD}
         onUpdateFilterParams={onUpdateFilterParams}
