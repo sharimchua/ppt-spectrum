@@ -1,15 +1,31 @@
 /**
- * Pure keyboard layout, Solfège colouring, and interval-band distance helpers
- * for the on-screen Virtual Keyboard.
+ * Pure keyboard layout, range presets, Solfège colouring, and Harmonic-Geometry-style
+ * pairwise interval band builders for the on-screen Virtual Keyboard.
  */
 
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS, SOLFEGE_SYLLABLES } from '../../core/ppt-constants';
 import { PITCH_NAMES } from '../../core/axis';
+import { rationalise } from '../../core/rational';
 import {
   MidiNoteMappingResult,
   MidiTuningConfig,
   midiToDWithTuning,
 } from '../../core/midi-tuning';
+
+export interface KeyboardRangePreset {
+  id: string;
+  label: string;
+  startMidi: number;
+  endMidi: number;
+}
+
+export const KEYBOARD_RANGE_PRESETS: KeyboardRangePreset[] = [
+  { id: '2oct-f', label: '2 Oct (F3–F5)', startMidi: 53, endMidi: 77 },
+  { id: '2oct-c', label: '2 Oct (C3–C5)', startMidi: 48, endMidi: 72 },
+  { id: '3oct-c', label: '3 Oct (C3–C6)', startMidi: 48, endMidi: 84 },
+  { id: '4oct-c', label: '4 Oct (C2–C6)', startMidi: 36, endMidi: 84 },
+  { id: '88key', label: '88-Key (A0–C8)', startMidi: 21, endMidi: 108 },
+];
 
 export interface VirtualKeyItem {
   midi: number;
@@ -29,6 +45,7 @@ export interface IntervalBandItem {
   id: string;
   leftMidi: number;
   rightMidi: number;
+  row: number;
   ratioLabel: string;
   deltaLabel: string;
   centsLabel: string;
@@ -55,6 +72,18 @@ export function getBlackKeyOffset(pc: number): number {
     default:
       return 0;
   }
+}
+
+/**
+ * Formats a frequency ratio as an exact reduced fraction (e.g. "3:2", "5:4")
+ * when within tolerance, or as a decimal multiplier (e.g. "1.260×") when tempered.
+ */
+export function formatIntervalRatioLabel(ratio: number): string {
+  const cand = rationalise(ratio, 1e-5, 64);
+  if (cand.den > 0 && Math.abs(ratio - cand.num / cand.den) < 1e-5) {
+    return `${cand.num}:${cand.den}`;
+  }
+  return `${ratio.toFixed(3)}×`;
 }
 
 /**
@@ -109,37 +138,65 @@ export function formatFrequencyDelta(deltaHz: number, isRhythm: boolean): string
 }
 
 /**
- * Computes interval distance bands to display above the keybed:
- * - When 2+ keys are active: bands between consecutive active keys (sorted ascending).
+ * Computes Harmonic-Geometry-style stacked interval bands above the keybed:
+ * - When 2+ keys are active: all pairwise relationships (i < j), packed into
+ *   non-overlapping horizontal rows (shorter spans at the bottom, wider spans above).
  * - When 0-1 keys are active: adjacent semitone step sizes across the visible keyboard.
  */
 export function buildIntervalBands(
   keys: VirtualKeyItem[],
   activeMidiSet: Set<number>,
   isRhythm: boolean
-): IntervalBandItem[] {
+): { bands: IntervalBandItem[]; rowCount: number } {
   const bands: IntervalBandItem[] = [];
   const activeKeys = keys.filter((k) => activeMidiSet.has(k.midi));
 
   if (activeKeys.length >= 2) {
-    for (let i = 0; i < activeKeys.length - 1; i++) {
-      const a = activeKeys[i];
-      const b = activeKeys[i + 1];
-      const ratio = b.mapping.freqHz / Math.max(1e-6, a.mapping.freqHz);
+    // Generate all pairs sorted by span (shortest first so inner intervals sit closest to keys)
+    const rawPairs: Array<{ a: VirtualKeyItem; b: VirtualKeyItem; span: number }> = [];
+    for (let i = 0; i < activeKeys.length; i++) {
+      for (let j = i + 1; j < activeKeys.length; j++) {
+        rawPairs.push({
+          a: activeKeys[i],
+          b: activeKeys[j],
+          span: activeKeys[j].midi - activeKeys[i].midi,
+        });
+      }
+    }
+    rawPairs.sort((p, q) => p.span - q.span || p.a.midi - q.a.midi);
+
+    // Greedy interval packing into rows so overlapping bands never collide
+    const rowEnds: number[] = [];
+    for (const pair of rawPairs) {
+      let assignedRow = -1;
+      for (let r = 0; r < rowEnds.length; r++) {
+        if (pair.a.midi >= rowEnds[r]) {
+          assignedRow = r;
+          rowEnds[r] = pair.b.midi;
+          break;
+        }
+      }
+      if (assignedRow === -1) {
+        assignedRow = rowEnds.length;
+        rowEnds.push(pair.b.midi);
+      }
+
+      const ratio = pair.b.mapping.freqHz / Math.max(1e-6, pair.a.mapping.freqHz);
       const cents = Math.round(1200 * Math.log2(ratio));
-      const deltaHz = Math.abs(b.mapping.freqHz - a.mapping.freqHz);
+      const deltaHz = Math.abs(pair.b.mapping.freqHz - pair.a.mapping.freqHz);
 
       bands.push({
-        id: `active-${a.midi}-${b.midi}`,
-        leftMidi: a.midi,
-        rightMidi: b.midi,
-        ratioLabel: `${ratio.toFixed(3)}×`,
+        id: `active-${pair.a.midi}-${pair.b.midi}`,
+        leftMidi: pair.a.midi,
+        rightMidi: pair.b.midi,
+        row: assignedRow,
+        ratioLabel: formatIntervalRatioLabel(ratio),
         deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
         centsLabel: `${cents}¢`,
         isSubtleStep: false,
       });
     }
-    return bands;
+    return { bands, rowCount: Math.max(1, rowEnds.length) };
   }
 
   // Adjacent semitone step sizes across visible keys
@@ -154,6 +211,7 @@ export function buildIntervalBands(
       id: `step-${a.midi}-${b.midi}`,
       leftMidi: a.midi,
       rightMidi: b.midi,
+      row: 0,
       ratioLabel: `${cents}¢`,
       deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
       centsLabel: `${cents}¢`,
@@ -161,5 +219,5 @@ export function buildIntervalBands(
     });
   }
 
-  return bands;
+  return { bands, rowCount: 1 };
 }
