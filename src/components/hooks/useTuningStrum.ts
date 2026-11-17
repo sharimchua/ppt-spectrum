@@ -8,7 +8,7 @@ import { Scene } from '../../core/types';
 import {
   TuningDegree,
   resolveTuningDegrees,
-  tuningDegreeToMapping,
+  tuningDegreeToRelativeMapping,
 } from '../../core/tuning-systems';
 import {
   SequencePattern,
@@ -47,8 +47,19 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   const [isStrumMode, setIsStrumModeState] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSequencing, setIsSequencing] = useState(false);
-  const [sequencePattern, setSequencePattern] = useState<SequencePattern>('ascend');
+  const [sequencePattern, setSequencePattern] = useState<SequencePattern>(() => {
+    const h = midi.midiTuning.harmonyStructure;
+    return h === 'tertial' ? 'triads' : h === 'quartal' ? 'quartal' : 'ascend';
+  });
   const [sequenceTempoBpm, setSequenceTempoBpm] = useState(140);
+
+  // Sync sequencer pattern when Harmony Structure changes in the Tuning Window
+  useEffect(() => {
+    const h = midi.midiTuning.harmonyStructure;
+    if (h === 'tertial') setSequencePattern('triads');
+    else if (h === 'quartal') setSequencePattern('quartal');
+    else if (h === 'secundal') setSequencePattern('ascend');
+  }, [midi.midiTuning.harmonyStructure]);
 
   const seqStartTimeRef = useRef<number>(0);
   const placementD = scene.placements[0]?.d ?? -3.0;
@@ -68,20 +79,18 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
       if (list.length === 0) return;
       const clamped = Math.max(0, Math.min(list.length - 1, index));
       const deg = list[clamped];
-      const mapping = tuningDegreeToMapping(
+      const mapping = tuningDegreeToRelativeMapping(
         deg,
         0,
         STRUM_SYNTH_MIDI,
-        midi.midiTuning,
         placementD,
-        scene.anchors.tuningA4Hz,
         scene.anchors.tplFrequencyHz
       );
       midi.virtualNoteOff(STRUM_SYNTH_MIDI);
       midi.virtualNoteOn(STRUM_SYNTH_MIDI, 0.85, undefined, mapping.d);
       setActiveIndex(clamped);
     },
-    [midi, placementD, scene.anchors.tuningA4Hz, scene.anchors.tplFrequencyHz]
+    [midi, placementD, scene.anchors.tplFrequencyHz]
   );
 
   const setIsStrumMode = useCallback(

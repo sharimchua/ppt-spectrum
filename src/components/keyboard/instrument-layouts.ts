@@ -8,7 +8,7 @@
 
 import { SOLFEGE_COLORS } from '../../core/ppt-constants';
 import { MidiTuningConfig, midiToDWithTuning } from '../../core/midi-tuning';
-import { resolveTuningDegrees, tuningDegreeToMapping } from '../../core/tuning-systems';
+import { resolveTuningDegrees, tuningDegreeToRelativeMapping } from '../../core/tuning-systems';
 
 export type InstrumentSurfaceMode = 'piano' | 'scale-strip' | 'isomorphic' | 'guitar';
 
@@ -50,7 +50,7 @@ function isCentsInScale(cents: number, activeCentsMod: number[], toleranceCents:
 export function buildScaleStripPads(
   midiTuning: MidiTuningConfig,
   currentFundamentalD: number,
-  tuningA4Hz: number,
+  _tuningA4Hz: number,
   tplHz: number,
   baseIdOffset: number = 2000
 ): SurfacePad[] {
@@ -64,13 +64,11 @@ export function buildScaleStripPads(
       const deg = all[i];
       const idx = oct * all.length + i;
       const midiId = baseIdOffset + idx;
-      const mapping = tuningDegreeToMapping(
+      const mapping = tuningDegreeToRelativeMapping(
         deg,
         oct,
         midiId,
-        midiTuning,
         currentFundamentalD,
-        tuningA4Hz,
         tplHz
       );
       const cents = deg.cents + oct * 1200;

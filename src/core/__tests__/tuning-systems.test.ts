@@ -6,6 +6,7 @@ import {
   build31EdoDegrees,
   resolveTuningDegrees,
   tuningDegreeToMapping,
+  tuningDegreeToRelativeMapping,
 } from '../tuning-systems';
 import { buildSequenceIndices, evaluateSequenceStep } from '../scale-sequencer';
 
@@ -64,7 +65,12 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(root.d - octaveUp.d).toBeCloseTo(1.0, 5);
   });
 
-  it('builds deterministic scale sequencer patterns', () => {
+  it('supports relative tonic mapping and quartal sequencing', () => {
+    const pent = buildPythagoreanChainDegrees(5).filter((d) => d.active);
+    const rel = tuningDegreeToRelativeMapping(pent[1], 0, 100, -2.5);
+    expect(rel.d).toBeCloseTo(-2.5 - Math.log2(pent[1].ratioValue), 5);
+
+    expect(buildSequenceIndices(7, 'quartal').slice(0, 3)).toEqual([0, 3, 6]);
     expect(buildSequenceIndices(5, 'ascend')).toEqual([0, 1, 2, 3, 4]);
     expect(buildSequenceIndices(5, 'descend')).toEqual([4, 3, 2, 1, 0]);
     expect(buildSequenceIndices(5, 'fifths-chain')).toEqual([0, 3, 1, 4, 2]);

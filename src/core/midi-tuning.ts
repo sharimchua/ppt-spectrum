@@ -81,6 +81,8 @@ export interface MidiTuningConfig {
   activeDegreeMask?: boolean[];
   /** Hardware MIDI key mapping mode ('12-key' standard vs '31edo' step-per-key). */
   midiStepMap?: '12-key' | '31edo';
+  /** Underlying harmonic voicing/step structure for scale subsets. */
+  harmonyStructure?: 'secundal' | 'tertial' | 'quartal';
 }
 
 export interface IntervalTuningResolution {

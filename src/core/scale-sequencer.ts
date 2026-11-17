@@ -3,13 +3,14 @@
  * Parallels sweep.ts for automated playback through active Tuning degrees.
  */
 
-export type SequencePattern = 'ascend' | 'descend' | 'pendulum' | 'triads' | 'fifths-chain';
+export type SequencePattern = 'ascend' | 'descend' | 'pendulum' | 'triads' | 'quartal' | 'fifths-chain';
 
 export const SEQUENCE_PATTERNS: Array<{ id: SequencePattern; label: string; description: string }> = [
-  { id: 'ascend', label: 'Ascend', description: 'Walk upwards through active tuning degrees' },
-  { id: 'descend', label: 'Descend', description: 'Walk downwards through active tuning degrees' },
+  { id: 'ascend', label: 'Secundal (Up)', description: 'Walk upwards in 2nds through active scale degrees' },
+  { id: 'descend', label: 'Secundal (Down)', description: 'Walk downwards in 2nds through active scale degrees' },
   { id: 'pendulum', label: 'Pendulum', description: 'Sweep up and back down smoothly' },
-  { id: 'triads', label: 'Triad Steps', description: 'Arpeggiate in skipped-degree triadic steps' },
+  { id: 'triads', label: 'Tertial (3rds)', description: 'Arpeggiate in skipped-degree triadic steps' },
+  { id: 'quartal', label: 'Quartal (4ths)', description: 'Stack and arpeggiate in fourth-like scale steps' },
   { id: 'fifths-chain', label: '3:2 Chain', description: 'Jump through degrees by fifth-like steps' },
 ];
 
@@ -39,6 +40,16 @@ export function buildSequenceIndices(degreeCount: number, pattern: SequencePatte
         result.push(root);
         result.push((root + 2) % degreeCount);
         result.push((root + 4) % degreeCount);
+      }
+      return result;
+    }
+
+    case 'quartal': {
+      const result: number[] = [];
+      for (let root = 0; root < degreeCount; root++) {
+        result.push(root);
+        result.push((root + 3) % degreeCount);
+        result.push((root + 6) % degreeCount);
       }
       return result;
     }

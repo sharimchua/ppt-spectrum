@@ -223,3 +223,45 @@ export function tuningDegreeToMapping(
     address: resolveDuPeriodAddress(d),
   };
 }
+
+/**
+ * Maps a TuningDegree relative to the current base frequency (`currentFundamentalD`)
+ * rather than a fixed MIDI root. Used by Scale Strip and Strum Mode so shifting
+ * the base frequency shifts the scale tonic.
+ */
+export function tuningDegreeToRelativeMapping(
+  degree: TuningDegree,
+  octaveOffset: number,
+  syntheticMidi: number,
+  currentFundamentalD: number,
+  tplHz: number = TPL_FREQUENCY_HZ
+): MidiNoteMappingResult {
+  const polarity: TplPolarity = getPolarityFromD(currentFundamentalD);
+  const fullMultiplier = degree.ratioValue * Math.pow(2, octaveOffset);
+  let d = currentFundamentalD - Math.log2(fullMultiplier);
+
+  let clampedToPolarity = false;
+  if (polarity === 'rhythm' && d < TPL_POLARITY_EPSILON_D) {
+    d = TPL_POLARITY_EPSILON_D;
+    clampedToPolarity = true;
+  } else if (polarity === 'pitch' && d > -TPL_POLARITY_EPSILON_D) {
+    d = -TPL_POLARITY_EPSILON_D;
+    clampedToPolarity = true;
+  }
+
+  return {
+    midi: syntheticMidi,
+    d,
+    freqHz: dToFreq(d, tplHz),
+    bpm: dToBpm(d, tplHz),
+    polarity,
+    clampedToPolarity,
+    semitone: degree.index,
+    octavesFromRoot: octaveOffset,
+    ratioValue: degree.ratioValue,
+    rational: degree.rational,
+    primeFamily: degree.edoStep !== undefined ? '12TET' : 'Tri',
+    centsFromEdo: 0,
+    address: resolveDuPeriodAddress(d),
+  };
+}
