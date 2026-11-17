@@ -164,7 +164,9 @@ export function useMidi({
       setLastMapping(mapping);
       syncGhostsToCoordinator();
       coordinator.triggerNoteStrike();
-      onUpdatePlacementDRef.current(mapping.d);
+      if (explicitNoteD === undefined && midi < 1000) {
+        onUpdatePlacementDRef.current(mapping.d);
+      }
     },
     [audioEngine, coordinator, sceneRef, syncGhostsToCoordinator]
   );
