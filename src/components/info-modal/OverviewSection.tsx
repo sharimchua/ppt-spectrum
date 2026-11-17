@@ -7,6 +7,7 @@ import {
   getTutorialDemoById,
 } from './tutorial-demos';
 import { LensPreviewGrid } from './LensPreviewGrid';
+import { WhatIsAShapeCard } from './WhatIsAShapeCard';
 
 interface OverviewSectionProps {
   onPlayDemo: (
@@ -45,7 +46,8 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
               At its heart, all of music is simply <strong>changes in amplitude (energy or loudness) over time</strong>. When a
               drummer strikes a drum every half-second, we feel each spike of amplitude as <strong>rhythm</strong>. When a guitar
               string pushes the air back and forth hundreds of times a second, those rapid waves of amplitude fuse into{' '}
-              <strong>pitch and timbre</strong>.
+              <strong>pitch and timbre</strong>. Your ears treat these as different things. PPT&apos;s idea is that the pattern
+              underneath is the same.
             </p>
 
             {/* Plain-English Amplitude Callout */}
@@ -75,9 +77,9 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
                 <strong className="text-amber-300 block mb-1">The Bicycle-Spoke Thought Experiment:</strong>
                 <p className="text-[11px] leading-relaxed text-stone-300">
                   Imagine pegging a playing card against the spokes of a spinning bicycle wheel. Turn it slowly and you hear
-                  separate clicks—a beat you can tap your foot to. Spin it faster past about{' '}
-                  <strong>26 clicks per second (25.8 Hz)</strong> and your ear can no longer separate the clicks. Suddenly, the
-                  rhythm melts into a low musical hum!
+                  separate clicks: a beat you can tap your foot to. Spin it faster and the clicks start to blur together. Around{' '}
+                  <strong>26 clicks per second (25.8 Hz)</strong> most of us stop hearing separate clicks and hear a low musical
+                  hum instead. It&apos;s a gradual crossover, not a switch.
                 </p>
               </div>
             </div>
@@ -92,7 +94,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
             </div>
             <div className="text-left">
               <div className="text-[10px] uppercase font-bold tracking-wider text-amber-950">
-                10-Second Audio Proof
+                10-Second Listening Demo
               </div>
               <div className="text-sm font-extrabold text-stone-950">Hear 3:2 Beat Become a 5th</div>
             </div>
@@ -107,7 +109,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
               <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 mr-1.5">
                 TPL ≈ 25.8 Hz
               </span>
-              <span className="text-stone-400">The <strong>Auditory Horizon</strong> where beats fuse into pitch.</span>
+              <span className="text-stone-400">The <strong>Temporal-Place Limen</strong>: the crossover zone where beats blend into pitch.</span>
             </div>
           </div>
           <div className="flex items-start gap-2">
@@ -139,6 +141,9 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onPlayDemo }) 
           </div>
         </div>
       </div>
+
+      {/* What is a Shape? */}
+      <WhatIsAShapeCard onPlayDemo={onPlayDemo} />
 
       {/* Guided Live Demos Strip */}
       <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-3.5">

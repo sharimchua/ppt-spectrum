@@ -137,6 +137,15 @@ describe('Alignment & Ghost Fundamental', () => {
     const poly54 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-5-4')!;
     const coinc54 = calculateCoincidenceCycle(poly54, f0);
     expect(coinc54.rootTurnsToAlign).toBe(4);
+
+    const poly74 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-7-4')!;
+    expect(calculateCoincidenceCycle(poly74, f0).rootTurnsToAlign).toBe(4);
+
+    const poly75 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-7-5')!;
+    expect(calculateCoincidenceCycle(poly75, f0).rootTurnsToAlign).toBe(5);
+
+    const poly118 = PRESET_SHAPES.find((s) => s.id === 'polyrhythm-11-8')!;
+    expect(calculateCoincidenceCycle(poly118, f0).rootTurnsToAlign).toBe(8);
   });
 
   it('evaluates Plomp-Levelt roughness', () => {

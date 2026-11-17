@@ -105,7 +105,7 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
             <SlidersHorizontal className="h-4 w-4 text-amber-400 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-stone-100">
-                1. Voice Anchors vs Overtones — Plus Real-World String Stretch (B)
+                1. Voice Anchors and Partials, Plus Real-World String Stretch (B)
               </h3>
               <p className="text-[11px] text-stone-400">
                 How chords, drum kits, and warm piano strings are built inside the Shape Studio
@@ -121,9 +121,10 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
           <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
             <strong className="text-amber-300">Two-Layer Architecture (Band vs Overtones):</strong>
             <p className="text-stone-300 leading-relaxed">
-              Every Shape is organised like a band. <strong>Voice Anchors</strong> are the individual players (each note of a chord
-              or each drum in a groove, with its own pitch ratio, drum sound, and timing offset around the bar). Inside each Voice
-              Anchor lives its own stack of <strong>Harmonic Partials</strong> (1×, 2×, 3× overtones) with individual amplitudes.
+              Every Shape is organised like a band. (A Voice Anchor is this app&apos;s word for one player; it isn&apos;t a PPT
+              reference &ldquo;anchor&rdquo;.) <strong>Voice Anchors</strong> are the individual players (each note of a chord or
+              each drum in a groove, with its own pitch ratio, drum sound, and timing offset around the bar). Inside each Voice
+              Anchor lives its own stack of <strong>partials</strong> (1×, 2×, 3× …) with individual amplitudes.
             </p>
           </div>
           <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
@@ -157,7 +158,7 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
             <Filter className="h-4 w-4 text-sky-400 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-stone-100">
-                2. Sculpting by Subtraction: Rhythm Sieves &amp; Vocal Formants
+                2. Sculpting by Subtraction: Rhythm Sieves &amp; Spectral Filters
               </h3>
               <p className="text-[11px] text-stone-400">
                 How one filter engine carves both danceable syncopation and acoustic tone colours
@@ -170,10 +171,11 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
         </div>
 
         <p className="text-xs text-stone-300 leading-relaxed">
-          In synthesis, a <strong>spectral filter</strong> reduces the amplitude of certain frequencies to mimic a violin body or a
-          human voice singing vowels. In PPT Spectrum, you can also apply <strong>Cycle Sieves</strong> in rhythm space: just like
-          placing a stencil over a steady 8th-note groove, a sieve gates specific slots around the bar (setting muted slots to zero
-          amplitude) so only your chosen syncopated accents pass through!
+          In synthesis, a <strong>spectral filter</strong> reduces the amplitude of certain frequencies. Choose which partials
+          survive and you can imitate the resonant body of a violin, or the vowel-like peaks (called formants) of a singing voice.
+          In PPT Spectrum the same idea works in rhythm: a <strong>Cycle Sieve</strong> acts like a stencil over a steady 8th-note
+          groove, gating slots around the bar (muted slots go to zero amplitude) so only your chosen syncopated accents pass
+          through.
         </p>
 
         {/* Interactive 8-Slot Rhythm Sieve Mini-Explorer */}
@@ -340,7 +342,7 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
           <p className="text-xs text-stone-300 leading-relaxed">
             <strong>Rhythm Tab:</strong> Clap or tap a beat into your mic; the app trims silence, plots your hits on the Cycle Wheel,
             and quantises them into a playable groove. <strong>Pitch/Timbre Tab:</strong> Sing or pluck an instrument into your mic to
-            extract up to <strong>24 overtones</strong> (and their amplitudes) and slide your own acoustic sound across the continuum!
+            extract up to <strong>24 partials</strong> (and their amplitudes) and slide your own acoustic sound across the continuum!
           </p>
         </div>
 

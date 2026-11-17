@@ -122,6 +122,24 @@ export const LinksSection: React.FC = () => {
         </div>
       </div>
 
+      {/* Related Ideas */}
+      <div className="rounded-xl border border-stone-800 bg-stone-900/30 p-5 space-y-2.5 text-xs text-stone-300 leading-relaxed">
+        <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wide">
+          Related ideas
+        </h4>
+        <p>
+          PPT Spectrum is one person&apos;s evolving, descriptive take on ideas that many traditions explore: just intonation and
+          the harmonic series, spectral music (Murail, Grisey), tala and shruti in Indian classical music, and Western functional
+          harmony. It sits alongside them, not in place of them.
+        </p>
+        {/* TODO(author): confirm Cowell and Stockhausen citations before release */}
+        <p className="text-stone-400 italic">
+          Earlier thinkers who connected rhythm and pitch: Henry Cowell&apos;s <em>New Musical Resources</em> (1930), which related
+          rhythmic ratios to the harmonic series, and Karlheinz Stockhausen&apos;s essay &ldquo;&hellip;how time
+          passes&hellip;&rdquo; (1957), on rhythm and pitch as one continuum.
+        </p>
+      </div>
+
       {/* Re-opening Help Modal Notice */}
       <div className="flex items-center gap-3 rounded-xl border border-stone-800 bg-stone-950/70 p-4 text-xs text-stone-300">
         <Info className="h-5 w-5 text-amber-400 shrink-0" />

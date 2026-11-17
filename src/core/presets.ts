@@ -233,6 +233,28 @@ export const PRESET_SHAPES: Shape[] = [
     ]
   },
   {
+    id: 'polyrhythm-7-5',
+    name: '7 against 5 (Septimal Tritone)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: '7:5 ratio: 7-against-5 cross-rhythm in tempo space, unsettled septimal tritone in pitch space.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 5-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 7, den: 5 }, amp: 0.8, phase: 0, voice: 'triangle', label: '7/5 (Septimal Tritone / 7-Pulse)' },
+    ]
+  },
+  {
+    id: 'polyrhythm-11-8',
+    name: '11 against 8 (Neutral Fourth)',
+    origin: 'preset',
+    category: 'rhythm',
+    description: '11:8 ratio: 11-against-8 cross-rhythm in tempo space, neutral fourth between fourth and tritone in pitch space.',
+    partials: [
+      { id: 'p1', ratio: { kind: 'rational', num: 1, den: 1 }, amp: 1.0, phase: 0, voice: 'kick', label: '1 (Scene Root / 8-Pulse)' },
+      { id: 'p2', ratio: { kind: 'rational', num: 11, den: 8 }, amp: 0.8, phase: 0, voice: 'clave', label: '11/8 (Neutral Fourth / 11-Pulse)' },
+    ]
+  },
+  {
     id: 'tresillo-3-3-2',
     name: 'Tresillo Syncopation (3+3+2)',
     origin: 'preset',

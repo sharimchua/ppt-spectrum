@@ -21,7 +21,7 @@ const LENS_ITEMS: LensItem[] = [
     badge: 'Logarithmic Axis (d)',
     plainTitle: 'The Master Speed Map',
     summary:
-      'Your panoramic map from slow drum tempos on the left, across the 25.8 Hz Auditory Horizon in the middle, up to high musical notes on the right.',
+      'Your panoramic map from slow drum tempos on the left, across the 25.8 Hz Temporal-Place Limen in the middle, up to high musical notes on the right.',
     accentBorder: 'border-amber-500/35',
     accentBackBorder: 'border-amber-400/60',
     accentText: 'text-amber-300',

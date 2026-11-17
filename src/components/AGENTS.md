@@ -49,17 +49,20 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
 - `tutorial-demos.ts` — Guided tutorial demo configurations, custom override contracts, section identifiers, and intro storage key.
-- `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time & the Bicycle-Spoke thought experiment, 4 guided live demo launchers, interactive `<LensPreviewGrid />`, and quick interaction tips.
+- `prime-sweep-demos.ts` — Guided 7:4, 7:5, and 11:8 prime-family TPL crossover demo configurations.
+- `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time & the Bicycle-Spoke thought experiment, a 'What is a Shape?' card, 4 guided live demo launchers, interactive `<LensPreviewGrid />`, and quick interaction tips.
+- `WhatIsAShapeCard.tsx` — Overview card defining Shape, Voice Anchor, and partial, with three one-click listening examples.
 - `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.
-- `ConceptsSection.tsx` — 7 intuition-first musical thought experiments with UI reference badges and embedded interactive exploration diagrams.
-- `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors vs Overtones, Inharmonic Stretch ($B$), Rhythm Sieves & Formants (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Tuning Studio & Solfège Keyboard, Mic Capture, Web MIDI, and Audio Modes.
+- `ConceptsSection.tsx` — 7 intuition-first musical experiments, ordered listening-first, with UI reference badges and embedded interactive exploration diagrams.
+- `AcousticsNamesCallout.tsx` — Textbook acoustics glossary (partial, harmonic, overtone, inharmonic, missing fundamental, beating) used in Concepts.
+- `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors and Partials, Inharmonic Stretch ($B$), Rhythm Sieves & Spectral Filters (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Tuning Studio & Solfège Keyboard, Mic Capture, Web MIDI, and Audio Modes.
 - `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
-- `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, and lesson archives.
+- `LinksSection.tsx` — Ecosystem links to official portals, OKF knowledge bundle, curriculum, lesson archives, and Related ideas card.
 - `TplContinuumDiagram.tsx` — Interactive continuum ruler with continuous draggable speed slider, clickable landmarks, DuPeriod vs Physical Hz scale switch, and TPL crossover zone.
 - `PolyrhythmSamDiagram.tsx` — Interactive polyrhythm-to-harmony alignment timeline with 1× Ghost Root / Sam toggle and live studio demo launchers.
 - `OvertoneTimbreDiagram.tsx` — Interactive partial mixer (clickable 1×–8× bars) and waveform presets with live summed oscilloscope and dual Rhythm/Pitch perception cards.
 - `DuMetricCycleDiagram.tsx` — Interactive 12-tone Solfège and DuMetric Clock dial with PPT geometric noteheads, intervals, and groove/chord overlays.
-- `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
+- `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles, with audible 3, 5, 7, and 11 demo launchers.
 - `FractalCouplingDiagram.tsx` — Interactive Cross-Limen Coupling explorer (`Pitch Carrier` & `Rhythm Container`) comparing `Self` (Fractal Mirror), `Neutral` (Drum Kit / Static), and `Cross-Shape Coupling` with live demo launchers.
 - `KeyboardTuningDiagram.tsx` — Interactive Solfège Keyboard & Tuning explorer comparing `12-TET` drift vs `5-Limit` Super-Cycle lock on a 4-bar coincidence timeline and demonstrating melodic rhythm / tempo cadences (`3:2` and `4:3`).
 - `tempo-cadence-demos.ts` — Pure Supercycle Band-Filter builders for the Section 7 metric-modulation cadence demos (`3:2`, `4:3`, and `4:5:6:8`).

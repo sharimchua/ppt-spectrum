@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
+import { Play } from 'lucide-react';
 import { PRIME_FAMILY_COLORS } from '../../core/ppt-constants';
+import {
+  TutorialDemoId,
+  CustomTutorialDemoOverride,
+} from './tutorial-demos';
+
+interface PrimeDemoButton {
+  label: string;
+  demoId: TutorialDemoId;
+}
 
 interface PrimeFamilyInfo {
   id: string;
   name: string;
+  detailHeading?: string;
   nickname: string;
   symbol: string;
   color: string;
@@ -12,6 +23,7 @@ interface PrimeFamilyInfo {
   harmonicQuality: string;
   instruments: string;
   coincidence: string;
+  demos?: PrimeDemoButton[];
 }
 
 const PRIME_FAMILIES: PrimeFamilyInfo[] = [
@@ -38,6 +50,7 @@ const PRIME_FAMILIES: PrimeFamilyInfo[] = [
     harmonicQuality: 'Open, strong, and grounded—the classic "power chord" fifth and circle-of-fifths gravity.',
     instruments: 'Violin open strings, brass fanfares, jazz ride cymbal swing.',
     coincidence: 'Locks every 2 or 3 beats.',
+    demos: [{ label: 'Hear 3:2', demoId: 'hemiola-sweep' }],
   },
   {
     id: '5',
@@ -50,6 +63,7 @@ const PRIME_FAMILIES: PrimeFamilyInfo[] = [
     harmonicQuality: 'Brings warmth, sweetness, and major/minor emotional colour into an otherwise stark fifth.',
     instruments: 'Barbershop vocal harmonies, warm acoustic chords, 5-stroke clave patterns.',
     coincidence: 'Locks every 4 or 5 beats.',
+    demos: [{ label: 'Hear 5:4', demoId: 'polyrhythm-5-4-sweep' }],
   },
   {
     id: '7',
@@ -62,6 +76,10 @@ const PRIME_FAMILIES: PrimeFamilyInfo[] = [
     harmonicQuality: 'The natural acoustic "blue note"—a smooth, soulful tension that doesn’t even want to resolve.',
     instruments: 'Blues harmonica, barbershop 7th chords, Balkan folk percussion.',
     coincidence: 'Locks every 4 or 7 beats.',
+    demos: [
+      { label: 'Hear 7:4', demoId: 'polyrhythm-7-4-sweep' },
+      { label: 'Hear 7:5 (tritone)', demoId: 'polyrhythm-7-5-sweep' },
+    ],
   },
   {
     id: '11',
@@ -74,22 +92,31 @@ const PRIME_FAMILIES: PrimeFamilyInfo[] = [
     harmonicQuality: 'Otherworldly "neutral" intervals that sit exactly between major and minor, central to Arabic maqam and Swiss alphorn.',
     instruments: 'Arabic oud (maqam Rast), Swiss alphorn natural 11th harmonic.',
     coincidence: 'Takes 8 to 11 beats to realign.',
+    demos: [{ label: 'Hear 11:8', demoId: 'polyrhythm-11-8-sweep' }],
   },
   {
     id: 'higher',
-    name: '>11 (Inharmonic)',
+    name: 'Inharmonic (Off-Grid)',
+    detailHeading: 'Beyond the 11-limit (off-grid / inharmonic)',
     nickname: 'The Shimmer (Bells & Chimes)',
     symbol: 'Stretched',
     color: PRIME_FAMILY_COLORS['higher'],
     intervals: 'Stretched Piano Strings (B), Metal Bar Modes (2.76×), Church Bell Tierce',
     rhythmFeel: 'Drifting, un-gridded rhythms that never repeat the same way twice.',
-    harmonicQuality: 'Metallic shimmer, bell-like ring, and slow hypnotic acoustic beating.',
+    harmonicQuality: 'Partials off the simple-ratio grid: a metallic shimmer, bell-like ring and slow, hypnotic beating.',
     instruments: 'Church bells, Tibetan singing bowls, Indonesian gamelan, vibraphone.',
     coincidence: 'Never neatly locks into a short bar.',
   },
 ];
 
-export const PrimeFamiliesDiagram: React.FC = () => {
+interface PrimeFamiliesDiagramProps {
+  onPlayDemo?: (
+    demoId: TutorialDemoId,
+    customOverride?: CustomTutorialDemoOverride
+  ) => void;
+}
+
+export const PrimeFamiliesDiagram: React.FC<PrimeFamiliesDiagramProps> = ({ onPlayDemo }) => {
   const [selectedId, setSelectedId] = useState<string>('3');
   const selected = PRIME_FAMILIES.find((f) => f.id === selectedId) || PRIME_FAMILIES[1];
 
@@ -140,7 +167,7 @@ export const PrimeFamiliesDiagram: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: selected.color }} />
             <h4 className="font-bold text-white font-mono text-sm">
-              {selected.name} — <span className="text-amber-300 font-sans">{selected.nickname}</span>
+              {selected.detailHeading ?? selected.name} — <span className="text-amber-300 font-sans">{selected.nickname}</span>
             </h4>
           </div>
           <span className="text-[11px] font-mono text-cyan-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
@@ -167,6 +194,21 @@ export const PrimeFamiliesDiagram: React.FC = () => {
             <strong className="text-slate-200">Cycle Alignment:</strong> {selected.coincidence}
           </div>
         </div>
+
+        {onPlayDemo && selected.demos && selected.demos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-slate-800/60">
+            {selected.demos.map((demo) => (
+              <button
+                key={demo.demoId}
+                onClick={() => onPlayDemo(demo.demoId)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-xs transition cursor-pointer"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>{demo.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

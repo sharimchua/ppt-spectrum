@@ -6,6 +6,7 @@
 
 import { Filter, PitchCarrierMode, RhythmContainerMode } from '../../core/types';
 import { MidiPhaseMode } from '../../core/midi-tuning';
+import { PRIME_SWEEP_DEMOS } from './prime-sweep-demos';
 
 export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
 
@@ -13,6 +14,9 @@ export type TutorialDemoId =
   | 'hemiola-sweep'
   | 'polyrhythm-4-3-sweep'
   | 'polyrhythm-5-4-sweep'
+  | 'polyrhythm-7-4-sweep'
+  | 'polyrhythm-7-5-sweep'
+  | 'polyrhythm-11-8-sweep'
   | 'triad-sweep'
   | 'sine-timbre'
   | 'sawtooth-timbre'
@@ -137,6 +141,7 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     noteIndex: 9,
     octave: 4,
   },
+  ...PRIME_SWEEP_DEMOS,
   {
     id: 'triad-sweep',
     title: '4:5:6 Polyrhythm → Major Chord',
@@ -277,10 +282,10 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     id: 'bowl-swell',
     title: 'Singing Bowl + 4-Bar Swell',
     shortTitle: 'Bowl + Supercycle',
-    badge: '>11 Inharmonic + Swell',
+    badge: 'Inharmonic + Swell',
     summary: 'Non-integer metallic modes shimmer and beat while a Supercycle envelope swells over 4 cycles.',
     listenHint:
-      'Because a singing bowl uses non-integer ratios (>11 prime family), its partials never neatly lock—creating a slow, hypnotic shimmer.',
+      'Because a singing bowl\'s partials sit off the simple-ratio grid, they never lock into a clean bar, creating a slow, hypnotic shimmer.',
     fromSection: 'hood',
     mode: 'bundle',
     bundleId: 'bundle-bowl-swell',
@@ -408,9 +413,7 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
   },
 ];
 
-export const FEATURED_TOUR_DEMOS: TutorialDemoConfig[] = TUTORIAL_DEMOS.filter(
-  (d) => d.featuredInTour
-);
+export const FEATURED_TOUR_DEMOS: TutorialDemoConfig[] = TUTORIAL_DEMOS.filter((d) => d.featuredInTour);
 
 export function getTutorialDemoById(id: TutorialDemoId): TutorialDemoConfig {
   return TUTORIAL_DEMOS.find((d) => d.id === id) || TUTORIAL_DEMOS[0];

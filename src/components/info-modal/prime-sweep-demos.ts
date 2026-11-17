@@ -1,0 +1,58 @@
+import type { TutorialDemoConfig } from './tutorial-demos';
+
+export const PRIME_SWEEP_DEMOS: TutorialDemoConfig[] = [
+  {
+    id: 'polyrhythm-7-4-sweep',
+    title: '7:4 Polyrhythm → Harmonic Seventh',
+    shortTitle: '7:4 Seventh Sweep',
+    badge: 'TPL Crossover · 7:4',
+    summary: 'Hear a lopsided 7-against-4 groove speed up across 25.8 Hz into a bluesy Harmonic Seventh.',
+    listenHint:
+      "Listen to 7 against 4 at 120 BPM: a Balkan-flavoured, slightly off-balance cross-rhythm. Above 25.8 Hz it fuses into the Harmonic Seventh (969¢), a little flatter than the piano's minor seventh.",
+    fromSection: 'concepts',
+    mode: 'sweep',
+    shapeId: 'polyrhythm-7-4',
+    rhythmBpm: 120,
+    rhythmD: 3.689,
+    pitchLabel: 'A4 440 Hz (Pitch)',
+    pitchD: -4.092,
+    noteIndex: 9,
+    octave: 4,
+  },
+  {
+    id: 'polyrhythm-7-5-sweep',
+    title: '7:5 Polyrhythm → Septimal Tritone',
+    shortTitle: '7:5 Tritone Sweep',
+    badge: 'TPL Crossover · 7:5',
+    summary: 'Hear 7 against 5 speed up across 25.8 Hz into an unsettled Septimal Tritone.',
+    listenHint:
+      "Listen to 7 against 5, then hear it fuse into the Septimal Tritone (583¢): a close cousin of the piano's tritone, a little narrower and just as unresolved.",
+    fromSection: 'concepts',
+    mode: 'sweep',
+    shapeId: 'polyrhythm-7-5',
+    rhythmBpm: 120,
+    rhythmD: 3.689,
+    pitchLabel: 'A4 440 Hz (Pitch)',
+    pitchD: -4.092,
+    noteIndex: 9,
+    octave: 4,
+  },
+  {
+    id: 'polyrhythm-11-8-sweep',
+    title: '11:8 Polyrhythm → Neutral Fourth',
+    shortTitle: '11:8 Neutral Sweep',
+    badge: 'TPL Crossover · 11:8',
+    summary: 'Hear 11 against 8 speed up across 25.8 Hz into a neutral interval between a fourth and a tritone.',
+    listenHint:
+      'Eleven against eight is hard to count, so just listen. Above 25.8 Hz it becomes the Neutral Fourth (551¢), roughly halfway between a perfect fourth (498¢) and a tritone.',
+    fromSection: 'concepts',
+    mode: 'sweep',
+    shapeId: 'polyrhythm-11-8',
+    rhythmBpm: 120,
+    rhythmD: 3.689,
+    pitchLabel: 'A4 440 Hz (Pitch)',
+    pitchD: -4.092,
+    noteIndex: 9,
+    octave: 4,
+  },
+];

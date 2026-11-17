@@ -51,7 +51,7 @@ const LANDMARKS: Landmark[] = [
     freqHz: 25.8,
     periodMs: 38.76,
     regime: 'transition',
-    description: 'The Auditory Horizon (Temporal-Place Limen, d = 0): Where separate clicks fuse into a continuous low hum.',
+    description: 'The Temporal-Place Limen (d = 0): the middle of the crossover zone where separate clicks blend into a continuous low hum.',
   },
   {
     id: 'roughness',
@@ -74,14 +74,14 @@ const LANDMARKS: Landmark[] = [
     description: 'Deep bass guitar note. The inner ear now reads vibration location as a steady musical pitch.',
   },
   {
-    id: 'do5',
-    label: 'Do−5 · 413 Hz (Anchor)',
+    id: 'do4',
+    label: 'Do-4 · 413 Hz (Anchor)',
     subLabel: '412.8 Hz · d −4.0',
     d: -4.0,
     freqHz: 412.8,
     periodMs: 2.42,
     regime: 'pitch',
-    description: 'Pure PPT Pitch Anchor (25.8 Hz × 16, near Baroque A415)—4 octave doublings above the 25.8 Hz horizon.',
+    description: 'Pure PPT Pitch Anchor (25.8 Hz × 16, near Baroque A415)—4 octave doublings above the 25.8 Hz limen.',
   },
   {
     id: 'highC',
@@ -180,7 +180,7 @@ export const TplContinuumDiagram: React.FC = () => {
           <div
             className="absolute inset-y-0 w-0.5 border-l-2 border-dashed border-red-500/80"
             style={{ left: `${pctTpl}%` }}
-            title="Auditory Horizon (25.8 Hz, d = 0)"
+            title="Temporal-Place Limen (25.8 Hz, d = 0)"
           >
             <span className="absolute top-0.5 -translate-x-1/2 px-1 py-0.2 rounded bg-red-950/90 border border-red-500/40 text-[8px] font-mono text-red-300 whitespace-nowrap">
               d=0 · 25.8Hz
