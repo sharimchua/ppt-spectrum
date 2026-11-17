@@ -244,9 +244,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           </div>
 
           {onToggleStrumMode && tuningStrum && (
-            <button
-              type="button"
-              onClick={onToggleStrumMode}
+            <button type="button"
+              onClick={() => { if (!tuningStrum.isStrumMode && surfaceMode === 'piano') setSurfaceMode('scale-strip'); onToggleStrumMode(); }}
               className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
                 tuningStrum.isStrumMode
                   ? 'bg-rose-600/25 border-rose-500 text-rose-200'
