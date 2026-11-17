@@ -231,3 +231,54 @@ export function buildIntervalBands(
 
   return { bands, rowCount: 1 };
 }
+
+/**
+ * Computes an updated { rangePresetId, octaveOffset } when active MIDI notes
+ * fall outside the currently visible [startMidi..endMidi] window.
+ * Returns null if all active notes are already visible.
+ */
+export function resolveVisibleRangeForNotes(
+  activeMidiNumbers: number[],
+  currentPresetId: string,
+  currentOctaveOffset: number
+): { rangePresetId: string; octaveOffset: number } | null {
+  if (activeMidiNumbers.length === 0 || currentPresetId === '88key') {
+    return null;
+  }
+  const preset =
+    KEYBOARD_RANGE_PRESETS.find((p) => p.id === currentPresetId) ?? KEYBOARD_RANGE_PRESETS[0];
+  const curStart = Math.max(21, preset.startMidi + currentOctaveOffset * 12);
+  const curEnd = Math.min(108, preset.endMidi + currentOctaveOffset * 12);
+
+  const minActive = Math.min(...activeMidiNumbers);
+  const maxActive = Math.max(...activeMidiNumbers);
+  if (minActive >= curStart && maxActive <= curEnd) {
+    return null;
+  }
+
+  const currentSpan = preset.endMidi - preset.startMidi;
+  if (maxActive - minActive <= currentSpan) {
+    for (let shift = -3; shift <= 3; shift++) {
+      const s = Math.max(21, preset.startMidi + shift * 12);
+      const e = Math.min(108, preset.endMidi + shift * 12);
+      if (minActive >= s && maxActive <= e) {
+        return { rangePresetId: preset.id, octaveOffset: shift };
+      }
+    }
+  }
+
+  for (const candidate of KEYBOARD_RANGE_PRESETS) {
+    if (candidate.id === '88key') {
+      return { rangePresetId: '88key', octaveOffset: 0 };
+    }
+    for (let shift = -2; shift <= 2; shift++) {
+      const s = Math.max(21, candidate.startMidi + shift * 12);
+      const e = Math.min(108, candidate.endMidi + shift * 12);
+      if (minActive >= s && maxActive <= e) {
+        return { rangePresetId: candidate.id, octaveOffset: shift };
+      }
+    }
+  }
+
+  return null;
+}

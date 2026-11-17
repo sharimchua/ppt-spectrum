@@ -24,6 +24,7 @@ import {
   buildIntervalBands,
   buildVirtualKeys,
   getBlackKeyOffset,
+  resolveVisibleRangeForNotes,
   VirtualKeyItem,
 } from './keyboard/keyboard-layout';
 import { IntervalBandsStrip } from './keyboard/IntervalBandsStrip';
@@ -96,6 +97,16 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const is88 = preset.id === '88key';
   const startMidi = is88 ? preset.startMidi : Math.max(21, preset.startMidi + octaveOffset * 12);
   const endMidi = is88 ? preset.endMidi : Math.min(108, preset.endMidi + octaveOffset * 12);
+
+  // Auto-shift octave or expand range preset when active/latched notes fall outside visible keys
+  useEffect(() => {
+    if (!isOpen) return;
+    const next = resolveVisibleRangeForNotes(activeMidiNumbers, rangePresetId, octaveOffset);
+    if (next) {
+      if (next.rangePresetId !== rangePresetId) setRangePresetId(next.rangePresetId);
+      if (next.octaveOffset !== octaveOffset) setOctaveOffset(next.octaveOffset);
+    }
+  }, [isOpen, activeMidiNumbers, rangePresetId, octaveOffset]);
 
   const isRhythm = currentFundamentalD >= 0;
   const activeSet = useMemo(() => new Set(activeMidiNumbers), [activeMidiNumbers]);

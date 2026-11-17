@@ -81,6 +81,7 @@ export interface UseMidiResult {
   virtualNoteOn: (midi: number, velocity?: number) => void;
   virtualNoteOff: (midi: number) => void;
   toggleVirtualNote: (midi: number, velocity?: number) => void;
+  transposeLatchedNotes: (semitones: number) => void;
   clearAllNotes: () => void;
   flipPolarity: () => void;
 }
@@ -337,6 +338,32 @@ export function useMidi({
     [dispatchNoteOff, dispatchNoteOn]
   );
 
+  const transposeLatchedNotes = useCallback(
+    (semitones: number) => {
+      if (semitones === 0) return;
+      const latchedEntries = heldStackRef.current.filter((item) =>
+        sourcesByMidiRef.current.get(item.midi)?.has('virtual')
+      );
+      if (latchedEntries.length === 0) return;
+
+      // Ensure the whole latched chord stays within [0..127] without distorting intervals
+      const minMidi = Math.min(...latchedEntries.map((e) => e.midi));
+      const maxMidi = Math.max(...latchedEntries.map((e) => e.midi));
+      if (minMidi + semitones < 0 || maxMidi + semitones > 127) {
+        return;
+      }
+
+      const oldLatched = latchedEntries.map((e) => ({ ...e }));
+      for (const item of oldLatched) {
+        dispatchNoteOff(item.midi, 'virtual');
+      }
+      for (const item of oldLatched) {
+        dispatchNoteOn(item.midi + semitones, item.velocity, 'virtual');
+      }
+    },
+    [dispatchNoteOff, dispatchNoteOn]
+  );
+
   const openMidiModal = useCallback(() => setIsMidiModalOpen(true), []);
   const closeMidiModal = useCallback(() => setIsMidiModalOpen(false), []);
   const openTuningModal = useCallback(() => setIsTuningModalOpen(true), []);
@@ -376,6 +403,7 @@ export function useMidi({
     virtualNoteOn,
     virtualNoteOff,
     toggleVirtualNote,
+    transposeLatchedNotes,
     clearAllNotes,
     flipPolarity,
   };

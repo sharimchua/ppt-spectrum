@@ -3,6 +3,7 @@ import {
   buildIntervalBands,
   buildVirtualKeys,
   formatIntervalRatioLabel,
+  resolveVisibleRangeForNotes,
 } from '../keyboard/keyboard-layout';
 import { createDefaultMidiTuningConfig } from '../../core/midi-tuning';
 
@@ -49,5 +50,15 @@ describe('keyboard-layout', () => {
     expect(chordRes.bands).toHaveLength(3);
     expect(chordRes.rowCount).toBe(2); // 68-72 & 72-75 on row 0; 68-75 packed on row 1
     expect(chordRes.bands.map((b) => b.ratioLabel)).toEqual(['6:5', '5:4', '3:2']);
+  });
+
+  it('auto-shifts octave or expands range preset when active notes fall outside visible keys', () => {
+    // 2oct-f is [53..77]; playing 80 (G#5) shifts octaveOffset to +1 ([65..89])
+    const shifted = resolveVisibleRangeForNotes([68, 80], '2oct-f', 0);
+    expect(shifted).toEqual({ rangePresetId: '2oct-f', octaveOffset: 1 });
+
+    // Playing wide chord [48..84] (3 octaves) expands to 3oct-c
+    const expanded = resolveVisibleRangeForNotes([48, 84], '2oct-f', 0);
+    expect(expanded).toEqual({ rangePresetId: '3oct-c', octaveOffset: 0 });
   });
 });

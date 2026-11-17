@@ -99,8 +99,11 @@ export const App: React.FC = () => {
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
-  const { clearAllNotes, flipPolarity, toggleKeyboard } = midi;
+  const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, latchedMidiNumbers } = midi;
   const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
+  const handleArrowStep = useCallback((step: number) => {
+    if (latchedMidiNumbers.length > 0) transposeLatchedNotes(Math.round(-step * 12)); else handleStepPrimaryD(step);
+  }, [latchedMidiNumbers.length, transposeLatchedNotes, handleStepPrimaryD]);
 
   // Dedicated Envelopes Sheet state & library
   const envelopes = useEnvelopes({ scene, updateScene });
@@ -137,9 +140,7 @@ export const App: React.FC = () => {
   }, [isPlaying, rawHandleTogglePlay]);
 
   const handlePanicClear = useCallback(() => {
-    clearAllNotes();
-    if (isOscillating) setIsOscillating(false);
-    if (isPlaying) void handleTogglePlay();
+    clearAllNotes(); if (isOscillating) setIsOscillating(false); if (isPlaying) void handleTogglePlay();
   }, [clearAllNotes, isOscillating, setIsOscillating, isPlaying, handleTogglePlay]);
   if (isOscillating !== isOscillatingInit) {
     setIsOscillatingInit(isOscillating);
@@ -255,7 +256,7 @@ export const App: React.FC = () => {
       onJumpBookmarkA: handleJumpBookmarkA,
       onJumpBookmarkB: handleJumpBookmarkB,
       onSetBookmarkFromCurrent: setBookmarkFromCurrent,
-      onStepPrimaryD: handleStepPrimaryD,
+      onStepPrimaryD: handleArrowStep,
       onHistoryBack: historyBack,
       onHistoryForward: historyForward,
       onToggleEnvelope: envelopes.handleToggleEnvelopeEnabled,
@@ -267,11 +268,9 @@ export const App: React.FC = () => {
       onPanicClear: handlePanicClear,
     }),
     [
-      handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode,
-      toggleFilter, toggleFiltersOpen, handleNoteOn, handleNoteOff,
-      handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
-      handleStepPrimaryD, historyBack, historyForward, envelopes, bundlesApi,
-      toggleKeyboard, flipPolarity, handlePanicClear,
+      handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode, toggleFilter, toggleFiltersOpen,
+      handleNoteOn, handleNoteOff, handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
+      handleArrowStep, historyBack, historyForward, envelopes, bundlesApi, toggleKeyboard, flipPolarity, handlePanicClear,
     ]
   );
 
