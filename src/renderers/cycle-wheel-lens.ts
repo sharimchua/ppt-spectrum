@@ -3,8 +3,7 @@ import { evaluatePlacedShape } from '../core/shape';
 import { calculateGhostFundamental, calculateCoincidenceCycle } from '../core/alignment';
 import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS } from '../core/ppt-constants';
 import { resolveDuPeriodAddress, dToFreq } from '../core/axis';
-import { RegisteredLensRenderer, HeldMidiNote } from './render-coordinator';
-import { buildPolyphonicMidiBundle } from './midi-polyphony-utils';
+import { RegisteredLensRenderer } from './render-coordinator';
 import { PostProcessingLight } from './webgl-post-processing';
 import { shouldUseDutyGain } from './filter-render-utils';
 import { evaluateOnsetGain, PartialContext } from '../core/filter-eval';
@@ -27,9 +26,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     scene: Scene,
     transportTime: number,
     audioPhase: number = 0,
-    isAudioActive: boolean = false,
-    _labelMode?: string,
-    configOverrides?: Record<string, unknown>
+    isAudioActive: boolean = false
   ): void {
     this.dynamicLights = [];
 
@@ -52,10 +49,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     const shape = scene.shapes.find((s) => s.id === primaryPlacement.shapeId);
     if (!shape) return;
 
-    const ghostMidiNotes = configOverrides?.ghostMidiNotes as HeldMidiNote[] | undefined;
-    const polyBundle = buildPolyphonicMidiBundle(ghostMidiNotes, shape, scene.anchors.tplFrequencyHz);
-
-    const f0 = polyBundle ? polyBundle.anchorFreqHz : dToFreq(primaryPlacement.d, scene.anchors.tplFrequencyHz);
+    const f0 = dToFreq(primaryPlacement.d, scene.anchors.tplFrequencyHz);
     const ghost = calculateGhostFundamental(shape, f0, scene.anchors.tplFrequencyHz);
     const coincidence = calculateCoincidenceCycle(shape, f0);
     const partials = evaluatePlacedShape(shape, primaryPlacement, scene.filter, primaryPlacement.d, scene.anchors.tplFrequencyHz);
@@ -64,8 +58,8 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     let unwrappedRootTurns = 0;
     if (isAudioActive) {
       if (f0 <= 25.8) {
-        unwrappedRootTurns = polyBundle ? polyBundle.anchorLivePhase : audioPhase;
-        this.visualPitchTurns = unwrappedRootTurns;
+        unwrappedRootTurns = audioPhase;
+        this.visualPitchTurns = audioPhase;
       } else {
         this.visualPitchTurns += dt * 1.0;
         unwrappedRootTurns = this.visualPitchTurns;
@@ -150,9 +144,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     ctx.fillStyle = '#E13610';
     ctx.font = isCompact ? 'bold 8px JetBrains Mono, monospace' : 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
-    const headerTitle = polyBundle
-      ? `POLYPHONIC MIDI (${polyBundle.streams.length} STREAMS)`
-      : coincidence.isAperiodic
+    const headerTitle = coincidence.isAperiodic
       ? (isCompact ? 'APERIODIC ORBITS (Inharmonic)' : 'APERIODIC ORBITS (Inharmonic • Never Aligns)')
       : !isCompactSuperCycle
       ? `CONTINUOUS ORBITS (${coincidence.rootTurnsToAlign} Root Turns)`
@@ -180,56 +172,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
       ctx.restore();
     }
 
-    // 2. Concentric rings for each partial layer (or polyphonic MIDI streams when 2+ keys are held)
-    if (polyBundle) {
-      const numStreams = polyBundle.streams.length;
-      const innerR = maxR * 0.25;
-      const ringStep = (maxR - innerR) / Math.max(1, numStreams);
-
-      for (let i = 0; i < numStreams; i++) {
-        const s = polyBundle.streams[i];
-        const r = innerR + (i + 0.5) * ringStep;
-        const addr = resolveDuPeriodAddress(s.d);
-        const col = SOLFEGE_COLORS[addr.semitoneIndex] || '#38bdf8';
-        const neonCol = SOLFEGE_NEON_COLORS[addr.semitoneIndex] || col;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        const runnerTurns = ((unwrappedRootTurns * s.ratioToRef + s.effectivePhase) % 1.0 + 1.0) % 1.0;
-        const angle = runnerTurns * Math.PI * 2 - Math.PI / 2;
-        const px = centerX + r * Math.cos(angle);
-        const py = centerY + r * Math.sin(angle);
-        const distToApex = Math.min(runnerTurns, 1.0 - runnerTurns);
-        const isStrike = isAudioActive && distToApex < 0.045;
-        const isHighFreq = shouldUseDutyGain(s.freqHz);
-        const shouldFlash = isStrike && !isHighFreq;
-        const dotRadius = (2.8 + s.amp * 3.7) * (shouldFlash ? 1.6 : 1.0);
-
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(px, py);
-        ctx.strokeStyle = shouldFlash ? '#ffffff' : col;
-        ctx.lineWidth = shouldFlash ? 2.0 : 1.2;
-        ctx.stroke();
-
-        ctx.fillStyle = shouldFlash ? '#ffffff' : neonCol;
-        ctx.beginPath();
-        ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (shouldFlash) {
-          this.dynamicLights.push({ x: px, y: py, velocity: 1.0, colorHex: '#ffffff' });
-        }
-        ctx.restore();
-      }
-      return;
-    }
-
+    // 2. Concentric rings for each partial layer
     const numPartials = partials.length;
     const innerR = maxR * 0.25;
     const ringStep = (maxR - innerR) / Math.max(1, numPartials);

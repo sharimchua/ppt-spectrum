@@ -4,6 +4,7 @@ import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
 import { WebGLPostProcessingPipeline, PostProcessingLight, PostProcessingShockwave } from './webgl-post-processing';
 import { isMobileTouchDevice, getMaxParticlesForProfile } from './performance-profile';
+import { buildPolyphonicMidiScene } from './midi-polyphony-utils';
 
 export interface CachedRect {
   left: number;
@@ -266,6 +267,16 @@ export class RenderCoordinator {
     this.internalNoteAge += dtMs / 1000;
     const noteAge = (primaryShapeId && this.noteAgeProvider) ? this.noteAgeProvider(primaryShapeId) : this.internalNoteAge;
 
+    const enrichedHeldNotes = this.heldMidiNotes.length > 0
+      ? this.heldMidiNotes.map((gn) => ({
+          ...gn,
+          livePhase: this.midiPhaseProvider ? this.midiPhaseProvider(gn.midi) : gn.livePhase,
+        }))
+      : undefined;
+    const polySceneResult = buildPolyphonicMidiScene(this.scene, enrichedHeldNotes);
+    const renderScene = polySceneResult ? polySceneResult.scene : this.scene;
+    const renderPhase = polySceneResult ? polySceneResult.anchorPhase : audioPhase;
+
     const now = performance.now();
     // Refresh cached bounding rects at most once every 600ms or when invalidated, eliminating synchronous layout reflows
     const shouldRefreshRects = !this.cachedPpRect || (now - this.lastRectUpdateTime > 600);
@@ -298,16 +309,10 @@ export class RenderCoordinator {
       ctx.save();
       ctx.scale(scaleX, scaleY);
       ctx.clearRect(0, 0, w, h);
-      const effectiveOverrides = this.heldMidiNotes.length > 0
-        ? {
-            ...configOverrides,
-            ghostMidiNotes: this.heldMidiNotes.map((gn) => ({
-              ...gn,
-              livePhase: this.midiPhaseProvider ? this.midiPhaseProvider(gn.midi) : gn.livePhase,
-            })),
-          }
+      const effectiveOverrides = enrichedHeldNotes
+        ? { ...configOverrides, ghostMidiNotes: enrichedHeldNotes }
         : configOverrides;
-      renderer.render(ctx, w, h, this.scene, transportTime, audioPhase, isAudioActive, labelMode, effectiveOverrides, noteAge);
+      renderer.render(ctx, w, h, renderScene, transportTime, renderPhase, isAudioActive, labelMode, effectiveOverrides, noteAge);
       ctx.restore();
 
       if (renderer.getDynamicLights) {
