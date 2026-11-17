@@ -410,8 +410,8 @@ export const App: React.FC = () => {
         isRadialMenuOpen={isRadialMenuOpen}
         onCloseRadialMenu={() => setIsRadialMenuOpen(false)}
         radialMenuAnchor={radialMenuAnchor}
-        isPlaying={isPlaying} isFullscreen={isFullscreen}
-        onTogglePlay={handleTogglePlay} onToggleFullscreen={toggleFullscreen}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
         onUpdatePlacementD={handleManualPlacementD}
         onUpdateFilterParams={handleUpdateFilterParams}
         toggleFilter={toggleFilter}

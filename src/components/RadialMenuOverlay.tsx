@@ -14,9 +14,7 @@ export interface RadialMenuOverlayProps {
   onClose: () => void;
   scene: Scene;
   isPlaying: boolean;
-  isFullscreen?: boolean;
   onTogglePlay: () => void;
-  onToggleFullscreen?: () => void;
   onFlipPolarity?: () => void;
   onUpdatePlacementD: (d: number) => void;
   onUpdateFilterParams?: (params: Partial<SpanView>) => void;
@@ -86,9 +84,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onClose,
   scene,
   isPlaying,
-  isFullscreen,
   onTogglePlay,
-  onToggleFullscreen,
   onFlipPolarity,
   onUpdatePlacementD,
   onUpdateFilterParams: _onUpdateFilterParams,
@@ -205,7 +201,6 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     activeSubMenu,
     scene,
     isPlaying,
-    isFullscreen,
     isOscillating,
     currentD: currentDRef.current,
     bookmarks,
@@ -219,7 +214,6 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     onOpenEnvelopes,
     onToggleEnvelope,
     onTogglePlay,
-    onToggleFullscreen,
     onFlipPolarity,
     onToggleOscillate,
     onJumpBookmarkA,

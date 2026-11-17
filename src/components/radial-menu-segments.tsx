@@ -14,8 +14,6 @@ import {
   Package,
   ArrowLeftRight,
   Keyboard,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react';
 import { Scene } from '../core/types';
 import { BookmarkSettings } from './bookmarks-storage';
@@ -41,7 +39,6 @@ export interface BuildRadialSegmentsOptions {
   activeSubMenu: RadialSubMenu;
   scene: Scene;
   isPlaying: boolean;
-  isFullscreen?: boolean;
   isOscillating: boolean;
   currentD: number;
   bookmarks: BookmarkSettings;
@@ -55,7 +52,6 @@ export interface BuildRadialSegmentsOptions {
   onOpenEnvelopes?: () => void;
   onToggleEnvelope?: () => void;
   onTogglePlay: () => void;
-  onToggleFullscreen?: () => void;
   onFlipPolarity?: () => void;
   onToggleOscillate: () => void;
   onJumpBookmarkA: () => void;
@@ -70,9 +66,9 @@ export interface BuildRadialSegmentsOptions {
 
 export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWedgeSegment[] {
   const {
-    activeSubMenu, scene, isPlaying, isFullscreen, isOscillating, currentD, bookmarks, onSelectSubMenu,
+    activeSubMenu, scene, isPlaying, isOscillating, currentD, bookmarks, onSelectSubMenu,
     onOpenLibrary, onOpenBundles, onToggleKeyboard, onOpenCapture, onOpenSettings, onOpenFilters,
-    onOpenEnvelopes, onToggleEnvelope, onTogglePlay, onToggleFullscreen, onFlipPolarity, onToggleOscillate,
+    onOpenEnvelopes, onToggleEnvelope, onTogglePlay, onFlipPolarity, onToggleOscillate,
     onJumpBookmarkA, onJumpBookmarkB, onSetBookmarkA, onSetBookmarkB,
     onToggleFilter, onCycleFilterMode, onEnterFilterEditMode, onClose,
   } = opts;
@@ -223,18 +219,17 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
   }
 
   if (activeSubMenu === 'east') {
-    const step = 360 / 8;
+    const step = 360 / 7;
     const deg = (idx: number) => -150 + idx * step;
     const isRhythm = currentD >= 0;
     return [
       { id: 'sub-play-pause', startDeg: deg(0), endDeg: deg(1), title: isPlaying ? 'PAUSE' : 'PLAY', subtitle: isPlaying ? 'Stop Audio' : 'Start Synthesis', icon: isPlaying ? <Pause className="w-4 h-4 text-red-300" /> : <Play className="w-4 h-4 text-emerald-400 fill-current" />, accentHex: isPlaying ? '#ef4444' : '#10b981', fillRgba: isPlaying ? 'rgba(42, 16, 20, 0.94)' : 'rgba(14, 32, 28, 0.94)', activeFillRgba: isPlaying ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)', isActive: isPlaying, onSelect: () => onTogglePlay() },
       { id: 'sub-flip-polarity', startDeg: deg(1), endDeg: deg(2), title: isRhythm ? 'TO PITCH' : 'TO RHYTHM', subtitle: 'Flip TPL (Tab)', icon: <ArrowLeftRight className="w-4 h-4 text-violet-300" />, accentHex: '#a78bfa', fillRgba: 'rgba(26, 20, 42, 0.94)', activeFillRgba: 'rgba(167, 139, 250, 0.4)', onSelect: () => onFlipPolarity?.() },
-      { id: 'sub-fullscreen', startDeg: deg(2), endDeg: deg(3), title: isFullscreen ? 'EXIT FULL' : 'FULLSCREEN', subtitle: 'Hide Chrome', icon: isFullscreen ? <Minimize2 className="w-4 h-4 text-sky-300" /> : <Maximize2 className="w-4 h-4 text-sky-300" />, accentHex: '#38bdf8', fillRgba: 'rgba(14, 26, 38, 0.94)', activeFillRgba: 'rgba(56, 189, 248, 0.4)', isActive: Boolean(isFullscreen), onSelect: () => { onToggleFullscreen?.(); onClose(); } },
-      { id: 'sub-goto-a', startDeg: deg(3), endDeg: deg(4), title: 'GO TO A', subtitle: bookmarks.a.label, icon: <Bookmark className="w-4 h-4 text-cyan-400 fill-current" />, accentHex: '#22d3ee', fillRgba: 'rgba(14, 28, 38, 0.94)', activeFillRgba: 'rgba(34, 211, 238, 0.4)', onSelect: () => onJumpBookmarkA() },
-      { id: 'sub-goto-b', startDeg: deg(4), endDeg: deg(5), title: 'GO TO B', subtitle: bookmarks.b.label, icon: <Bookmark className="w-4 h-4 text-amber-400 fill-current" />, accentHex: '#f59e0b', fillRgba: 'rgba(34, 26, 14, 0.94)', activeFillRgba: 'rgba(245, 158, 11, 0.4)', onSelect: () => onJumpBookmarkB() },
-      { id: 'sub-sweep', startDeg: deg(5), endDeg: deg(6), title: isOscillating ? 'STOP SWEEP' : 'SWEEP A↔B', subtitle: isOscillating ? 'Active' : 'Oscillate', icon: <Repeat className={`w-4 h-4 text-red-400 ${isOscillating ? 'animate-spin' : ''}`} />, accentHex: '#ef4444', fillRgba: 'rgba(34, 18, 24, 0.94)', activeFillRgba: 'rgba(239, 68, 68, 0.4)', isActive: isOscillating, onSelect: () => onToggleOscillate() },
-      { id: 'sub-set-a', startDeg: deg(6), endDeg: deg(7), title: 'SET A', subtitle: `d = ${currentD.toFixed(2)}`, icon: <Bookmark className="w-4 h-4 text-cyan-400" />, accentHex: '#22d3ee', fillRgba: 'rgba(14, 28, 38, 0.94)', activeFillRgba: 'rgba(34, 211, 238, 0.4)', onSelect: () => onSetBookmarkA() },
-      { id: 'sub-set-b', startDeg: deg(7), endDeg: deg(8), title: 'SET B', subtitle: `d = ${currentD.toFixed(2)}`, icon: <Bookmark className="w-4 h-4 text-amber-400" />, accentHex: '#f59e0b', fillRgba: 'rgba(34, 24, 14, 0.94)', activeFillRgba: 'rgba(245, 158, 11, 0.4)', onSelect: () => onSetBookmarkB() },
+      { id: 'sub-goto-a', startDeg: deg(2), endDeg: deg(3), title: 'GO TO A', subtitle: bookmarks.a.label, icon: <Bookmark className="w-4 h-4 text-cyan-400 fill-current" />, accentHex: '#22d3ee', fillRgba: 'rgba(14, 28, 38, 0.94)', activeFillRgba: 'rgba(34, 211, 238, 0.4)', onSelect: () => onJumpBookmarkA() },
+      { id: 'sub-goto-b', startDeg: deg(3), endDeg: deg(4), title: 'GO TO B', subtitle: bookmarks.b.label, icon: <Bookmark className="w-4 h-4 text-amber-400 fill-current" />, accentHex: '#f59e0b', fillRgba: 'rgba(34, 26, 14, 0.94)', activeFillRgba: 'rgba(245, 158, 11, 0.4)', onSelect: () => onJumpBookmarkB() },
+      { id: 'sub-sweep', startDeg: deg(4), endDeg: deg(5), title: isOscillating ? 'STOP SWEEP' : 'SWEEP A↔B', subtitle: isOscillating ? 'Active' : 'Oscillate', icon: <Repeat className={`w-4 h-4 text-red-400 ${isOscillating ? 'animate-spin' : ''}`} />, accentHex: '#ef4444', fillRgba: 'rgba(34, 18, 24, 0.94)', activeFillRgba: 'rgba(239, 68, 68, 0.4)', isActive: isOscillating, onSelect: () => onToggleOscillate() },
+      { id: 'sub-set-a', startDeg: deg(5), endDeg: deg(6), title: 'SET A', subtitle: `d = ${currentD.toFixed(2)}`, icon: <Bookmark className="w-4 h-4 text-cyan-400" />, accentHex: '#22d3ee', fillRgba: 'rgba(14, 28, 38, 0.94)', activeFillRgba: 'rgba(34, 211, 238, 0.4)', onSelect: () => onSetBookmarkA() },
+      { id: 'sub-set-b', startDeg: deg(6), endDeg: deg(7), title: 'SET B', subtitle: `d = ${currentD.toFixed(2)}`, icon: <Bookmark className="w-4 h-4 text-amber-400" />, accentHex: '#f59e0b', fillRgba: 'rgba(34, 24, 14, 0.94)', activeFillRgba: 'rgba(245, 158, 11, 0.4)', onSelect: () => onSetBookmarkB() },
     ];
   }
 
