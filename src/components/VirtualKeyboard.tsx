@@ -136,6 +136,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     ? Math.max(280, availableWidth - 16)
     : Math.max(280, totalWhite * fixedKeyWidthPx);
   const effectiveKeyWidth = keyboardWidthPx / totalWhite;
+  const semitoneWidthPx = keyboardWidthPx / Math.max(1, keys.length - 1);
   const isCompact = effectiveKeyWidth < 28;
   const isUltraCompact = effectiveKeyWidth < 19;
 
@@ -320,6 +321,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
               bands={intervalBands}
               rowCount={intervalRowCount}
               keyCenterMap={keyCenterMap}
+              semitoneWidthPx={semitoneWidthPx}
             />
           )}
 
@@ -338,7 +340,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={
                     isActive
-                      ? { backgroundColor: k.neonHex, borderColor: k.colorHex }
+                      ? { backgroundColor: k.colorHex, borderColor: k.colorHex }
                       : undefined
                   }
                   className={`relative flex-1 h-full border rounded-b-lg flex flex-col items-center justify-end pb-1.5 transition-colors cursor-pointer ${
@@ -386,7 +388,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   style={{
                     left: `calc(${centerPct}% - ${widthPct / 2}%)`,
                     width: `${widthPct}%`,
-                    ...(isActive ? { backgroundColor: k.neonHex, borderColor: k.colorHex } : {}),
+                    ...(isActive ? { backgroundColor: k.colorHex, borderColor: k.colorHex } : {}),
                   }}
                   className={`absolute top-0 h-[62%] z-10 border rounded-b-md flex flex-col items-center justify-end pb-1 shadow-md transition-colors cursor-pointer ${
                     isActive
@@ -399,7 +401,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   {k.isTonic && (
                     <span
                       className="w-1.5 h-1.5 rounded-full mb-0.5"
-                      style={{ backgroundColor: isActive ? '#ffffff' : k.neonHex }}
+                      style={{ backgroundColor: isActive ? '#ffffff' : k.colorHex }}
                       title="Tonic (Do)"
                     />
                   )}

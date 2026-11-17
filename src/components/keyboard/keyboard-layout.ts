@@ -3,7 +3,7 @@
  * pairwise interval band builders for the on-screen Virtual Keyboard.
  */
 
-import { SOLFEGE_COLORS, SOLFEGE_NEON_COLORS, SOLFEGE_SYLLABLES } from '../../core/ppt-constants';
+import { SOLFEGE_COLORS, SOLFEGE_SYLLABLES } from '../../core/ppt-constants';
 import { PITCH_NAMES } from '../../core/axis';
 import { rationalise } from '../../core/rational';
 import {
@@ -119,7 +119,7 @@ export function buildVirtualKeys(
       semitoneFromRoot,
       syllable,
       colorHex: SOLFEGE_COLORS[semitoneFromRoot] || '#38bdf8',
-      neonHex: SOLFEGE_NEON_COLORS[semitoneFromRoot] || '#60a5fa',
+      neonHex: SOLFEGE_COLORS[semitoneFromRoot] || '#38bdf8',
       isTonic: semitoneFromRoot === 0,
       mapping,
     });
@@ -200,7 +200,7 @@ export function buildIntervalBands(
         deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
         centsLabel: `${cents}¢`,
         colorHex: SOLFEGE_COLORS[intervalSemitone] || '#38bdf8',
-        neonHex: SOLFEGE_NEON_COLORS[intervalSemitone] || '#60a5fa',
+        neonHex: SOLFEGE_COLORS[intervalSemitone] || '#38bdf8',
         isSubtleStep: false,
       });
     }
@@ -224,7 +224,7 @@ export function buildIntervalBands(
       deltaLabel: formatFrequencyDelta(deltaHz, isRhythm),
       centsLabel: `${cents}¢`,
       colorHex: SOLFEGE_COLORS[1] || '#F98016',
-      neonHex: SOLFEGE_NEON_COLORS[1] || '#FB923C',
+      neonHex: SOLFEGE_COLORS[1] || '#F98016',
       isSubtleStep: true,
     });
   }
