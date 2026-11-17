@@ -251,10 +251,10 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   ? 'bg-rose-600/25 border-rose-500 text-rose-200'
                   : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:text-white'
               }`}
-              title="Toggle Strum & Scale Walk mode inside the Play Panel"
+              title="Toggle Auto-Play & Scale Patterns inside the Play Panel"
             >
               <Sparkles className="w-3 h-3 text-rose-400" />
-              <span>Strum</span>
+              <span>Auto</span>
             </button>
           )}
 

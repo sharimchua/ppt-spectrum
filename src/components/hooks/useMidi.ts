@@ -188,7 +188,8 @@ export function useMidi({
       syncGhostsToCoordinator();
 
       const nextTop = heldStackRef.current[heldStackRef.current.length - 1];
-      if (prevTop && prevTop.midi === midi && nextTop) {
+      if (prevTop && prevTop.midi === midi && prevTop.explicitNoteD === undefined && prevTop.midi < 1000 &&
+          nextTop && nextTop.explicitNoteD === undefined && nextTop.midi < 1000) {
         onUpdatePlacementDRef.current(nextTop.d);
       }
     },
@@ -257,7 +258,9 @@ export function useMidi({
       const top = nextStack[nextStack.length - 1];
       if (top) {
         setLastMapping(top.mapping);
-        onUpdatePlacementDRef.current(top.d);
+        if (top.explicitNoteD === undefined && top.midi < 1000) {
+          onUpdatePlacementDRef.current(top.d);
+        }
       }
       syncGhostsToCoordinator();
     },

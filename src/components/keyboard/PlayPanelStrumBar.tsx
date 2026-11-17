@@ -40,7 +40,7 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold text-rose-300">
-            Strum &amp; Auto-Play ({activeDegrees.length} active · drag across Scale keys)
+            Auto-Play ({activeDegrees.length} active · relative to root)
           </span>
 
           {midiTuning.systemMode === 'pythagorean-chain' && (
