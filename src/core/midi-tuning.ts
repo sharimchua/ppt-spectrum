@@ -16,14 +16,15 @@ import {
 
 export type TriDuTuning = 'Tri' | 'Du';
 export type TriQuiDuTuning = 'Tri' | 'Qui' | 'Du';
+export type TriQuiSepDuTuning = 'Tri' | 'Qui' | 'Sep' | 'Du';
 export type TriSepDuTuning = 'Tri' | 'Sep' | 'Du';
-export type TritoneTuning = 'Undec' | 'Qui' | 'Tri' | 'Du';
+export type TritoneTuning = 'Undec' | 'Sep' | 'Qui' | 'Tri' | 'Du';
 export type PrimeFamilyLabel = 'Du' | 'Tri' | 'Qui' | 'Sep' | 'Undec';
 
 export interface MidiIntervalTuningConfig {
   m2: TriDuTuning;
   M2: TriDuTuning;
-  m3: TriQuiDuTuning;
+  m3: TriQuiSepDuTuning;
   M3: TriQuiDuTuning;
   P4: TriDuTuning;
   TT: TritoneTuning;
@@ -147,14 +148,14 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   '7-limit': {
     label: '7-Limit Septimal (Sep)',
-    description: '5-limit Just tuning with the harmonic seventh (7:4).',
+    description: 'Ptolemaic tuning with septimal minor 3rd (7:6), tritone (7:5), and 7th (7:4).',
     intervals: {
       m2: 'Tri',
       M2: 'Tri',
-      m3: 'Qui',
+      m3: 'Sep',
       M3: 'Qui',
       P4: 'Tri',
-      TT: 'Qui',
+      TT: 'Sep',
       P5: 'Tri',
       m6: 'Qui',
       M6: 'Qui',
@@ -163,8 +164,8 @@ export const MIDI_TUNING_PRESETS: Record<
     },
   },
   '11-limit': {
-    label: '11-Limit Undecimal (Undec)',
-    description: '7-limit Just tuning with the undecimal tritone (11:8).',
+    label: 'PPT Native (11-Limit)',
+    description: 'Prime Period Theory native 11-limit tuning (5-limit thirds, 7:4 seventh, 11:8 tritone).',
     intervals: {
       m2: 'Tri',
       M2: 'Tri',
@@ -236,6 +237,7 @@ export function resolveSemitoneInterval(
     case 3:
       if (intervals.m3 === 'Du') setEdo();
       else if (intervals.m3 === 'Tri') setJi(32, 27, 'Tri');
+      else if (intervals.m3 === 'Sep') setJi(7, 6, 'Sep');
       else setJi(6, 5, 'Qui');
       break;
     case 4:
@@ -250,6 +252,7 @@ export function resolveSemitoneInterval(
     case 6:
       if (intervals.TT === 'Du') setEdo();
       else if (intervals.TT === 'Undec') setJi(11, 8, 'Undec');
+      else if (intervals.TT === 'Sep') setJi(7, 5, 'Sep');
       else if (intervals.TT === 'Tri') setJi(729, 512, 'Tri');
       else setJi(45, 32, 'Qui');
       break;

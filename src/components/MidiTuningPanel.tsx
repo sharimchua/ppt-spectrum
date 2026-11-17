@@ -39,10 +39,10 @@ interface IntervalRowDef {
 const INTERVAL_ROWS: IntervalRowDef[] = [
   { key: 'm2', semitone: 1, solfege: 'Ra', label: 'Minor 2nd', options: ['Du', 'Tri'] },
   { key: 'M2', semitone: 2, solfege: 'Re', label: 'Major 2nd', options: ['Du', 'Tri'] },
-  { key: 'm3', semitone: 3, solfege: 'Me', label: 'Minor 3rd', options: ['Du', 'Tri', 'Qui'] },
+  { key: 'm3', semitone: 3, solfege: 'Me', label: 'Minor 3rd', options: ['Du', 'Tri', 'Qui', 'Sep'] },
   { key: 'M3', semitone: 4, solfege: 'Mi', label: 'Major 3rd', options: ['Du', 'Tri', 'Qui'] },
   { key: 'P4', semitone: 5, solfege: 'Fa', label: 'Perfect 4th', options: ['Du', 'Tri'] },
-  { key: 'TT', semitone: 6, solfege: 'Fi', label: 'Tritone', options: ['Du', 'Tri', 'Qui', 'Undec'] },
+  { key: 'TT', semitone: 6, solfege: 'Fi', label: 'Tritone', options: ['Du', 'Tri', 'Qui', 'Sep', 'Undec'] },
   { key: 'P5', semitone: 7, solfege: 'So', label: 'Perfect 5th', options: ['Du', 'Tri'] },
   { key: 'm6', semitone: 8, solfege: 'Le', label: 'Minor 6th', options: ['Du', 'Tri', 'Qui'] },
   { key: 'M6', semitone: 9, solfege: 'La', label: 'Major 6th', options: ['Du', 'Tri', 'Qui'] },
@@ -184,6 +184,18 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => onChangeTuning((prev) => ({ ...prev, presetId: 'custom' }))}
+            title="Mix Prime Family tunings per interval below."
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border text-left transition cursor-pointer ${
+              midiTuning.presetId === 'custom'
+                ? 'bg-amber-600/20 border-amber-500 text-amber-200'
+                : 'bg-slate-800/70 border-slate-700/70 text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            Mixed / Custom
+          </button>
         </div>
       </div>
 

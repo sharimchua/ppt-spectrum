@@ -23,9 +23,13 @@ describe('midi-tuning', () => {
     expect(m3.centsFromEdo).toBe(-14);
   });
 
-  it('resolves 7-limit and 11-limit intervals accurately', () => {
-    const cfg11 = createDefaultMidiTuningConfig('11-limit');
+  it('resolves 7-limit and PPT Native 11-limit intervals accurately', () => {
+    const cfg7 = createDefaultMidiTuningConfig('7-limit');
+    expect(resolveSemitoneInterval(3, cfg7.intervals).rational).toEqual({ num: 7, den: 6 });
+    expect(resolveSemitoneInterval(6, cfg7.intervals).rational).toEqual({ num: 7, den: 5 });
+    expect(resolveSemitoneInterval(10, cfg7.intervals).rational).toEqual({ num: 7, den: 4 });
 
+    const cfg11 = createDefaultMidiTuningConfig('11-limit');
     const tt = resolveSemitoneInterval(6, cfg11.intervals);
     expect(tt.rational).toEqual({ num: 11, den: 8 });
     expect(tt.primeFamily).toBe('Undec');
