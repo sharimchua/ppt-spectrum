@@ -37,6 +37,7 @@ export const App: React.FC = () => {
   const [isBookmarksOpen, setIsBookmarksOpen] = useState<boolean>(false);
   const [isCaptureOpen, setIsCaptureOpen] = useState<boolean>(false);
   const [isEnvelopeQuickSearchOpen, setIsEnvelopeQuickSearchOpen] = useState<boolean>(false);
+  const [isTuningQuickSearchOpen, setIsTuningQuickSearchOpen] = useState<boolean>(false);
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
   const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
@@ -251,8 +252,6 @@ export const App: React.FC = () => {
         toggleFiltersOpen();
       },
       onToggleFilterQuickSearch: () => setIsFilterQuickSearchOpen((prev) => !prev),
-      onNoteOn: () => handleNoteOn(),
-      onNoteOff: () => handleNoteOff(),
       onJumpBookmarkA: handleJumpBookmarkA,
       onJumpBookmarkB: handleJumpBookmarkB,
       onSetBookmarkFromCurrent: setBookmarkFromCurrent,
@@ -266,21 +265,17 @@ export const App: React.FC = () => {
       onToggleKeyboard: toggleKeyboard,
       onFlipPolarity: flipPolarity,
       onToggleMidiHold: toggleMidiHold,
+      onToggleTuningQuickSearch: () => setIsTuningQuickSearchOpen((prev) => !prev),
       onPanicClear: handlePanicClear,
     }),
     [
       handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode, toggleFilter, toggleFiltersOpen,
-      handleNoteOn, handleNoteOff, handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
+      handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
       handleArrowStep, historyBack, historyForward, envelopes, bundlesApi, toggleKeyboard, flipPolarity, toggleMidiHold, handlePanicClear,
     ]
   );
 
-  useKeyboardShortcuts({
-    isCaptureOpen,
-    isQuickSearchOpen,
-    isFilterQuickSearchOpen,
-    actions: keyboardActions,
-  });
+  useKeyboardShortcuts({ isCaptureOpen, isQuickSearchOpen, isFilterQuickSearchOpen, isTuningQuickSearchOpen, actions: keyboardActions });
 
   const teachingDemo = useTeachingDemo({
     handleSelectPreset, setBookmarks, handleUpdatePlacementD, updateScene,
@@ -443,7 +438,7 @@ export const App: React.FC = () => {
         removeFilterCondition={removeFilterCondition}
         moveFilterCondition={moveFilterCondition}
         focusCondition={focusCondition}
-        midi={midi}
+        midi={midi} isTuningQuickSearchOpen={isTuningQuickSearchOpen} onCloseTuningQuickSearch={() => setIsTuningQuickSearchOpen(false)}
         envelopes={envelopes}
         bundlesApi={bundlesApi}
       />

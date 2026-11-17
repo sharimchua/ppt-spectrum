@@ -35,9 +35,8 @@ export interface KeyboardActions {
   onToggleKeyboard?: () => void;
   onFlipPolarity?: () => void;
   onToggleMidiHold?: () => void;
+  onToggleTuningQuickSearch?: () => void;
   onPanicClear?: () => void;
-  onNoteOn: () => void;
-  onNoteOff: () => void;
   onJumpBookmarkA: () => void;
   onJumpBookmarkB: () => void;
   onSetBookmarkFromCurrent: (slot: 'a' | 'b', withSparks?: boolean) => void;
@@ -50,6 +49,7 @@ export interface UseKeyboardShortcutsOptions {
   isCaptureOpen: boolean;
   isQuickSearchOpen: boolean;
   isFilterQuickSearchOpen?: boolean;
+  isTuningQuickSearchOpen?: boolean;
   actions: KeyboardActions;
 }
 
@@ -57,6 +57,7 @@ export function useKeyboardShortcuts({
   isCaptureOpen,
   isQuickSearchOpen,
   isFilterQuickSearchOpen,
+  isTuningQuickSearchOpen,
   actions,
 }: UseKeyboardShortcutsOptions): void {
   const actionsRef = useRef<KeyboardActions>(actions);
@@ -65,7 +66,7 @@ export function useKeyboardShortcuts({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // If Quick Search Modals are open, let them handle their own keyboard navigation
-      if (isQuickSearchOpen || isFilterQuickSearchOpen) {
+      if (isQuickSearchOpen || isFilterQuickSearchOpen || isTuningQuickSearchOpen) {
         return;
       }
 
@@ -169,11 +170,9 @@ export function useKeyboardShortcuts({
       } else if (e.code === 'KeyU' || e.key === 'u' || e.key === 'U') {
         e.preventDefault();
         actionsRef.current.onToggleBundlesOpen?.();
-      } else if (e.key === 't' || e.key === 'T') {
+      } else if ((e.key === 't' || e.key === 'T') && e.shiftKey) {
         e.preventDefault();
-        if (!e.repeat) {
-          actionsRef.current.onNoteOn();
-        }
+        actionsRef.current.onToggleTuningQuickSearch?.();
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -218,29 +217,9 @@ export function useKeyboardShortcuts({
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (isQuickSearchOpen) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        actionsRef.current.onNoteOff();
-      }
-    };
-
     window.addEventListener('keydown', handleKeyDown, { capture: true });
-    window.addEventListener('keyup', handleKeyUp, { capture: true });
     return () => {
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
-      window.removeEventListener('keyup', handleKeyUp, { capture: true });
     };
-  }, [isCaptureOpen, isQuickSearchOpen, isFilterQuickSearchOpen]);
+  }, [isCaptureOpen, isQuickSearchOpen, isFilterQuickSearchOpen, isTuningQuickSearchOpen]);
 }

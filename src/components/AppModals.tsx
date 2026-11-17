@@ -17,6 +17,8 @@ import { LibraryShareModal } from './LibraryShareModal';
 import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
 import { TuningModal } from './TuningModal';
+import { TuningQuickSearchModal } from './TuningQuickSearchModal';
+import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
 import { TutorialReturnToast } from './TutorialReturnToast';
@@ -110,6 +112,8 @@ export interface AppModalsProps {
 
   // MIDI Modal
   midi: UseMidiResult;
+  isTuningQuickSearchOpen: boolean;
+  onCloseTuningQuickSearch: () => void;
 
   // Envelopes Sheet
   envelopes: UseEnvelopesResult;
@@ -190,6 +194,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
   moveFilterCondition,
   focusCondition,
   midi,
+  isTuningQuickSearchOpen,
+  onCloseTuningQuickSearch,
   envelopes,
   bundlesApi,
 }) => {
@@ -361,6 +367,20 @@ export const AppModals: React.FC<AppModalsProps> = ({
         tplFrequencyHz={scene.anchors.tplFrequencyHz}
         lastMapping={midi.lastMapping}
         heldMappings={midi.heldMappings}
+      />
+
+      <TuningQuickSearchModal
+        isOpen={isTuningQuickSearchOpen}
+        onClose={onCloseTuningQuickSearch}
+        activePresetId={midi.midiTuning.presetId}
+        onSelectPreset={(presetId) =>
+          midi.setMidiTuning((prev) => ({
+            ...prev,
+            presetId,
+            intervals: { ...MIDI_TUNING_PRESETS[presetId].intervals },
+          }))
+        }
+        onOpenTuningStudio={midi.openTuningModal}
       />
 
       <EnvelopesSheet
