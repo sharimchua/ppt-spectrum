@@ -16,6 +16,7 @@ import { UseEnvelopesResult } from './hooks/useEnvelopes';
 import { LibraryShareModal } from './LibraryShareModal';
 import { UseLibraryBundlesResult } from './hooks/useLibraryBundles';
 import { MidiPermissionModal } from './MidiPermissionModal';
+import { UseMidiResult } from './hooks/useMidi';
 import { UseTeachingDemoResult } from './hooks/useTeachingDemo';
 import { TutorialReturnToast } from './TutorialReturnToast';
 
@@ -107,8 +108,7 @@ export interface AppModalsProps {
   focusCondition: (id: string) => void;
 
   // MIDI Modal
-  isMidiModalOpen: boolean;
-  onCloseMidiModal: () => void;
+  midi: UseMidiResult;
 
   // Envelopes Sheet
   envelopes: UseEnvelopesResult;
@@ -188,8 +188,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   removeFilterCondition,
   moveFilterCondition,
   focusCondition,
-  isMidiModalOpen,
-  onCloseMidiModal,
+  midi,
   envelopes,
   bundlesApi,
 }) => {
@@ -347,8 +346,14 @@ export const AppModals: React.FC<AppModalsProps> = ({
       />
 
       <MidiPermissionModal
-        isOpen={isMidiModalOpen}
-        onClose={onCloseMidiModal}
+        isOpen={midi.isMidiModalOpen}
+        onClose={midi.closeMidiModal}
+        midiTuning={midi.midiTuning}
+        onChangeTuning={midi.setMidiTuning}
+        currentFundamentalD={scene.placements[0]?.d ?? 2.0}
+        tplFrequencyHz={scene.anchors.tplFrequencyHz}
+        lastMapping={midi.lastMapping}
+        heldMappings={midi.heldMappings}
       />
 
       <EnvelopesSheet

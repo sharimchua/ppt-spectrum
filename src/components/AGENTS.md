@@ -36,7 +36,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/ShapeQuickSearchModal.tsx` — Keyboard-driven quick search for preset shapes.
 - `src/components/FilterQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for filters.
 - `src/components/EnvelopeQuickSearchModal.tsx` — Keyboard-driven command palette and quick search for envelopes (`Shift+V`, `Shift+Enter` to open Envelope Studio).
-- `src/components/MidiPermissionModal.tsx` — Web MIDI permission request dialogue.
+- `src/components/MidiPermissionModal.tsx` — Web MIDI permission request and tuning/rhythm map dialogue.
+- `src/components/MidiTuningPanel.tsx` — Harmonic Profiler-style Prime Family tuning matrix, Rhythm Space anchor selector, and live PPT Lens MIDI readout.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 - `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with Prev/Next demo stepping and one-click return to the active tutorial section.
 

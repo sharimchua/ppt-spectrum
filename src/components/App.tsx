@@ -92,12 +92,13 @@ export const App: React.FC = () => {
   } = useTransport({ coordinator, audioEngine, sceneRef });
 
   // Web MIDI keyboard input (polyphonic play + ruler ghosting)
-  const { midiState, isMidiModalOpen, openMidiModal, closeMidiModal } = useMidi({
+  const midi = useMidi({
     coordinator,
     audioEngine,
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
+  const { midiState, openMidiModal } = midi;
 
   // Dedicated Envelopes Sheet state & library
   const envelopes = useEnvelopes({ scene, updateScene });
@@ -431,8 +432,7 @@ export const App: React.FC = () => {
         removeFilterCondition={removeFilterCondition}
         moveFilterCondition={moveFilterCondition}
         focusCondition={focusCondition}
-        isMidiModalOpen={isMidiModalOpen}
-        onCloseMidiModal={closeMidiModal}
+        midi={midi}
         envelopes={envelopes}
         bundlesApi={bundlesApi}
       />
