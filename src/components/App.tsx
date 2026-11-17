@@ -133,8 +133,9 @@ export const App: React.FC = () => {
     await rawHandleTogglePlay();
   }, [isPlaying, rawHandleTogglePlay]);
 
+  const stopAutoPlayRef = useRef<() => void>(() => {});
   const handlePanicClear = useCallback(() => {
-    clearAllNotes(); if (isOscillating) setIsOscillating(false); if (isPlaying) void handleTogglePlay();
+    stopAutoPlayRef.current(); clearAllNotes(); if (isOscillating) setIsOscillating(false); if (isPlaying) void handleTogglePlay();
   }, [clearAllNotes, isOscillating, setIsOscillating, isPlaying, handleTogglePlay]);
   if (isOscillating !== isOscillatingInit) {
     setIsOscillatingInit(isOscillating);
@@ -202,6 +203,7 @@ export const App: React.FC = () => {
   } = useFilters({ scene, updateScene, updateSceneFast });
 
   const tuningStrum = useTuningStrum({ scene, midi });
+  stopAutoPlayRef.current = tuningStrum.stopSequencer;
   const handleToggleStrumMode = useCallback(() => {
     if (!tuningStrum.isStrumMode && isFilterEditMode) setIsFilterEditMode(false);
     tuningStrum.toggleStrumMode();
