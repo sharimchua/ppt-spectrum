@@ -57,6 +57,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     latchedMidiNumbers,
     midiState,
     toggleVirtualNote: onToggleLatchNote,
+    virtualNoteOn: onVirtualNoteOn,
+    virtualNoteOff: onVirtualNoteOff,
     isMidiHoldActive,
     toggleMidiHold,
     clearAllNotes: onClearAllNotes,
@@ -156,7 +158,17 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   const handleKeyPointerDown = (k: VirtualKeyItem, e: React.PointerEvent) => {
     e.preventDefault();
-    onToggleLatchNote(k.midi);
+    if (isMidiHoldActive) {
+      onToggleLatchNote(k.midi);
+    } else {
+      onVirtualNoteOn(k.midi);
+    }
+  };
+
+  const handleKeyPointerUpOrLeave = (k: VirtualKeyItem) => {
+    if (!isMidiHoldActive && activeSet.has(k.midi)) {
+      onVirtualNoteOff(k.midi);
+    }
   };
 
   return (
@@ -332,6 +344,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   key={k.midi}
                   type="button"
                   onPointerDown={(e) => handleKeyPointerDown(k, e)}
+                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
+                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={
                     isActive
                       ? { backgroundColor: k.colorHex, borderColor: k.colorHex }
@@ -377,6 +391,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   key={k.midi}
                   type="button"
                   onPointerDown={(e) => handleKeyPointerDown(k, e)}
+                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
+                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={{
                     left: `calc(${centerPct}% - ${widthPct / 2}%)`,
                     width: `${widthPct}%`,

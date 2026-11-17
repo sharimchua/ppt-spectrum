@@ -378,24 +378,23 @@ export function useMidi({
   );
 
   const toggleMidiHold = useCallback(() => {
-    setIsMidiHoldActive((prev) => {
-      const next = !prev;
-      isMidiHoldRef.current = next;
-      if (next) {
-        // Sostenuto: capture only the physical MIDI keys currently held down
-        sostenutoMidiRef.current = new Set(physicalMidiDownRef.current);
-      } else {
-        // Turning Hold off clears captured Sostenuto MIDI notes (if physically up) and all virtual keys
-        const toReleaseMidi = [...sostenutoMidiRef.current].filter((m) => !physicalMidiDownRef.current.has(m));
-        sostenutoMidiRef.current.clear();
-        for (const m of toReleaseMidi) dispatchNoteOff(m, 'midi');
-        const toReleaseVirtual = [...sourcesByMidiRef.current.entries()]
-          .filter(([, srcs]) => srcs.has('virtual'))
-          .map(([m]) => m);
-        for (const m of toReleaseVirtual) dispatchNoteOff(m, 'virtual');
-      }
-      return next;
-    });
+    const next = !isMidiHoldRef.current;
+    isMidiHoldRef.current = next;
+    setIsMidiHoldActive(next);
+
+    if (next) {
+      // Sostenuto: capture only the physical MIDI keys currently held down
+      sostenutoMidiRef.current = new Set(physicalMidiDownRef.current);
+    } else {
+      // Turning Hold off clears captured Sostenuto MIDI notes (if physically up) and all virtual keys
+      const toReleaseMidi = [...sostenutoMidiRef.current].filter((m) => !physicalMidiDownRef.current.has(m));
+      sostenutoMidiRef.current.clear();
+      for (const m of toReleaseMidi) dispatchNoteOff(m, 'midi');
+      const toReleaseVirtual = [...sourcesByMidiRef.current.entries()]
+        .filter(([, srcs]) => srcs.has('virtual'))
+        .map(([m]) => m);
+      for (const m of toReleaseVirtual) dispatchNoteOff(m, 'virtual');
+    }
   }, [dispatchNoteOff]);
 
   const openMidiModal = useCallback(() => setIsMidiModalOpen(true), []);
