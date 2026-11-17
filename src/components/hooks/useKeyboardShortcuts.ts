@@ -13,6 +13,7 @@
  * - 'b' / 'B': jump fundamental to Bookmark B (Shift + B sets Bookmark B to current d with sparks)
  * - Left/Right arrows: step fundamental by 1 DuMetric octave (Shift + Left/Right steps by 0.5 octave)
  * - Up/Down arrows: navigate back and forth through session shape selection history
+ * - '?': opens / closes the Interactive Guide
  */
 
 import { useEffect, useRef } from 'react';
@@ -23,6 +24,7 @@ export interface KeyboardActions {
   onToggleQuickSearch: () => void;
   onToggleBookmarks?: () => void;
   onToggleCapture?: () => void;
+  onToggleInfo?: () => void;
   onToggleOscillate: () => void;
   onToggleFilterEditMode: () => void;
   onToggleFilter: () => void;
@@ -133,7 +135,10 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      if (e.key === 'm' || e.key === 'M') {
+      if (e.key === '?') {
+        e.preventDefault();
+        actionsRef.current.onToggleInfo?.();
+      } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         actionsRef.current.onToggleBookmarks?.();
       } else if (e.key === 'p' || e.key === 'P') {

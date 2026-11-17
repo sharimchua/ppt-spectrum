@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Play } from 'lucide-react';
-import { TutorialDemoId } from './tutorial-demos';
+import { TutorialDemoId, ContextualDemoAction } from './tutorial-demos';
 
 interface RatioExample {
   id: string;
@@ -70,16 +70,32 @@ const EXAMPLES: RatioExample[] = [
 
 interface PolyrhythmSamDiagramProps {
   onPlayDemo?: (demoId: TutorialDemoId) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
-export const PolyrhythmSamDiagram: React.FC<PolyrhythmSamDiagramProps> = ({ onPlayDemo }) => {
+export const PolyrhythmSamDiagram: React.FC<PolyrhythmSamDiagramProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [selectedId, setSelectedId] = useState<string>('3-2');
   const [showGhostRoot, setShowGhostRoot] = useState<boolean>(true);
 
   const active = EXAMPLES.find((e) => e.id === selectedId) || EXAMPLES[0];
 
+  useEffect(() => {
+    onRegisterContextualDemo?.({
+      cardId: 'polyrhythm-sam',
+      label: `Hear ${active.label.replace(/\s+/g, '')} Sweep`,
+      demoId: active.demoId,
+      fromSection: 'concepts',
+    });
+  }, [active.demoId, active.label, onRegisterContextualDemo]);
+
   return (
-    <div className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg">
+    <div
+      data-demo-card="polyrhythm-sam"
+      className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg"
+    >
       {/* Header & Ratio Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
         <div>

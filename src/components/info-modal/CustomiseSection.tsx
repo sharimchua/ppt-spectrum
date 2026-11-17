@@ -22,6 +22,7 @@ interface KeyShortcut {
 
 const DESKTOP_SHORTCUTS: KeyShortcut[] = [
   { key: 'Space', desc: 'Play / pause audio and timeline' },
+  { key: '?', desc: 'Open / close the Interactive Guide' },
   { key: 'K', desc: 'Open / close on-screen Solfège Keyboard' },
   { key: 'T', shift: true, desc: 'Quick Tuning Search (Shift+Enter: open studio)' },
   { key: 'H', desc: 'Toggle Hold (Sostenuto for MIDI / Latch for Keyboard)' },

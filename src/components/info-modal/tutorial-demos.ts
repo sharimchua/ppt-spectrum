@@ -7,6 +7,9 @@
 import { Filter, PitchCarrierMode, RhythmContainerMode } from '../../core/types';
 import { MidiPhaseMode } from '../../core/midi-tuning';
 import { PRIME_SWEEP_DEMOS } from './prime-sweep-demos';
+import { TIMBRE_SWEEP_DEMOS } from './timbre-sweep-demos';
+import { COUPLING_DEMOS } from './coupling-demos';
+import { KEYBOARD_CADENCE_DEMOS } from './keyboard-cadence-demos';
 
 export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
 
@@ -40,13 +43,22 @@ export interface KeyboardDemoConfig {
   rhythmPhaseMode?: MidiPhaseMode;
 }
 
+export interface DemoPartialSpec {
+  ratioVal: number;
+  num?: number;
+  den?: number;
+  amp: number;
+  label: string;
+  voice?: 'kick' | 'snare' | 'woodblock' | 'clave' | 'hihat' | 'triangle' | 'click';
+}
+
 export interface CustomTutorialDemoOverride {
   title?: string;
   shortTitle?: string;
   badge?: string;
   listenHint?: string;
   /** Custom overtone partials mixed by the user in OvertoneTimbreDiagram or cadence demos */
-  customPartials?: { ratioVal: number; num?: number; den?: number; amp: number; label: string }[];
+  customPartials?: DemoPartialSpec[];
   /** Custom 8-slot cycle sieve toggled by the user in UnderTheHoodSection */
   customSieveSlots?: boolean[];
   /** Custom filter (e.g. Supercycle Band Filter for metric modulation demos) */
@@ -55,6 +67,46 @@ export interface CustomTutorialDemoOverride {
   rhythmContainer?: RhythmContainerMode;
   keyboardConfig?: KeyboardDemoConfig;
 }
+
+export interface DemoNarrationConfig {
+  /** Shown while in Rhythm Space (d > 0.8) */
+  rhythm?: string;
+  /** Shown while crossing the 25.8 Hz TPL zone (-0.8 <= d <= 0.8) */
+  crossover?: string;
+  /** Shown while in Pitch Space (d < -0.8) */
+  pitch?: string;
+  /** Gentle invitation shown once a sweep completes a full A -> B -> A round trip */
+  afterRoundTrip?: string;
+  /** Shown when the user manually drags d (taking control from the sweep) */
+  manualControl?: string;
+  /** Shown when an active filter is shaping the sound (e.g. bandpass isolation) */
+  filterActive?: string;
+}
+
+export interface SpotlightVoiceConfig {
+  label: string;
+  centreD: number;
+  widthD: number;
+  softnessD: number;
+  narration: string;
+}
+
+export interface TuningCompareConfig {
+  altPresetId: '12tet' | 'dutri' | 'ppt-native' | '5-limit' | 'pythagorean' | '7-limit';
+  label: string;
+  altLabel: string;
+  altNarration: string;
+}
+
+export interface ContextualDemoAction {
+  cardId: string;
+  label: string;
+  demoId: TutorialDemoId;
+  fromSection: TutorialSectionId;
+  customOverride?: CustomTutorialDemoOverride;
+}
+
+export type DemoRegime = 'rhythm' | 'crossover' | 'pitch';
 
 export interface TutorialDemoConfig {
   id: TutorialDemoId;
@@ -73,6 +125,22 @@ export interface TutorialDemoConfig {
   pitchD?: number;
   noteIndex?: number;
   octave?: number;
+  /** Destination dwell duration in seconds at Bookmarks A and B (defaults to 4s for sweep demos) */
+  dwellSec?: number;
+  /** Full transit duration (A -> B + B -> A) in seconds (defaults to 10s) */
+  periodSec?: number;
+  /** Preferred layout preset ID on desktop viewports (>= 640px) */
+  desktopLayoutId?: string;
+  /** Preferred layout preset ID on mobile viewports (< 640px) */
+  mobileLayoutId?: string;
+  /** Context-aware narration lines keyed by regime and user interaction */
+  narration?: DemoNarrationConfig;
+  /** Optional relative bandpass spotlight voices (automated on Cycle 2 + one-tap toast cycle) */
+  spotlightVoices?: SpotlightVoiceConfig[];
+  /** Optional one-tap tuning A/B comparison for keyboard demos */
+  tuningCompare?: TuningCompareConfig;
+  /** Optional inline partial list (e.g. pure fundamental-only triad for Polyrhythm is Harmony) */
+  customPartials?: DemoPartialSpec[];
   pitchCarrier?: PitchCarrierMode;
   rhythmContainer?: RhythmContainerMode;
   /** Explicit flag indicating whether this demo opens and latches the on-screen Solfège Keyboard */
@@ -97,12 +165,40 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     fromSection: 'overview',
     mode: 'sweep',
     shapeId: 'hemiola-3-2',
-    rhythmBpm: 120,
-    rhythmD: 3.689,
+    rhythmBpm: 60,
+    rhythmD: 4.689,
     pitchLabel: 'A4 440 Hz (Pitch)',
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    pitchCarrier: 'kit',
+    rhythmContainer: 'static',
+    narration: {
+      rhythm: 'Rhythm Space: hear the 3-against-2 beats interact and lock onto The Sam (12 o’clock) each cycle.',
+      crossover: 'Crossing 25.8 Hz: the separate hits are speeding up and blurring into one continuous sound…',
+      pitch: 'Pitch Space: the same 3:2 pattern is now a smooth Perfect Fifth.',
+      afterRoundTrip: 'Watch Cycle 2 spotlight each voice—or pause and drag the slider anywhere.',
+      manualControl: 'You’re driving: slide across 25.8 Hz to hear where the 3:2 groove fuses into a fifth.',
+    },
+    spotlightVoices: [
+      {
+        label: '1× Root',
+        centreD: 0.0,
+        widthD: 0.42,
+        softnessD: 0.15,
+        narration: 'Bandpass spotlight: isolating the lower voice (1×) while the upper voice is filtered out.',
+      },
+      {
+        label: '3/2× Fifth',
+        centreD: -0.585,
+        widthD: 0.42,
+        softnessD: 0.15,
+        narration: 'Bandpass spotlight: sliding up to isolate the upper voice (3/2×, a Fifth above).',
+      },
+    ],
     featuredInTour: true,
   },
   {
@@ -112,7 +208,7 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     badge: 'TPL Crossover · 4:3',
     summary: 'Hear a 4-against-3 cross-rhythm speed up across 25.8 Hz into a suspended Perfect Fourth.',
     listenHint:
-      'Notice the 4-against-3 cross-rhythm locking every bar at 120 BPM, then fusing into a pure Perfect Fourth (498¢) above 25.8 Hz.',
+      'Notice the 4-against-3 cross-rhythm locking onto The Sam each cycle at 120 BPM, then fusing into a pure Perfect Fourth (498¢) above 25.8 Hz.',
     fromSection: 'concepts',
     mode: 'sweep',
     shapeId: 'polyrhythm-4-3',
@@ -122,6 +218,17 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    pitchCarrier: 'kit',
+    rhythmContainer: 'static',
+    narration: {
+      rhythm: 'Rhythm Space: hear 4 beats against 3 interlock and land together on Beat 1.',
+      crossover: 'Crossing 25.8 Hz: the 4:3 cross-rhythm is blurring into a single steady tone…',
+      pitch: 'Pitch Space: those 4:3 beats are now a pure Perfect Fourth (498¢).',
+      afterRoundTrip: 'Heard the full sweep? Pause or drag the slider to compare the groove and the fourth.',
+    },
   },
   {
     id: 'polyrhythm-5-4-sweep',
@@ -140,6 +247,17 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    pitchCarrier: 'kit',
+    rhythmContainer: 'static',
+    narration: {
+      rhythm: 'Rhythm Space: feel the 5-against-4 quintuplet groove resolve onto The Sam each cycle.',
+      crossover: 'Crossing 25.8 Hz: the 5:4 pulses are fusing into a warm chord…',
+      pitch: 'Pitch Space: 5:4 becomes a beatless Just Major Third (386¢).',
+      afterRoundTrip: 'Heard the full sweep? Pause or drag the slider to explore the crossover.',
+    },
   },
   ...PRIME_SWEEP_DEMOS,
   {
@@ -152,106 +270,32 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
       'Notice how three separate drum pulses (4 : 5 : 6) lock together on Beat 1 in rhythm space, then fuse into a pure Major chord in pitch space.',
     fromSection: 'concepts',
     mode: 'sweep',
-    shapeId: 'major-triad-4-5-6',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
+    shapeId: 'triad-4-5-6-pure',
+    customPartials: [
+      { ratioVal: 1, num: 1, den: 1, amp: 1.0, label: '1 (Do / 4-Pulse)', voice: 'kick' },
+      { ratioVal: 1.25, num: 5, den: 4, amp: 0.9, label: '5/4 (Mi / 5-Pulse)', voice: 'clave' },
+      { ratioVal: 1.5, num: 3, den: 2, amp: 0.85, label: '3/2 (So / 6-Pulse)', voice: 'woodblock' },
+    ],
+    rhythmBpm: 60,
+    rhythmD: 4.689,
     pitchLabel: 'C4 262 Hz (Pitch)',
     pitchD: -3.344,
     noteIndex: 0,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    pitchCarrier: 'kit',
+    rhythmContainer: 'static',
+    narration: {
+      rhythm: 'Rhythm Space: three separate pulses (4 : 5 : 6) lock together on Beat 1.',
+      crossover: 'Crossing 25.8 Hz: the three-way groove is merging into a single chord…',
+      pitch: 'Pitch Space: 4 : 5 : 6 fuses into a pure, beatless Just Major Triad.',
+      afterRoundTrip: 'Heard the full sweep? Pause or drag the slider to listen at any speed.',
+    },
     featuredInTour: true,
   },
-  {
-    id: 'sine-timbre',
-    title: 'Pure Sine: Single Metronome → Flute Tone',
-    shortTitle: 'Pure Sine Sweep',
-    badge: '1× Fundamental Only',
-    summary: 'A single unadorned pulse per cycle with zero upper overtones.',
-    listenHint:
-      'With only the 1× fundamental active, you hear a plain metronome beat below 25.8 Hz and a pure, flute-like sine wave above it.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'pure-tone',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-  },
-  {
-    id: 'sawtooth-timbre',
-    title: 'Sawtooth: Drum Stack vs Brass Tone',
-    shortTitle: 'Sawtooth Timbre Sweep',
-    badge: 'Partials 1×–8×',
-    summary: 'One overtone recipe acts as a layered subdivision groove at low speed and a buzzy string/brass tone at high speed.',
-    listenHint:
-      'Below 25.8 Hz, the 8 harmonics play a layered drum subdivision tree; above 25.8 Hz, your ear fuses those exact same layers into a bright sawtooth tone.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'saw-like',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-    featuredInTour: true,
-  },
-  {
-    id: 'clarinet-timbre',
-    title: 'Clarinet (Odd Harmonics): Tuplets → Hollow Reed',
-    shortTitle: 'Clarinet Odd Sweep',
-    badge: 'Odd Partials 1·3·5·7×',
-    summary: 'Odd-numbered harmonics create triplet/quintuplet cross-rhythms at slow speeds and a woody clarinet tone at high speeds.',
-    listenHint:
-      'Because even harmonics (2×, 4×, 6×) are absent, you hear odd-tuplet cross-rhythms below 25.8 Hz and a hollow, woody reed timbre above it.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'square-like',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-  },
-  {
-    id: 'bell-timbre',
-    title: 'Church Bell: Drifting Pulses → Metallic Chime',
-    shortTitle: 'Church Bell Sweep',
-    badge: 'Inharmonic Modes',
-    summary: 'Stretched, non-integer bell modes drift past each other in rhythm space and shimmer as a metallic chime in pitch space.',
-    listenHint:
-      'Listen to how the non-integer bell ratios refuse to lock onto a neat bar in rhythm space, then fuse into a shimmering church bell chime in pitch space.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'bell',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-  },
-  {
-    id: 'custom-timbre',
-    title: 'Custom Overtone Mix: Groove → Timbre',
-    shortTitle: 'Custom Overtone Mix',
-    badge: 'Custom Mixer Shape',
-    summary: 'Your custom overtone bar recipe from the tutorial mixer, sweeping across the 25.8 Hz horizon.',
-    listenHint:
-      'Listening to the exact overtone bar recipe you mixed in the tutorial—hear how your custom partial stack behaves as a rhythm and as a tone!',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'tutorial-custom-overtone-mix',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-  },
+  ...TIMBRE_SWEEP_DEMOS,
   {
     id: 'tresillo-sieve',
     title: 'Rhythm Sieve: Octuple 8th-Grid + Cycle Filter',
@@ -263,6 +307,11 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     fromSection: 'hood',
     mode: 'bundle',
     bundleId: 'bundle-hemiola-tresillo',
+    desktopLayoutId: 'rhythm-lab',
+    mobileLayoutId: 'rhythm-duo',
+    narration: {
+      manualControl: 'Try dragging the spectrum slider or opening Filters to flip slots on the 8-slot sieve.',
+    },
     featuredInTour: true,
   },
   {
@@ -276,6 +325,8 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     fromSection: 'hood',
     mode: 'bundle',
     bundleId: 'bundle-piano-harmonic-comb',
+    desktopLayoutId: 'timbre-lab',
+    mobileLayoutId: 'timbre-duo',
     featuredInTour: true,
   },
   {
@@ -285,136 +336,66 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     badge: 'Inharmonic + Swell',
     summary: 'Non-integer metallic modes shimmer and beat while a Supercycle envelope swells over 4 cycles.',
     listenHint:
-      'Because a singing bowl\'s partials sit off the simple-ratio grid, they never lock into a clean bar, creating a slow, hypnotic shimmer.',
+      'Because a singing bowl\'s partials sit off the simple-ratio grid, they never lock into a clean cycle, creating a slow, hypnotic shimmer.',
     fromSection: 'hood',
     mode: 'bundle',
     bundleId: 'bundle-bowl-swell',
+    desktopLayoutId: 'timbre-lab',
+    mobileLayoutId: 'timbre-duo',
     featuredInTour: true,
   },
-  {
-    id: 'fractal-self-triad',
-    title: 'Fractal Self Mirror: 4:5:6 Triad Across the Limen',
-    shortTitle: 'Fractal Self Triad',
-    badge: 'Carrier: Self · Container: Self',
-    summary: 'Hear a 4:5:6 Major Triad use itself as the chordal instrument in rhythm space and as the pulsing rhythm in pitch space.',
-    listenHint:
-      'In Self mode, each beat below 25.8 Hz strikes the triad transposed to that beat’s ratio, while above 25.8 Hz the root, 3rd, and 5th gently pulse in a 4:5:6 rhythm.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'major-triad-4-5-6',
-    rhythmBpm: 90,
-    rhythmD: 4.104,
-    pitchLabel: 'C4 262 Hz (Pitch)',
-    pitchD: -3.344,
-    noteIndex: 0,
-    octave: 4,
-    pitchCarrier: 'self',
-    rhythmContainer: 'self',
-  },
-  {
-    id: 'neutral-limen-hemiola',
-    title: 'Neutral Crossover: Un-Pitched Drums → Continuous Fifth',
-    shortTitle: 'Neutral 3:2 Crossover',
-    badge: 'Carrier: Kit · Container: Static',
-    summary: 'Forces neutral drum voices below 25.8 Hz and a continuous chord above 25.8 Hz so you hear pure auditory fusion.',
-    listenHint:
-      'With Carrier set to Drum Kit and Container set to Static, you hear un-pitched drums below 25.8 Hz fuse directly into a steady Perfect Fifth above 25.8 Hz.',
-    fromSection: 'concepts',
-    mode: 'sweep',
-    shapeId: 'hemiola-3-2',
-    rhythmBpm: 120,
-    rhythmD: 3.689,
-    pitchLabel: 'A4 440 Hz (Pitch)',
-    pitchD: -4.092,
-    noteIndex: 9,
-    octave: 4,
-    pitchCarrier: 'kit',
-    rhythmContainer: 'static',
-  },
-  {
-    id: 'cross-shape-clarinet-hemiola',
-    title: 'Cross-Shape Coupling: Clarinet in a 3:2 Rhythm Container',
-    shortTitle: 'Clarinet + 3:2 Container',
-    badge: 'Container: Hemiola 3:2',
-    summary: 'A woody Clarinet tone placed in pitch space at A3 (220 Hz) articulated by a 3:2 Hemiola rhythm container.',
-    listenHint:
-      'The Clarinet stays locked at A3 (220 Hz) in Pitch Space while the Hemiola 3:2 Rhythm Container strums its envelope on the 2 and 3 beats.',
-    fromSection: 'concepts',
-    mode: 'static-place',
-    shapeId: 'clarinet-like',
-    pitchLabel: 'A3 220 Hz (Pitch)',
-    pitchD: -3.092,
-    noteIndex: 9,
-    octave: 3,
-    pitchCarrier: 'auto',
-    rhythmContainer: 'shape:hemiola-3-2',
-  },
-  {
-    id: 'keyboard-5limit-lock',
-    title: 'Keyboard & Tuning: 5-Limit 5:4 Lock (Do + Mi)',
-    shortTitle: '5-Limit 5:4 Lock',
-    badge: 'Keyboard · 5-Limit (Qui)',
-    summary: 'Opens the Solfège Keyboard with Do + Mi latched in 5-Limit Just tuning so a Pure Sine locks into a 5:4 polyrhythm.',
-    listenHint:
-      'Do + Mi are latched in 5-Limit (Qui) tuning (exact 5:4 ratio) in Rhythm Space. Watch the yellow Mi beat lock cleanly onto The Sam every 4 bars!',
-    fromSection: 'concepts',
-    mode: 'static-place',
-    shapeId: 'pure-tone',
-    rhythmBpm: 96.75,
-    rhythmD: 4.0,
-    pitchD: 4.0,
-    requiresKeyboard: true,
-    keyboardConfig: {
-      tuningPresetId: '5-limit',
-      latchedMidiNotes: [68, 72],
-      showIntervals: true,
-      rhythmPhaseMode: 'sam-aligned',
-    },
-    featuredInTour: true,
-  },
-  {
-    id: 'keyboard-12tet-drift',
-    title: 'Keyboard & Tuning: 12-TET Drift in Rhythm (Do + Mi)',
-    shortTitle: '12-TET Rhythm Drift',
-    badge: 'Keyboard · 12-TET Drift',
-    summary: 'Opens the Solfège Keyboard with Do + Mi latched in standard 12-TET piano tuning—watch the two tempos slowly drift out of phase.',
-    listenHint:
-      'In 12-TET, Mi is slightly sharp (1.2599× instead of 5:4). In Rhythm Space the yellow Mi beat drifts across the barline and never locks onto The Sam!',
-    fromSection: 'concepts',
-    mode: 'static-place',
-    shapeId: 'pure-tone',
-    rhythmBpm: 96.75,
-    rhythmD: 4.0,
-    pitchD: 4.0,
-    requiresKeyboard: true,
-    keyboardConfig: {
-      tuningPresetId: '12tet',
-      latchedMidiNotes: [68, 72],
-      showIntervals: true,
-      rhythmPhaseMode: 'sam-aligned',
-    },
-  },
-  {
-    id: 'tempo-cadence-modulation',
-    title: 'Tempo Cadence: Supercycle Metric Modulation',
-    shortTitle: 'Tempo Cadence',
-    badge: 'Supercycle Band Filter',
-    summary: 'Uses a Supercycle Range Filter to step between harmonic tempos across The Sam.',
-    listenHint:
-      'Watch the Supercycle Band Filter alternate between tempo layers on each rotation—aligning back onto The Sam!',
-    fromSection: 'concepts',
-    mode: 'static-place',
-    shapeId: 'hemiola-3-2',
-    rhythmBpm: 96.75,
-    rhythmD: 4.0,
-    pitchD: 4.0,
-    pitchCarrier: 'kit',
-    requiresKeyboard: false,
-  },
+  ...COUPLING_DEMOS,
+  ...KEYBOARD_CADENCE_DEMOS,
 ];
 
 export const FEATURED_TOUR_DEMOS: TutorialDemoConfig[] = TUTORIAL_DEMOS.filter((d) => d.featuredInTour);
 
 export function getTutorialDemoById(id: TutorialDemoId): TutorialDemoConfig {
   return TUTORIAL_DEMOS.find((d) => d.id === id) || TUTORIAL_DEMOS[0];
+}
+
+/**
+ * Classifies a DuPeriod coordinate `d` into Rhythm, Crossover (near 25.8 Hz), or Pitch.
+ */
+export function getDemoRegime(d: number): DemoRegime {
+  if (d > 0.8) return 'rhythm';
+  if (d < -0.8) return 'pitch';
+  return 'crossover';
+}
+
+export interface ResolveNarrationOptions {
+  demo: TutorialDemoConfig;
+  regime: DemoRegime;
+  hasCompletedRoundTrip: boolean;
+  userTookControl: boolean;
+  isFilterEnabled: boolean;
+}
+
+/**
+ * Selects the most relevant single-line narration for TutorialReturnToast
+ * based on the current demo, perceptual regime, and user interaction state.
+ */
+export function resolveDemoNarration({
+  demo,
+  regime,
+  hasCompletedRoundTrip,
+  userTookControl,
+  isFilterEnabled,
+}: ResolveNarrationOptions): string {
+  const n = demo.narration;
+  if (!n) return demo.listenHint;
+
+  if (isFilterEnabled && n.filterActive) {
+    return n.filterActive;
+  }
+  if (userTookControl && n.manualControl) {
+    return n.manualControl;
+  }
+  if (hasCompletedRoundTrip && !userTookControl && n.afterRoundTrip) {
+    return n.afterRoundTrip;
+  }
+  if (regime === 'rhythm' && n.rhythm) return n.rhythm;
+  if (regime === 'crossover' && n.crossover) return n.crossover;
+  if (regime === 'pitch' && n.pitch) return n.pitch;
+  return demo.listenHint;
 }

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeSweepTiming, sweepProgress } from '../sweep';
+import {
+  computeSweepTiming,
+  sweepProgress,
+  computeSweepPhaseOffsetMs,
+  getSweepDirectionAtTime,
+} from '../sweep';
 
 describe('sweep', () => {
   describe('computeSweepTiming', () => {
@@ -58,6 +63,34 @@ describe('sweep', () => {
       expect(sweepProgress(6000, timing)).toBeCloseTo(0.0, 5);
       expect(sweepProgress(8000, timing)).toBe(1.0); // 6000 + 2000ms = peak B
       expect(sweepProgress(-1000, timing)).toBe(0.0); // Wrap into Phase 4
+    });
+  });
+
+  describe('computeSweepPhaseOffsetMs', () => {
+    const timing = computeSweepTiming({ periodSec: 4, dwellSec: 1 });
+    const startD = 4.0;
+    const targetD = -4.0;
+
+    it('resumes from the exact currentD without jumping to A in forward direction', () => {
+      const midD = 0.0; // Halfway between 4.0 and -4.0
+      const offsetMs = computeSweepPhaseOffsetMs(midD, startD, targetD, timing, 1);
+      const progress = sweepProgress(offsetMs, timing);
+      expect(startD + (targetD - startD) * progress).toBeCloseTo(midD, 4);
+    });
+
+    it('resumes from the exact currentD in return direction (B -> A)', () => {
+      const quarterFromA = 2.0; // norm = 0.25
+      const offsetMs = computeSweepPhaseOffsetMs(quarterFromA, startD, targetD, timing, -1);
+      expect(getSweepDirectionAtTime(offsetMs, timing)).toBe(-1);
+      const progress = sweepProgress(offsetMs, timing);
+      expect(startD + (targetD - startD) * progress).toBeCloseTo(quarterFromA, 4);
+    });
+
+    it('clamps cleanly when currentD is outside [startD, targetD]', () => {
+      const offsetBeyondA = computeSweepPhaseOffsetMs(6.0, startD, targetD, timing, 1);
+      expect(sweepProgress(offsetBeyondA, timing)).toBeCloseTo(0.0, 5);
+      const offsetBeyondB = computeSweepPhaseOffsetMs(-6.0, startD, targetD, timing, 1);
+      expect(sweepProgress(offsetBeyondB, timing)).toBeCloseTo(1.0, 5);
     });
   });
 });

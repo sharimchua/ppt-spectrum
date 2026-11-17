@@ -44,16 +44,19 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/keyboard/keyboard-layout.ts` — Pure key geometry, Solfège colouring, and interval distance band builders for `VirtualKeyboard`.
 - `src/components/keyboard/IntervalBandsStrip.tsx` — Stacked Harmonic-Geometry-style interval ratio & frequency distance bands above the keybed.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
-- `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with Prev/Next demo stepping and one-click return to the active tutorial section.
+- `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with regime narration, sweep Pause/Resume toggle, and one-click return to the active tutorial section.
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
 - `tutorial-demos.ts` — Guided tutorial demo configurations, custom override contracts, section identifiers, and intro storage key.
 - `prime-sweep-demos.ts` — Guided 7:4, 7:5, and 11:8 prime-family TPL crossover demo configurations.
-- `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time & the Bicycle-Spoke thought experiment, a 'What is a Shape?' card, 4 guided live demo launchers, interactive `<LensPreviewGrid />`, and quick interaction tips.
+- `timbre-sweep-demos.ts` — Guided Sine, Sawtooth, Clarinet, Bell, and Custom Overtone Mix timbre sweep demo configurations.
+- `coupling-demos.ts` — Guided Cross-Limen coupling demo configurations (Fractal Self, Neutral Kit/Static, Cross-Shape Clarinet).
+- `keyboard-cadence-demos.ts` — Guided Solfège Keyboard tuning (5-Limit vs 12-TET) and Supercycle tempo cadence demo configurations.
+- `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time, the Bicycle-Spoke thought experiment, 'Who is PPT Spectrum for?' persona tiles, terminology primer, 'What is a Shape?' card, interactive `<LensPreviewGrid />`, and quick interaction tips.
 - `WhatIsAShapeCard.tsx` — Overview card defining Shape, Voice Anchor, and partial, with three one-click listening examples.
 - `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.
-- `ConceptsSection.tsx` — 7 intuition-first musical experiments, ordered listening-first, with UI reference badges and embedded interactive exploration diagrams.
+- `ConceptsSection.tsx` — 7 intuition-first musical experiments, ordered listening-first, with embedded interactive exploration diagrams.
 - `AcousticsNamesCallout.tsx` — Textbook acoustics glossary (partial, harmonic, overtone, inharmonic, missing fundamental, beating) used in Concepts.
 - `UnderTheHoodSection.tsx` — Sound design & studio guide covering Voice Anchors and Partials, Inharmonic Stretch ($B$), Rhythm Sieves & Spectral Filters (with interactive 8-slot sieve), Pitch ADSR vs Rhythm Supercycles, Tuning Studio & Solfège Keyboard, Mic Capture, Web MIDI, and Audio Modes.
 - `CustomiseSection.tsx` — Platform-adaptive controls guide with interactive Touch & Mobile (Radial Menu, rotary jog wheel, double tap) vs Desktop (keyboard matrix, flex layout) views.
@@ -123,6 +126,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useEnvelopes.ts` — Dedicated Envelopes sheet visibility, Pitch/Rhythm envelope parameter updates, and Envelope library CRUD.
 - `useLibraryBundles.ts` — Library bundle presets, `?bundle=` deeplink decoding, and non-destructive JSON/slug import/export.
 - `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
+- `useDemoSpotlight.ts` — Automated Cycle-2 bandpass spotlight cues and one-tap contextual actions (voice isolation and tuning A/B comparison) for guided demos.
 
 ### Tests (`src/components/__tests__/`)
 

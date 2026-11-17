@@ -5,9 +5,9 @@
  * while managing the context-aware "Back to Guide" toast state and scroll bookmarking.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Scene, Shape, Filter } from '../../core/types';
-import { PRESET_TRIO, LayoutDefinition } from '../../core/layout-models';
+import { PRESET_TRIO, PRESET_DUO_HORIZONTAL, PRESET_LAYOUTS, LayoutDefinition } from '../../core/layout-models';
 import { PRESET_LIBRARY_BUNDLES, applyLibraryBundleToScene } from '../../core/library-models';
 import { PRESET_FILTERS } from '../../core/filter-presets';
 import { createDefaultMidiTuningConfig } from '../../core/midi-tuning';
@@ -18,7 +18,6 @@ import {
   TutorialDemoConfig,
   TutorialSectionId,
   CustomTutorialDemoOverride,
-  FEATURED_TOUR_DEMOS,
   getTutorialDemoById,
 } from '../info-modal/tutorial-demos';
 
@@ -33,6 +32,7 @@ export interface UseTeachingDemoOptions {
   toggleFilter: () => void;
   isOscillating: boolean;
   toggleOscillating: () => void;
+  resetRoundTrip?: () => void;
   isPlaying: boolean;
   handleTogglePlay: () => void;
   setIsInfoOpen: (open: boolean) => void;
@@ -45,12 +45,13 @@ export interface UseTeachingDemoResult {
   setTutorialSection: (section: TutorialSectionId) => void;
   tutorialScrollTop: number;
   setTutorialScrollTop: (scrollTop: number) => void;
+  userTookControl: boolean;
+  notifyUserTookControl: () => void;
   handlePlayDemo: (
     demoId?: TutorialDemoId,
     fromSection?: TutorialSectionId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
-  handleCycleDemo: (direction: -1 | 1) => void;
   handleReturnToTutorial: () => void;
   handleDismissDemoToast: () => void;
 }
@@ -68,6 +69,7 @@ export function useTeachingDemo({
   toggleFilter,
   isOscillating,
   toggleOscillating,
+  resetRoundTrip,
   isPlaying,
   handleTogglePlay,
   setIsInfoOpen,
@@ -76,6 +78,18 @@ export function useTeachingDemo({
   const [activeDemo, setActiveDemo] = useState<TutorialDemoConfig | null>(null);
   const [tutorialSection, setTutorialSection] = useState<TutorialSectionId>('overview');
   const [tutorialScrollTop, setTutorialScrollTop] = useState<number>(0);
+  const [userTookControl, setUserTookControl] = useState<boolean>(false);
+
+  const notifyUserTookControl = useCallback(() => {
+    setUserTookControl(true);
+  }, []);
+
+  // Resuming sweep clears manual-control override so narration returns to live sweep phases
+  useEffect(() => {
+    if (isOscillating) {
+      setUserTookControl(false);
+    }
+  }, [isOscillating]);
 
   const launchDemoConfig = useCallback(
     (
@@ -95,9 +109,18 @@ export function useTeachingDemo({
 
       setActiveDemo(effectiveDemo);
       setTutorialSection(sectionOverride || baseDemo.fromSection);
+      setUserTookControl(false);
+      resetRoundTrip?.();
 
-      if (layout.id === 'solo') {
-        setLayout(PRESET_TRIO);
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      const targetLayoutId = isMobile ? effectiveDemo.mobileLayoutId : effectiveDemo.desktopLayoutId;
+      const targetLayout = targetLayoutId ? PRESET_LAYOUTS[targetLayoutId] : undefined;
+      if (targetLayout) {
+        if (layout.id !== targetLayout.id) {
+          setLayout(targetLayout);
+        }
+      } else if (layout.id === 'solo') {
+        setLayout(isMobile ? PRESET_DUO_HORIZONTAL : PRESET_TRIO);
       }
 
       // Explicitly clear any previous keyboard notes before configuring the scene
@@ -195,14 +218,15 @@ export function useTeachingDemo({
         const isStaticPlace = baseDemo.mode === 'static-place';
         const initialD = isStaticPlace ? pitchD : rhythmD;
 
-        if (customOverride?.customPartials && customOverride.customPartials.length > 0) {
-          const activePartials = customOverride.customPartials.filter((p) => p.amp > 0);
+        const effectiveCustomPartials = customOverride?.customPartials ?? baseDemo.customPartials;
+        if (effectiveCustomPartials && effectiveCustomPartials.length > 0) {
+          const activePartials = effectiveCustomPartials.filter((p) => p.amp > 0);
           const customShape: Shape = {
-            id: 'tutorial-custom-overtone-mix',
-            name: 'Tutorial Overtone Mix',
+            id: customOverride?.customPartials ? 'tutorial-custom-overtone-mix' : shapeId,
+            name: customOverride?.customPartials ? 'Tutorial Overtone Mix' : baseDemo.shortTitle,
             origin: 'user',
-            category: 'timbre',
-            description: 'Custom overtone bar mix created in the interactive tutorial mixer.',
+            category: baseDemo.customPartials ? 'harmony' : 'timbre',
+            description: baseDemo.summary,
             adsr: { attack: 0.03, decay: 0.4, sustain: 0.85, release: 0.25, damping: 0.1 },
             partials: activePartials.map((p, idx) => ({
               id: `tut_p_${idx + 1}`,
@@ -214,7 +238,7 @@ export function useTeachingDemo({
                     : { kind: 'real', value: p.ratioVal },
               amp: p.amp,
               phase: 0,
-              voice: VOICE_CYCLE[idx % VOICE_CYCLE.length],
+              voice: p.voice ?? VOICE_CYCLE[idx % VOICE_CYCLE.length],
               label: p.label,
             })),
           };
@@ -230,7 +254,7 @@ export function useTeachingDemo({
               placements: prev.placements.map((pl, idx) =>
                 idx === 0 ? { ...pl, shapeId: customShape.id, d: initialD } : pl
               ),
-              filter: customOverride.customFilter
+              filter: customOverride?.customFilter
                 ? { ...customOverride.customFilter, enabled: true }
                 : { ...prev.filter, enabled: false },
               audio: {
@@ -276,8 +300,8 @@ export function useTeachingDemo({
               noteIndex: baseDemo.noteIndex ?? 9,
               octave: baseDemo.octave ?? 4,
             },
-            periodSec: 10,
-            dwellSec: 0.5,
+            periodSec: baseDemo.periodSec ?? 10,
+            dwellSec: baseDemo.dwellSec ?? 4,
           }));
 
           if (!isOscillating) {
@@ -322,6 +346,7 @@ export function useTeachingDemo({
       isPlaying,
       handleTogglePlay,
       setIsInfoOpen,
+      resetRoundTrip,
     ]
   );
 
@@ -335,20 +360,6 @@ export function useTeachingDemo({
       launchDemoConfig(demo, fromSection, customOverride);
     },
     [launchDemoConfig]
-  );
-
-  const handleCycleDemo = useCallback(
-    (direction: -1 | 1) => {
-      const currentIdx = activeDemo
-        ? FEATURED_TOUR_DEMOS.findIndex((d) => d.id === activeDemo.id)
-        : 0;
-      const baseIdx = currentIdx >= 0 ? currentIdx : 0;
-      const nextIdx =
-        (baseIdx + direction + FEATURED_TOUR_DEMOS.length) % FEATURED_TOUR_DEMOS.length;
-      const nextDemo = FEATURED_TOUR_DEMOS[nextIdx];
-      launchDemoConfig(nextDemo, tutorialSection);
-    },
-    [activeDemo, launchDemoConfig, tutorialSection]
   );
 
   const handleReturnToTutorial = useCallback(() => {
@@ -374,8 +385,9 @@ export function useTeachingDemo({
     setTutorialSection,
     tutorialScrollTop,
     setTutorialScrollTop,
+    userTookControl,
+    notifyUserTookControl,
     handlePlayDemo,
-    handleCycleDemo,
     handleReturnToTutorial,
     handleDismissDemoToast,
   };

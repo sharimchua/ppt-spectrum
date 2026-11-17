@@ -5,13 +5,14 @@
  * Strictly maintains Australian English spelling.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Keyboard, Lock, Play, Shuffle, ArrowLeftRight, Sparkles } from 'lucide-react';
-import { CustomTutorialDemoOverride, TutorialDemoId } from './tutorial-demos';
+import { CustomTutorialDemoOverride, TutorialDemoId, ContextualDemoAction } from './tutorial-demos';
 import { buildTempoCadenceOverride } from './tempo-cadence-demos';
 
 interface KeyboardTuningDiagramProps {
   onPlayDemo: (demoId: TutorialDemoId, customOverride?: CustomTutorialDemoOverride) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
 type ExplorerTab = 'drift-vs-lock' | 'tempo-cadences';
@@ -60,7 +61,10 @@ const CADENCE_EXAMPLES: CadenceExample[] = [
   },
 ];
 
-export const KeyboardTuningDiagram: React.FC<KeyboardTuningDiagramProps> = ({ onPlayDemo }) => {
+export const KeyboardTuningDiagram: React.FC<KeyboardTuningDiagramProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [activeTab, setActiveTab] = useState<ExplorerTab>('drift-vs-lock');
   const [tuningMode, setTuningMode] = useState<TuningMode>('5-limit');
   const [selectedCadenceId, setSelectedCadenceId] = useState<string>('perfect-3-2');
@@ -69,6 +73,26 @@ export const KeyboardTuningDiagram: React.FC<KeyboardTuningDiagramProps> = ({ on
   const miRatio = isJust ? 1.25 : Math.pow(2, 4 / 12); // 1.2500 vs 1.259921
   const selectedCadence =
     CADENCE_EXAMPLES.find((c) => c.id === selectedCadenceId) ?? CADENCE_EXAMPLES[0];
+
+  useEffect(() => {
+    if (!onRegisterContextualDemo) return;
+    if (activeTab === 'drift-vs-lock') {
+      onRegisterContextualDemo({
+        cardId: 'keyboard-tuning',
+        label: isJust ? 'Hear 5-Limit Lock' : 'Hear 12-TET Drift',
+        demoId: isJust ? 'keyboard-5limit-lock' : 'keyboard-12tet-drift',
+        fromSection: 'concepts',
+      });
+    } else {
+      onRegisterContextualDemo({
+        cardId: 'keyboard-tuning',
+        label: `Hear ${selectedCadence.ratioLabel} Cadence`,
+        demoId: 'tempo-cadence-modulation',
+        fromSection: 'concepts',
+        customOverride: buildTempoCadenceOverride(selectedCadence.id),
+      });
+    }
+  }, [activeTab, isJust, selectedCadence.id, selectedCadence.ratioLabel, onRegisterContextualDemo]);
 
   // Positions across a 4-bar (4 Do beats) timeline normalised to [0..1]
   const doBeats = [0, 0.25, 0.5, 0.75, 1.0];
@@ -79,7 +103,10 @@ export const KeyboardTuningDiagram: React.FC<KeyboardTuningDiagramProps> = ({ on
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/90 p-4 space-y-4">
+    <div
+      data-demo-card="keyboard-tuning"
+      className="rounded-xl border border-slate-800 bg-slate-950/90 p-4 space-y-4"
+    >
       {/* Mode Switcher Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-800/80 pb-3">
         <div className="flex items-center gap-2">

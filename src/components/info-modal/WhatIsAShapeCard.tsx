@@ -19,9 +19,9 @@ const SHAPE_EXAMPLES: ShapeExampleTile[] = [
     demoId: 'sine-timbre',
   },
   {
-    title: 'Two players, 3 against 2.',
-    description: 'A cross-rhythm that becomes a Perfect Fifth.',
-    demoId: 'hemiola-sweep',
+    title: 'Two players, 4 against 3.',
+    description: 'A cross-rhythm that becomes a Perfect Fourth.',
+    demoId: 'polyrhythm-4-3-sweep',
   },
   {
     title: 'A stack of partials.',

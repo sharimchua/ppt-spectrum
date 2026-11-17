@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, RotateCcw } from 'lucide-react';
-import { TutorialDemoId, CustomTutorialDemoOverride } from './tutorial-demos';
+import { TutorialDemoId, CustomTutorialDemoOverride, ContextualDemoAction } from './tutorial-demos';
 
 interface PartialItem {
   ratioVal: number;
@@ -99,9 +99,13 @@ const TIMBRE_PRESETS: TimbrePreset[] = [
 
 interface OvertoneTimbreDiagramProps {
   onPlayDemo?: (demoId: TutorialDemoId, customOverride?: CustomTutorialDemoOverride) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
-export const OvertoneTimbreDiagram: React.FC<OvertoneTimbreDiagramProps> = ({ onPlayDemo }) => {
+export const OvertoneTimbreDiagram: React.FC<OvertoneTimbreDiagramProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [activePresetId, setActivePresetId] = useState<string>('sawtooth');
   const [customPartials, setCustomPartials] = useState<PartialItem[] | null>(null);
 
@@ -153,6 +157,33 @@ export const OvertoneTimbreDiagram: React.FC<OvertoneTimbreDiagramProps> = ({ on
 
   const activeCount = partials.filter((p) => p.amp > 0).length;
 
+  useEffect(() => {
+    if (!onRegisterContextualDemo) return;
+    if (customPartials) {
+      onRegisterContextualDemo({
+        cardId: 'overtone-timbre',
+        label: 'Hear Custom Mix',
+        demoId: 'custom-timbre',
+        fromSection: 'concepts',
+        customOverride: {
+          title: 'Custom Overtone Mix (Groove ↔ Tone)',
+          shortTitle: 'Custom Overtone Mix',
+          badge: `${activeCount} Active Partials`,
+          listenHint:
+            'Listening to the exact overtone amplitude mix you created in the tutorial, sweeping from 90 BPM rhythm into A3 pitch!',
+          customPartials,
+        },
+      });
+    } else {
+      onRegisterContextualDemo({
+        cardId: 'overtone-timbre',
+        label: `Hear ${activePreset.name.split(' ')[0]} Sweep`,
+        demoId: activePreset.demoId,
+        fromSection: 'concepts',
+      });
+    }
+  }, [activeCount, activePreset.demoId, activePreset.name, customPartials, onRegisterContextualDemo]);
+
   const handleLaunchLive = () => {
     if (!onPlayDemo) return;
     if (customPartials) {
@@ -170,7 +201,10 @@ export const OvertoneTimbreDiagram: React.FC<OvertoneTimbreDiagramProps> = ({ on
   };
 
   return (
-    <div className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg">
+    <div
+      data-demo-card="overtone-timbre"
+      className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg"
+    >
       {/* Header & Preset Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
         <div>

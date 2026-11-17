@@ -7,11 +7,12 @@
  * Australian English spelling maintained.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Sparkles, Disc, Layers } from 'lucide-react';
 import {
   TutorialDemoId,
   CustomTutorialDemoOverride,
+  ContextualDemoAction,
 } from './tutorial-demos';
 
 export interface FractalCouplingDiagramProps {
@@ -19,6 +20,7 @@ export interface FractalCouplingDiagramProps {
     demoId: TutorialDemoId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
 type CouplingPresetKey = 'self' | 'neutral' | 'cross';
@@ -83,13 +85,26 @@ const COUPLING_MODES: CouplingPresetCard[] = [
 
 export const FractalCouplingDiagram: React.FC<FractalCouplingDiagramProps> = ({
   onPlayDemo,
+  onRegisterContextualDemo,
 }) => {
   const [selectedKey, setSelectedKey] = useState<CouplingPresetKey>('self');
   const activeCard =
     COUPLING_MODES.find((m) => m.key === selectedKey) || COUPLING_MODES[0];
 
+  useEffect(() => {
+    onRegisterContextualDemo?.({
+      cardId: 'fractal-coupling',
+      label: `Hear ${activeCard.badge}`,
+      demoId: activeCard.demoId,
+      fromSection: 'concepts',
+    });
+  }, [activeCard, onRegisterContextualDemo]);
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/85 p-3.5 sm:p-4 space-y-3.5">
+    <div
+      data-demo-card="fractal-coupling"
+      className="rounded-xl border border-slate-800 bg-slate-950/85 p-3.5 sm:p-4 space-y-3.5"
+    >
       {/* Mode Selector Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
         <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">

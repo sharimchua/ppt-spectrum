@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play } from 'lucide-react';
 import { PRIME_FAMILY_COLORS } from '../../core/ppt-constants';
 import {
   TutorialDemoId,
   CustomTutorialDemoOverride,
+  ContextualDemoAction,
 } from './tutorial-demos';
 
 interface PrimeDemoButton {
@@ -114,14 +115,31 @@ interface PrimeFamiliesDiagramProps {
     demoId: TutorialDemoId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
-export const PrimeFamiliesDiagram: React.FC<PrimeFamiliesDiagramProps> = ({ onPlayDemo }) => {
+export const PrimeFamiliesDiagram: React.FC<PrimeFamiliesDiagramProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [selectedId, setSelectedId] = useState<string>('3');
   const selected = PRIME_FAMILIES.find((f) => f.id === selectedId) || PRIME_FAMILIES[1];
 
+  useEffect(() => {
+    const firstDemo = selected.demos?.[0];
+    onRegisterContextualDemo?.({
+      cardId: 'prime-families',
+      label: firstDemo ? firstDemo.label : 'Hear Bell Chime',
+      demoId: firstDemo ? firstDemo.demoId : 'bell-timbre',
+      fromSection: 'concepts',
+    });
+  }, [selected, onRegisterContextualDemo]);
+
   return (
-    <div className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg">
+    <div
+      data-demo-card="prime-families"
+      className="w-full flex flex-col p-3.5 sm:p-4 bg-slate-950/85 border border-slate-800/90 rounded-xl select-none space-y-3.5 shadow-lg"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
         <div>

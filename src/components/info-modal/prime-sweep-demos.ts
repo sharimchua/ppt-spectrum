@@ -18,6 +18,14 @@ export const PRIME_SWEEP_DEMOS: TutorialDemoConfig[] = [
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    narration: {
+      rhythm: 'Rhythm Space: feel the lopsided, Balkan-flavoured 7-against-4 groove.',
+      crossover: 'Crossing 25.8 Hz: the 7:4 cross-rhythm is blurring into a chord…',
+      pitch: 'Pitch Space: 7:4 fuses into the bluesy Harmonic Seventh (969¢).',
+    },
   },
   {
     id: 'polyrhythm-7-5-sweep',
@@ -36,6 +44,14 @@ export const PRIME_SWEEP_DEMOS: TutorialDemoConfig[] = [
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    narration: {
+      rhythm: 'Rhythm Space: hear the restless 7-against-5 cross-rhythm.',
+      crossover: 'Crossing 25.8 Hz: 7:5 is accelerating into an interval…',
+      pitch: 'Pitch Space: 7:5 becomes the unsettled Septimal Tritone (583¢).',
+    },
   },
   {
     id: 'polyrhythm-11-8-sweep',
@@ -54,5 +70,13 @@ export const PRIME_SWEEP_DEMOS: TutorialDemoConfig[] = [
     pitchD: -4.092,
     noteIndex: 9,
     octave: 4,
+    dwellSec: 4,
+    desktopLayoutId: 'trio',
+    mobileLayoutId: 'rhythm-duo',
+    narration: {
+      rhythm: 'Rhythm Space: 11-against-8 is hard to count—just feel its long, rolling cycle.',
+      crossover: 'Crossing 25.8 Hz: the 11:8 pulses are fusing into a single interval…',
+      pitch: 'Pitch Space: 11:8 becomes the Neutral Fourth (551¢), halfway between a fourth and a tritone.',
+    },
   },
 ];

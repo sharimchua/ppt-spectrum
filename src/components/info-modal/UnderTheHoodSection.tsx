@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SlidersHorizontal,
   Filter,
@@ -13,6 +13,7 @@ import {
   TutorialDemoId,
   TutorialSectionId,
   CustomTutorialDemoOverride,
+  ContextualDemoAction,
 } from './tutorial-demos';
 
 interface UnderTheHoodSectionProps {
@@ -21,6 +22,7 @@ interface UnderTheHoodSectionProps {
     fromSection?: TutorialSectionId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
 const SIEVE_PATTERNS: { id: string; label: string; slots: boolean[]; desc: string }[] = [
@@ -44,7 +46,10 @@ const SIEVE_PATTERNS: { id: string; label: string; slots: boolean[]; desc: strin
   },
 ];
 
-export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlayDemo }) => {
+export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [sieveSlots, setSieveSlots] = useState<boolean[]>(SIEVE_PATTERNS[0].slots);
   const [activePatternId, setActivePatternId] = useState<string>('tresillo');
 
@@ -82,6 +87,24 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
       customSieveSlots: sieveSlots,
     });
   };
+
+  useEffect(() => {
+    if (!onRegisterContextualDemo) return;
+    const label = activePattern ? activePattern.label : `Custom 8-Slot Sieve (Slots ${openIndices})`;
+    onRegisterContextualDemo({
+      cardId: 'cycle-sieve',
+      label: activePattern ? `Hear ${activePattern.label.split(' ')[0]} Sieve` : 'Hear Custom Sieve',
+      demoId: 'tresillo-sieve',
+      fromSection: 'hood',
+      customOverride: {
+        title: `${label} — Rhythm Sieve Live`,
+        shortTitle: activePattern ? activePattern.label : 'Custom 8-Slot Sieve',
+        badge: `${keptCount}/8 Slots Open`,
+        listenHint: `Listening to your active 8-slot Cycle Sieve (keeping slots ${openIndices}) carving a polyrhythmic loop in real time!`,
+        customSieveSlots: sieveSlots,
+      },
+    });
+  }, [activePattern, keptCount, openIndices, sieveSlots, onRegisterContextualDemo]);
 
   return (
     <div className="space-y-6">
@@ -152,7 +175,10 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({ onPlay
       </div>
 
       {/* 2. Compound Filters: Rhythm Sieves & Acoustic Formants */}
-      <div className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-4">
+      <div
+        data-demo-card="cycle-sieve"
+        className="rounded-xl border border-stone-800 bg-stone-900/40 p-5 space-y-4"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800/60 pb-3">
           <div className="flex items-center gap-2.5">
             <Filter className="h-4 w-4 text-sky-400 shrink-0" />

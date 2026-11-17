@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Keyboard, Volume2, X } from 'lucide-react';
-import { TutorialDemoConfig, FEATURED_TOUR_DEMOS } from './info-modal/tutorial-demos';
+import { BookOpen, ChevronDown, ChevronUp, Keyboard, Pause, Play, Sliders, Volume2, X } from 'lucide-react';
+import {
+  TutorialDemoConfig,
+  getDemoRegime,
+  resolveDemoNarration,
+} from './info-modal/tutorial-demos';
+import type { DemoQuickAction } from './hooks/useDemoSpotlight';
 
 interface TutorialReturnToastProps {
   activeDemo: TutorialDemoConfig | null;
   isInfoOpen: boolean;
   isKeyboardOpen?: boolean;
+  currentD?: number;
+  isOscillating?: boolean;
+  hasCompletedRoundTrip?: boolean;
+  userTookControl?: boolean;
+  isFilterEnabled?: boolean;
+  overrideNarration?: string | null;
+  quickAction?: DemoQuickAction | null;
+  onToggleOscillate?: () => void;
   onReturnToTutorial: () => void;
-  onCycleDemo: (direction: -1 | 1) => void;
   onDismiss: () => void;
 }
 
@@ -15,8 +27,15 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   activeDemo,
   isInfoOpen,
   isKeyboardOpen = false,
+  currentD = 0,
+  isOscillating = false,
+  hasCompletedRoundTrip = false,
+  userTookControl = false,
+  isFilterEnabled = false,
+  overrideNarration = null,
+  quickAction = null,
+  onToggleOscillate,
   onReturnToTutorial,
-  onCycleDemo,
   onDismiss,
 }) => {
   const [isMinimised, setIsMinimised] = useState(false);
@@ -32,11 +51,19 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
 
   if (!activeDemo || isInfoOpen) return null;
 
-  const tourIndex = FEATURED_TOUR_DEMOS.findIndex((d) => d.id === activeDemo.id);
-  const badgeLabel =
-    tourIndex >= 0
-      ? `Guided Demo ${tourIndex + 1}/${FEATURED_TOUR_DEMOS.length}`
-      : 'Live Tutorial Preview';
+  const badgeLabel = 'Guided Demo';
+
+  const regime = getDemoRegime(currentD);
+  const narrationText =
+    overrideNarration ??
+    resolveDemoNarration({
+      demo: activeDemo,
+      regime,
+      hasCompletedRoundTrip,
+      userTookControl,
+      isFilterEnabled,
+    });
+  const showSweepToggle = activeDemo.mode === 'sweep' && Boolean(onToggleOscillate);
 
   if (isMinimised) {
     return (
@@ -59,27 +86,6 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             </span>
             <ChevronUp className="h-3.5 w-3.5 shrink-0 text-stone-400 group-hover:text-white transition" />
           </button>
-
-          <div className="flex items-center rounded-full border border-stone-700/80 bg-stone-900/90 px-0.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => onCycleDemo(-1)}
-              className="p-0.5 text-stone-300 hover:text-white transition cursor-pointer"
-              title="Previous Guided Demo"
-              aria-label="Previous Guided Demo"
-            >
-              <ChevronLeft className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onCycleDemo(1)}
-              className="p-0.5 text-stone-300 hover:text-white transition cursor-pointer"
-              title="Next Guided Demo"
-              aria-label="Next Guided Demo"
-            >
-              <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
 
           <button
             type="button"
@@ -136,36 +142,42 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-stone-300 leading-snug mt-1">
-                {activeDemo.listenHint}
+                {narrationText}
               </p>
             </div>
           </div>
 
-          {/* Right: Step Demos, Back to Tutorial, Minimise & Dismiss */}
+          {/* Right: Quick Action, Pause/Resume Sweep, Back to Guide, Minimise & Dismiss */}
           <div className="flex items-center justify-end gap-1.5 shrink-0 border-t sm:border-t-0 border-stone-800/80 pt-2 sm:pt-0">
-            <div className="flex items-center rounded-lg border border-stone-700/80 bg-stone-900/90 p-0.5">
+            {quickAction && (
               <button
                 type="button"
-                onClick={() => onCycleDemo(-1)}
-                className="p-1 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition cursor-pointer"
-                title="Previous Guided Demo"
-                aria-label="Previous Guided Demo"
+                onClick={quickAction.onClick}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                  quickAction.isActive
+                    ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
+                    : 'border-stone-700/80 bg-stone-900/90 text-stone-200 hover:bg-stone-800'
+                }`}
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
+                <Sliders className="h-3 w-3" />
+                <span>{quickAction.label}</span>
               </button>
-              <span className="px-1.5 text-[10px] font-mono text-stone-400 select-none">
-                Demo
-              </span>
+            )}
+            {showSweepToggle && (
               <button
                 type="button"
-                onClick={() => onCycleDemo(1)}
-                className="p-1 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition cursor-pointer"
-                title="Next Guided Demo"
-                aria-label="Next Guided Demo"
+                onClick={onToggleOscillate}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                  isOscillating
+                    ? 'border-stone-700/80 bg-stone-900/90 text-stone-200 hover:bg-stone-800'
+                    : 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25'
+                }`}
+                title={isOscillating ? 'Pause sweep at current position' : 'Resume sweep from current position'}
               >
-                <ChevronRight className="h-3.5 w-3.5" />
+                {isOscillating ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 fill-current" />}
+                <span>{isOscillating ? 'Pause' : 'Resume'}</span>
               </button>
-            </div>
+            )}
 
             <button
               type="button"

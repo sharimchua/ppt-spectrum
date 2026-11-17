@@ -12,6 +12,7 @@ import {
   TutorialDemoId,
   TutorialSectionId,
   CustomTutorialDemoOverride,
+  ContextualDemoAction,
 } from './tutorial-demos';
 
 interface ConceptsSectionProps {
@@ -20,9 +21,13 @@ interface ConceptsSectionProps {
     fromSection?: TutorialSectionId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
-export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) => {
+export const ConceptsSection: React.FC<ConceptsSectionProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const handleTriggerDemo = (
     demoId: TutorialDemoId,
     customOverride?: CustomTutorialDemoOverride
@@ -65,11 +70,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
-              UI Badge: Ghost Root / The Sam
-            </span>
-          </div>
         </div>
 
         <p className="text-xs text-stone-300 leading-relaxed">
@@ -91,7 +91,10 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
           consonance, and a slow one as tension.
         </p>
 
-        <PolyrhythmSamDiagram onPlayDemo={handleTriggerDemo} />
+        <PolyrhythmSamDiagram
+          onPlayDemo={handleTriggerDemo}
+          onRegisterContextualDemo={onRegisterContextualDemo}
+        />
       </div>
 
       {/* Thought Experiment 2: Every Instrument Sound is a Hidden Chord (and a Hidden Groove) */}
@@ -111,9 +114,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 font-mono text-[10px] text-sky-300">
-              UI Badge: Partials (1×, 2×, 3×…)
-            </span>
             <Sparkles className="h-4 w-4 text-sky-400 hidden sm:block" />
           </div>
         </div>
@@ -129,7 +129,10 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
 
         <AcousticsNamesCallout />
 
-        <OvertoneTimbreDiagram onPlayDemo={handleTriggerDemo} />
+        <OvertoneTimbreDiagram
+          onPlayDemo={handleTriggerDemo}
+          onRegisterContextualDemo={onRegisterContextualDemo}
+        />
       </div>
 
       {/* Thought Experiment 3: Why 25.8 Hz & DuPeriods? (Kelvin vs Celsius) */}
@@ -145,14 +148,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
                 The &ldquo;Kelvin versus Celsius&rdquo; idea for musical time
               </p>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-amber-500/30 bg-amber-950/40 px-2 py-0.5 font-mono text-[10px] text-amber-300">
-              UI Badge: TPL ≈ 25.8 Hz
-            </span>
-            <span className="rounded-md border border-cyan-500/30 bg-cyan-950/40 px-2 py-0.5 font-mono text-[10px] text-cyan-300">
-              UI Badge: d (DuPeriod)
-            </span>
           </div>
         </div>
 
@@ -210,9 +205,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-purple-500/30 bg-purple-950/40 px-2 py-0.5 font-mono text-[10px] text-purple-300">
-              UI Badge: Uniform Solfège
-            </span>
             <Disc className="h-4 w-4 text-purple-400 hidden sm:block" />
           </div>
         </div>
@@ -247,9 +239,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-rose-500/30 bg-rose-950/40 px-2 py-0.5 font-mono text-[10px] text-rose-300">
-              UI Badge: Prime Profile (11-Limit)
-            </span>
             <Music className="h-4 w-4 text-rose-400 hidden sm:block" />
           </div>
         </div>
@@ -265,7 +254,10 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
           deliberately play and hear, not every detail of a timbre.
         </p>
 
-        <PrimeFamiliesDiagram onPlayDemo={handleTriggerDemo} />
+        <PrimeFamiliesDiagram
+          onPlayDemo={handleTriggerDemo}
+          onRegisterContextualDemo={onRegisterContextualDemo}
+        />
       </div>
 
       {/* Thought Experiment 6: The Fractal Mirror — Pitch Carrier & Rhythm Container */}
@@ -286,9 +278,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
-              UI Badge: Carrier &amp; Container (Self)
-            </span>
             <Repeat className="h-4 w-4 text-emerald-400 hidden sm:block" />
           </div>
         </div>
@@ -306,7 +295,10 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
           Pitch Container to <strong>Static</strong> so all overtones stay fused as one realistic instrument.
         </p>
 
-        <FractalCouplingDiagram onPlayDemo={handleTriggerDemo} />
+        <FractalCouplingDiagram
+          onPlayDemo={handleTriggerDemo}
+          onRegisterContextualDemo={onRegisterContextualDemo}
+        />
       </div>
 
       {/* Thought Experiment 7: Playing Tempo Melodies & Polyrhythms on the Solfège Keyboard */}
@@ -326,9 +318,6 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="rounded-md border border-cyan-500/30 bg-cyan-950/40 px-2 py-0.5 font-mono text-[10px] text-cyan-300">
-              UI Badge: Keys (K) · Hold (H) · Tab
-            </span>
             <Keyboard className="h-4 w-4 text-cyan-400 hidden sm:block" />
           </div>
         </div>
@@ -355,7 +344,10 @@ export const ConceptsSection: React.FC<ConceptsSectionProps> = ({ onPlayDemo }) 
           at middle C, so the sound shimmers. In 5-Limit Just tuning those two partials coincide, and the shimmer disappears.
         </p>
 
-        <KeyboardTuningDiagram onPlayDemo={handleTriggerDemo} />
+        <KeyboardTuningDiagram
+          onPlayDemo={handleTriggerDemo}
+          onRegisterContextualDemo={onRegisterContextualDemo}
+        />
       </div>
     </div>
   );

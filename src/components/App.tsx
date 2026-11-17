@@ -15,6 +15,7 @@ import { VirtualKeyboard } from './VirtualKeyboard';
 import { TutorialReturnToast } from './TutorialReturnToast';
 import { AppModals } from './AppModals';
 import { useTeachingDemo } from './hooks/useTeachingDemo';
+import { useDemoSpotlight } from './hooks/useDemoSpotlight';
 import { useSceneEngine } from './hooks/useSceneEngine';
 import { useLayoutState } from './hooks/useLayoutState';
 import { useTransport } from './hooks/useTransport';
@@ -62,6 +63,7 @@ export const App: React.FC = () => {
   // Ref tracking active sweep oscillation to allow synchronous pause and scrub cancellation
   const isOscillatingRef = useRef<boolean>(false);
   const setIsOscillatingRef = useRef<((val: boolean | ((prev: boolean) => boolean)) => void) | null>(null);
+  const notifyUserTookControlRef = useRef<(() => void) | null>(null);
 
   // Primary placement coordinate updates (user scrub turns off sweep while keeping audio running)
   const handleUpdatePlacementD = useCallback(
@@ -79,6 +81,7 @@ export const App: React.FC = () => {
       if (isOscillatingRef.current && setIsOscillatingRef.current) {
         setIsOscillatingRef.current(false);
       }
+      notifyUserTookControlRef.current?.();
       updateScene((prev) => stepPrimaryPlacementD(prev, step));
     },
     [updateScene]
@@ -102,7 +105,7 @@ export const App: React.FC = () => {
     onUpdatePlacementD: handleUpdatePlacementD,
   });
   const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, toggleMidiHold } = midi;
-  const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
+  const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); notifyUserTookControlRef.current?.(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
   const handleArrowStep = useCallback((step: number) => {
     if (!transposeLatchedNotes(Math.round(-step * 12))) handleStepPrimaryD(step);
   }, [transposeLatchedNotes, handleStepPrimaryD]);
@@ -113,22 +116,10 @@ export const App: React.FC = () => {
 
   // Musical bookmarks and continuum sweep oscillation
   const {
-    bookmarks,
-    setBookmarks,
-    isOscillating,
-    setIsOscillating,
-    toggleOscillating,
-    handleJumpBookmarkA,
-    handleJumpBookmarkB,
-    handleSetBookmarkA,
-    handleSetBookmarkB,
-    setBookmarkFromCurrent,
-  } = useBookmarks({
-    sceneRef,
-    setPrimaryDSmooth,
-    coordinator,
-    setPrimaryD: handleUpdatePlacementD,
-  });
+    bookmarks, setBookmarks, isOscillating, setIsOscillating, toggleOscillating,
+    hasCompletedRoundTrip, resetRoundTrip, handleJumpBookmarkA, handleJumpBookmarkB,
+    handleSetBookmarkA, handleSetBookmarkB, setBookmarkFromCurrent,
+  } = useBookmarks({ sceneRef, setPrimaryDSmooth, coordinator, setPrimaryD: handleUpdatePlacementD });
 
   isOscillatingRef.current = isOscillating;
   setIsOscillatingRef.current = setIsOscillating;
@@ -267,6 +258,7 @@ export const App: React.FC = () => {
       onFlipPolarity: flipPolarity,
       onToggleMidiHold: toggleMidiHold,
       onToggleTuningQuickSearch: () => setIsTuningQuickSearchOpen((prev) => !prev),
+      onToggleInfo: () => setIsInfoOpen((prev) => !prev),
       onPanicClear: handlePanicClear,
     }),
     [
@@ -280,8 +272,13 @@ export const App: React.FC = () => {
 
   const teachingDemo = useTeachingDemo({
     handleSelectPreset, setBookmarks, handleUpdatePlacementD, updateScene,
-    layout, setLayout, scene, toggleFilter, isOscillating, toggleOscillating,
+    layout, setLayout, scene, toggleFilter, isOscillating, toggleOscillating, resetRoundTrip,
     isPlaying, handleTogglePlay, setIsInfoOpen, midi,
+  });
+  notifyUserTookControlRef.current = teachingDemo.notifyUserTookControl;
+  const demoSpotlight = useDemoSpotlight({
+    activeDemo: teachingDemo.activeDemo, currentD: scene.placements[0]?.d ?? 0,
+    isOscillating, hasCompletedRoundTrip, updateScene, midi,
   });
 
   return (
@@ -366,7 +363,13 @@ export const App: React.FC = () => {
             onNudgeCellFlex={handleNudgeCellFlex}
             onEqualiseCellFlex={handleEqualiseCellFlex}
           />
-          <TutorialReturnToast activeDemo={teachingDemo.activeDemo} isInfoOpen={isInfoOpen} isKeyboardOpen={midi.isKeyboardOpen} onReturnToTutorial={teachingDemo.handleReturnToTutorial} onCycleDemo={teachingDemo.handleCycleDemo} onDismiss={teachingDemo.handleDismissDemoToast} />
+          <TutorialReturnToast
+            activeDemo={teachingDemo.activeDemo} isInfoOpen={isInfoOpen} isKeyboardOpen={midi.isKeyboardOpen}
+            currentD={scene.placements[0]?.d ?? 0} isOscillating={isOscillating} hasCompletedRoundTrip={hasCompletedRoundTrip}
+            userTookControl={teachingDemo.userTookControl} isFilterEnabled={scene.filter.enabled} onToggleOscillate={toggleOscillating}
+            overrideNarration={demoSpotlight.overrideNarration} quickAction={demoSpotlight.quickAction}
+            onReturnToTutorial={teachingDemo.handleReturnToTutorial} onDismiss={teachingDemo.handleDismissDemoToast}
+          />
         </div>
       </SpectrumViewport>
 

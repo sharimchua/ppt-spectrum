@@ -289,11 +289,180 @@ export const PRESET_QUAD: LayoutDefinition = {
   },
 };
 
+export const PRESET_TIMBRE_LAB: LayoutDefinition = {
+  id: 'timbre-lab',
+  name: 'Timbre Lab',
+  description: 'Spectrum Ruler on top with Waveform Phasor and Prime Profile below',
+  root: {
+    id: 'root-timbre-lab',
+    type: 'container',
+    direction: 'column',
+    gap: 8,
+    children: [
+      {
+        id: 'cell-timbre-ruler',
+        type: 'cell',
+        module: 'ruler',
+        flex: 1.5,
+        title: 'Spectrum Ruler',
+      },
+      {
+        id: 'container-timbre-bottom',
+        type: 'container',
+        direction: 'row',
+        flex: 1.5,
+        gap: 8,
+        children: [
+          {
+            id: 'cell-timbre-wave',
+            type: 'cell',
+            module: 'waveform-phasor',
+            flex: 1.3,
+            title: 'Waveform Phasor',
+          },
+          {
+            id: 'cell-timbre-profile',
+            type: 'cell',
+            module: 'prime-profile',
+            flex: 1,
+            title: 'Prime Profile',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+export const PRESET_TIMBRE_DUO: LayoutDefinition = {
+  id: 'timbre-duo',
+  name: 'Timbre Duo',
+  description: 'Spectrum Ruler stacked above Waveform Phasor for focused mobile timbre viewing',
+  root: {
+    id: 'root-timbre-duo',
+    type: 'container',
+    direction: 'column',
+    gap: 8,
+    children: [
+      {
+        id: 'cell-timbre-duo-ruler',
+        type: 'cell',
+        module: 'ruler',
+        flex: 1.4,
+        title: 'Spectrum Ruler',
+      },
+      {
+        id: 'cell-timbre-duo-wave',
+        type: 'cell',
+        module: 'waveform-phasor',
+        flex: 1.4,
+        title: 'Waveform Phasor',
+      },
+    ],
+  },
+};
+
+export const PRESET_RHYTHM_DUO: LayoutDefinition = {
+  id: 'rhythm-duo',
+  name: 'Cycle-First Duo',
+  description: 'Cycle Wheel on top with Spectrum Ruler below for mobile polyrhythm viewing',
+  root: {
+    id: 'root-rhythm-duo',
+    type: 'container',
+    direction: 'column',
+    gap: 8,
+    children: [
+      {
+        id: 'cell-rhythm-duo-cycle',
+        type: 'cell',
+        module: 'cycle-wheel',
+        flex: 1.5,
+        title: 'Cycle Wheel',
+      },
+      {
+        id: 'cell-rhythm-duo-ruler',
+        type: 'cell',
+        module: 'ruler',
+        flex: 1.4,
+        title: 'Spectrum Ruler',
+      },
+    ],
+  },
+};
+
+export const PRESET_RHYTHM_LAB: LayoutDefinition = {
+  id: 'rhythm-lab',
+  name: 'Rhythm & Sam Lab',
+  description: 'Event Lanes on top with Cycle Wheel and Alignment Meter below',
+  root: {
+    id: 'root-rhythm-lab',
+    type: 'container',
+    direction: 'column',
+    gap: 8,
+    children: [
+      {
+        id: 'cell-rhythm-lanes',
+        type: 'cell',
+        module: 'event-lanes',
+        flex: 1.4,
+        title: 'Event Lanes',
+      },
+      {
+        id: 'container-rhythm-bottom',
+        type: 'container',
+        direction: 'row',
+        flex: 1.5,
+        gap: 8,
+        children: [
+          {
+            id: 'cell-rhythm-cycle',
+            type: 'cell',
+            module: 'cycle-wheel',
+            flex: 1.1,
+            title: 'Cycle Wheel',
+          },
+          {
+            id: 'cell-rhythm-align',
+            type: 'cell',
+            module: 'alignment-meter',
+            flex: 1,
+            title: 'Alignment Meter',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+export const PRESET_SOLO_CYCLE: LayoutDefinition = {
+  id: 'solo-cycle',
+  name: 'Solo Cycle Wheel',
+  description: 'Single focused Cycle Wheel showing The Sam and phase locking',
+  root: {
+    id: 'root-solo-cycle',
+    type: 'container',
+    direction: 'column',
+    children: [
+      {
+        id: 'cell-solo-cycle',
+        type: 'cell',
+        module: 'cycle-wheel',
+        flex: 1,
+        title: 'Cycle Wheel',
+      },
+    ],
+  },
+};
+
 export const PRESET_LAYOUTS: Record<string, LayoutDefinition> = {
   solo: PRESET_SOLO,
+  'solo-cycle': PRESET_SOLO_CYCLE,
   'duo-horizontal': PRESET_DUO_HORIZONTAL,
   'duo-vertical': PRESET_DUO_VERTICAL,
   trio: PRESET_TRIO,
+  'timbre-lab': PRESET_TIMBRE_LAB,
+  'timbre-duo': PRESET_TIMBRE_DUO,
+  'rhythm-duo': PRESET_RHYTHM_DUO,
+  'rhythm-lab': PRESET_RHYTHM_LAB,
   'phasor-studio': PRESET_PHASOR_STUDIO,
   quad: PRESET_QUAD,
 };

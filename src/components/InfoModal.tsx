@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Sparkles,
@@ -17,6 +17,7 @@ import {
   TutorialDemoId,
   TutorialSectionId,
   CustomTutorialDemoOverride,
+  ContextualDemoAction,
   STORAGE_KEY_DONT_SHOW_INTRO,
 } from './info-modal/tutorial-demos';
 
@@ -57,6 +58,12 @@ export const InfoModal: React.FC<InfoModalProps> = ({
   onPlayDemo,
 }) => {
   const [activeSection, setActiveSection] = useState<TutorialSectionId>(initialSection);
+  const [contextualDemos, setContextualDemos] = useState<Record<string, ContextualDemoAction>>({});
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+  const registerContextualDemo = useCallback((action: ContextualDemoAction) => {
+    setContextualDemos((prev) => ({ ...prev, [action.cardId]: action }));
+  }, []);
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(STORAGE_KEY_DONT_SHOW_INTRO) === 'true';
@@ -124,6 +131,26 @@ export const InfoModal: React.FC<InfoModalProps> = ({
           break;
         }
       }
+
+      // Detect which interactive demo card is currently centred in view (for mobile sticky CTA)
+      const containerRect = container.getBoundingClientRect();
+      const viewportMid = containerRect.top + containerRect.height * 0.5;
+      const cards = container.querySelectorAll<HTMLElement>('[data-demo-card]');
+      let bestId: string | null = null;
+      let bestDist = Infinity;
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom < containerRect.top + 40 || rect.top > containerRect.bottom - 40) {
+          return;
+        }
+        const cardMid = (rect.top + rect.bottom) * 0.5;
+        const dist = Math.abs(cardMid - viewportMid);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = card.dataset.demoCard ?? null;
+        }
+      });
+      setActiveCardId(bestId);
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
@@ -246,7 +273,10 @@ export const InfoModal: React.FC<InfoModalProps> = ({
 
           {/* Section 2: Concepts & Thought Experiments */}
           <section id="ppt-section-concepts" className="scroll-mt-4">
-            <ConceptsSection onPlayDemo={handlePlayDemoClick} />
+            <ConceptsSection
+              onPlayDemo={handlePlayDemoClick}
+              onRegisterContextualDemo={registerContextualDemo}
+            />
           </section>
 
           {/* Divider 3: Under the Hood */}
@@ -264,7 +294,10 @@ export const InfoModal: React.FC<InfoModalProps> = ({
 
           {/* Section 3: Under the Hood */}
           <section id="ppt-section-hood" className="scroll-mt-4">
-            <UnderTheHoodSection onPlayDemo={handlePlayDemoClick} />
+            <UnderTheHoodSection
+              onPlayDemo={handlePlayDemoClick}
+              onRegisterContextualDemo={registerContextualDemo}
+            />
           </section>
 
           {/* Divider 4: Controls & Links */}
@@ -299,15 +332,42 @@ export const InfoModal: React.FC<InfoModalProps> = ({
             <span>Don&apos;t show this guide automatically on startup</span>
           </label>
 
-          {onPlayDemo && (
-            <button
-              onClick={() => handlePlayDemoClick('hemiola-sweep', activeSection)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              <span>Play 3:2 Sweep Demo</span>
-            </button>
-          )}
+          {onPlayDemo && (() => {
+            const mobileContextual =
+              (activeSection === 'concepts' || activeSection === 'hood') && activeCardId
+                ? contextualDemos[activeCardId]
+                : undefined;
+
+            return (
+              <>
+                {/* Mobile: Contextual CTA matching the active interactive diagram */}
+                <button
+                  onClick={() =>
+                    mobileContextual
+                      ? handlePlayDemoClick(
+                          mobileContextual.demoId,
+                          mobileContextual.fromSection,
+                          mobileContextual.customOverride
+                        )
+                      : handlePlayDemoClick('hemiola-sweep', activeSection)
+                  }
+                  className="sm:hidden w-full inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  <span>{mobileContextual ? mobileContextual.label : 'Play 3:2 Sweep Demo'}</span>
+                </button>
+
+                {/* Desktop: Persistent 3:2 Sweep CTA */}
+                <button
+                  onClick={() => handlePlayDemoClick('hemiola-sweep', activeSection)}
+                  className="hidden sm:inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs border border-amber-500/40 transition-colors cursor-pointer"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  <span>Play 3:2 Sweep Demo</span>
+                </button>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

@@ -3,10 +3,16 @@
  * Manages A/B bookmarks, jump/set actions, and requestAnimationFrame cosine glide loop.
  */
 
-import { useState, useEffect, useCallback, MutableRefObject } from 'react';
+import { useState, useEffect, useCallback, useRef, MutableRefObject } from 'react';
 import { Scene } from '../../core/types';
 import { RenderCoordinator } from '../../renderers/render-coordinator';
-import { computeSweepTiming, sweepProgress } from '../../core/sweep';
+import {
+  computeSweepTiming,
+  sweepProgress,
+  computeSweepPhaseOffsetMs,
+  getSweepDirectionAtTime,
+  SweepDirection,
+} from '../../core/sweep';
 import {
   BookmarkSettings,
   loadSavedBookmarks,
@@ -27,6 +33,8 @@ export interface UseBookmarksResult {
   isOscillating: boolean;
   setIsOscillating: React.Dispatch<React.SetStateAction<boolean>>;
   toggleOscillating: () => void;
+  hasCompletedRoundTrip: boolean;
+  resetRoundTrip: () => void;
   handleJumpBookmarkA: () => void;
   handleJumpBookmarkB: () => void;
   handleSetBookmarkA: () => void;
@@ -42,8 +50,17 @@ export function useBookmarks({
 }: UseBookmarksOptions): UseBookmarksResult {
   const [bookmarks, setBookmarks] = useState<BookmarkSettings>(loadSavedBookmarks);
   const [isOscillating, setIsOscillating] = useState<boolean>(false);
+  const [hasCompletedRoundTrip, setHasCompletedRoundTrip] = useState<boolean>(false);
+  const sweepDirectionRef = useRef<SweepDirection>(1);
+  const dwellOnStartRef = useRef<boolean>(false);
 
-  // Smooth Continuum Sweep Oscillation with Destination Dwell Time
+  const resetRoundTrip = useCallback(() => {
+    setHasCompletedRoundTrip(false);
+    sweepDirectionRef.current = 1;
+    dwellOnStartRef.current = true;
+  }, []);
+
+  // Smooth Continuum Sweep Oscillation with Destination Dwell Time & Seamless Pause/Resume
   useEffect(() => {
     if (!isOscillating) return;
     let animId: number;
@@ -52,17 +69,63 @@ export function useBookmarks({
     const startD = bookmarks.a.d;
     const targetD = bookmarks.b.d;
     const span = targetD - startD;
-    let latestGlideD = startD;
+    const entryD = sceneRef.current.placements[0]?.d ?? startD;
+    let latestGlideD = entryD;
 
     const timing = computeSweepTiming({
       periodSec: bookmarks.periodSec,
       dwellSec: bookmarks.dwellSec,
     });
 
+    const minBound = Math.min(startD, targetD);
+    const maxBound = Math.max(startD, targetD);
+    const isOutsideRange = Math.abs(span) > 1e-6 && (entryD < minBound - 1e-4 || entryD > maxBound + 1e-4);
+    const clampedEntryD = Math.max(minBound, Math.min(maxBound, entryD));
+    const entryGlideMs = isOutsideRange ? 800 : 0;
+
+    // If starting at/near Bookmark A or B, aim toward the other bookmark; otherwise preserve direction
+    let initialDirection: SweepDirection = sweepDirectionRef.current;
+    if (Math.abs(clampedEntryD - startD) < 1e-3) {
+      initialDirection = 1;
+    } else if (Math.abs(clampedEntryD - targetD) < 1e-3) {
+      initialDirection = -1;
+    }
+
+    let phaseOffsetMs = computeSweepPhaseOffsetMs(
+      clampedEntryD,
+      startD,
+      targetD,
+      timing,
+      initialDirection
+    );
+    if (dwellOnStartRef.current) {
+      dwellOnStartRef.current = false;
+      if (Math.abs(clampedEntryD - startD) < 1e-3 && timing.dwellMs > 0) {
+        // Begin in Phase 4 (dwell at Bookmark A) before gliding A -> B
+        phaseOffsetMs = 2 * timing.transitMs + timing.dwellMs;
+      }
+    }
+    let reportedRoundTrip = false;
+
     const step = (now: number) => {
       const elapsed = now - startTime;
-      const progress = sweepProgress(elapsed, timing);
-      latestGlideD = startD + span * progress;
+
+      if (elapsed < entryGlideMs) {
+        const t = elapsed / entryGlideMs;
+        const ease = (1 - Math.cos(Math.PI * t)) * 0.5;
+        latestGlideD = entryD + (clampedEntryD - entryD) * ease;
+      } else {
+        const cycleElapsed = elapsed - entryGlideMs;
+        const cycleTime = phaseOffsetMs + cycleElapsed;
+        const progress = sweepProgress(cycleTime, timing);
+        latestGlideD = startD + span * progress;
+        sweepDirectionRef.current = getSweepDirectionAtTime(cycleTime, timing);
+
+        if (!reportedRoundTrip && cycleElapsed >= timing.totalCycleMs) {
+          reportedRoundTrip = true;
+          setHasCompletedRoundTrip(true);
+        }
+      }
 
       const shouldSyncUi = now - lastUiSyncTime >= 100;
       if (shouldSyncUi) {
@@ -83,6 +146,7 @@ export function useBookmarks({
     bookmarks.b.d,
     bookmarks.periodSec,
     bookmarks.dwellSec,
+    sceneRef,
     setPrimaryDSmooth,
   ]);
 
@@ -130,6 +194,8 @@ export function useBookmarks({
     isOscillating,
     setIsOscillating,
     toggleOscillating,
+    hasCompletedRoundTrip,
+    resetRoundTrip,
     handleJumpBookmarkA,
     handleJumpBookmarkB,
     handleSetBookmarkA,
