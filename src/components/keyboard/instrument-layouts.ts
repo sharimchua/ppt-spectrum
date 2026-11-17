@@ -1,9 +1,9 @@
 /**
  * Pure geometry & pitch-mapping builders for alternate virtual instrument surfaces
  * driven directly by the active Tuning System (`MidiTuningConfig`):
- * 1. Scale-Degree Strip (plays only active degrees in the Tuning System)
- * 2. Isomorphic 2D Lattice (Tri 3:2 fifths on X, Qui 5:4 thirds on Y)
- * 3. Guitar Fretboard (6-string standard tuning with active Tuning degree highlighting)
+ * 1. Scale-Degree Strip (relative to current base frequency)
+ * 2. Isomorphic 2D Lattice (Harmonic, Wicki-Hayden, or All-Fourths; Rect or Hex)
+ * 3. Guitar / Bass / Ukulele Fretboard (configurable string count, tuning, and frets)
  */
 
 import { SOLFEGE_COLORS } from '../../core/ppt-constants';
@@ -11,6 +11,100 @@ import { MidiTuningConfig, midiToDWithTuning } from '../../core/midi-tuning';
 import { resolveTuningDegrees, tuningDegreeToRelativeMapping } from '../../core/tuning-systems';
 
 export type InstrumentSurfaceMode = 'piano' | 'scale-strip' | 'isomorphic' | 'guitar';
+
+export interface ScaleStripConfig {
+  octaves: 1 | 2;
+  showInactive: boolean;
+}
+
+export type IsoTileShape = 'rect' | 'hex';
+export type IsoLayoutPresetId = 'harmonic' | 'wicki-hayden' | 'fourths';
+
+export interface IsomorphicConfig {
+  tileShape: IsoTileShape;
+  layoutPreset: IsoLayoutPresetId;
+  rows: number;
+  cols: number;
+}
+
+export type GuitarPresetId =
+  | '6-std'
+  | '6-fourths'
+  | '6-drop-d'
+  | '6-dadgad'
+  | '7-std'
+  | '4-bass'
+  | '4-uke';
+
+export interface GuitarConfig {
+  presetId: GuitarPresetId;
+  fretCount: 12 | 15;
+}
+
+export const ISOMORPHIC_LAYOUT_PRESETS: Record<
+  IsoLayoutPresetId,
+  { label: string; x12: number; y12: number; x31: number; y31: number }
+> = {
+  harmonic: { label: 'Harmonic (3:2 × 5:4)', x12: 7, y12: 4, x31: 18, y31: 10 },
+  'wicki-hayden': { label: 'Wicki-Hayden (P5 × M2)', x12: 2, y12: 7, x31: 5, y31: 18 },
+  fourths: { label: 'All Fourths (P4 × M2)', x12: 2, y12: 5, x31: 5, y31: 13 },
+};
+
+export const GUITAR_TUNING_PRESETS: Record<
+  GuitarPresetId,
+  { label: string; strings: Array<{ name: string; openMidi: number }> }
+> = {
+  '6-std': {
+    label: '6-String Standard',
+    strings: [
+      { name: 'e4', openMidi: 64 }, { name: 'B3', openMidi: 59 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'E2', openMidi: 40 },
+    ],
+  },
+  '6-fourths': {
+    label: '6-String All Fourths',
+    strings: [
+      { name: 'F4', openMidi: 65 }, { name: 'C4', openMidi: 60 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'E2', openMidi: 40 },
+    ],
+  },
+  '6-drop-d': {
+    label: '6-String Drop D',
+    strings: [
+      { name: 'e4', openMidi: 64 }, { name: 'B3', openMidi: 59 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'D2', openMidi: 38 },
+    ],
+  },
+  '6-dadgad': {
+    label: '6-String DADGAD',
+    strings: [
+      { name: 'D4', openMidi: 62 }, { name: 'A3', openMidi: 57 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'D2', openMidi: 38 },
+    ],
+  },
+  '7-std': {
+    label: '7-String Standard',
+    strings: [
+      { name: 'e4', openMidi: 64 }, { name: 'B3', openMidi: 59 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'E2', openMidi: 40 },
+      { name: 'B1', openMidi: 35 },
+    ],
+  },
+  '4-bass': {
+    label: '4-String Bass (E-A-D-G)',
+    strings: [
+      { name: 'G2', openMidi: 43 }, { name: 'D2', openMidi: 38 },
+      { name: 'A1', openMidi: 33 }, { name: 'E1', openMidi: 28 },
+    ],
+  },
+  '4-uke': {
+    label: '4-String Ukulele (G-C-E-A)',
+    strings: [
+      { name: 'A4', openMidi: 69 }, { name: 'E4', openMidi: 64 },
+      { name: 'C4', openMidi: 60 }, { name: 'G4', openMidi: 67 },
+    ],
+  },
+};
 
 export interface SurfacePad {
   id: string;
@@ -44,33 +138,26 @@ function isCentsInScale(cents: number, activeCentsMod: number[], toleranceCents:
   });
 }
 
-/**
- * Builds a 1D Scale-Degree Strip from the active degrees of `midiTuning` (1 or 2 octaves).
- */
 export function buildScaleStripPads(
   midiTuning: MidiTuningConfig,
   currentFundamentalD: number,
   _tuningA4Hz: number,
   tplHz: number,
+  config: ScaleStripConfig = { octaves: 2, showInactive: true },
   baseIdOffset: number = 2000
 ): SurfacePad[] {
   const all = resolveTuningDegrees(midiTuning);
-  if (all.length === 0) return [];
-  const octaves = all.length > 14 ? 1 : 2;
+  const degrees = config.showInactive ? all : all.filter((d) => d.active);
+  if (degrees.length === 0) return [];
+  const octaves = degrees.length > 14 ? 1 : config.octaves;
   const pads: SurfacePad[] = [];
 
   for (let oct = 0; oct < octaves; oct++) {
-    for (let i = 0; i < all.length; i++) {
-      const deg = all[i];
-      const idx = oct * all.length + i;
+    for (let i = 0; i < degrees.length; i++) {
+      const deg = degrees[i];
+      const idx = oct * degrees.length + i;
       const midiId = baseIdOffset + idx;
-      const mapping = tuningDegreeToRelativeMapping(
-        deg,
-        oct,
-        midiId,
-        currentFundamentalD,
-        tplHz
-      );
+      const mapping = tuningDegreeToRelativeMapping(deg, oct, midiId, currentFundamentalD, tplHz);
       const cents = deg.cents + oct * 1200;
       pads.push({
         id: `strip-${idx}`,
@@ -87,50 +174,40 @@ export function buildScaleStripPads(
   return pads;
 }
 
-/**
- * Builds a 2D Isomorphic Lattice (rows × cols):
- * X-axis steps by 3:2 fifths (+7 semitones or +18 in 31-EDO),
- * Y-axis steps upward by 5:4 major thirds (+4 semitones or +10 in 31-EDO).
- */
 export function buildIsomorphicGrid(
-  rows: number,
-  cols: number,
+  isoConfig: IsomorphicConfig,
   midiTuning: MidiTuningConfig,
   currentFundamentalD: number,
   tuningA4Hz: number,
   tplHz: number
 ): SurfacePad[][] {
   const is31 = midiTuning.systemMode === '31edo' || midiTuning.midiStepMap === '31edo';
-  const fifthStep = is31 ? 18 : 7;
-  const thirdStep = is31 ? 10 : 4;
+  const preset = ISOMORPHIC_LAYOUT_PRESETS[isoConfig.layoutPreset] ?? ISOMORPHIC_LAYOUT_PRESETS.harmonic;
+  const xStep = is31 ? preset.x31 : preset.x12;
+  const yStep = is31 ? preset.y31 : preset.y12;
   const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
-  const baseMidi = rootMidi - (is31 ? 18 : 7);
+  const baseMidi = rootMidi - xStep;
 
   const activeDegrees = resolveTuningDegrees(midiTuning).filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
-  const effectiveConfig: MidiTuningConfig = is31
-    ? { ...midiTuning, midiStepMap: '31edo' }
-    : midiTuning;
+  const effectiveConfig: MidiTuningConfig = is31 ? { ...midiTuning, midiStepMap: '31edo' } : midiTuning;
 
   const grid: SurfacePad[][] = [];
-
-  for (let r = rows - 1; r >= 0; r--) {
+  for (let r = isoConfig.rows - 1; r >= 0; r--) {
     const rowPads: SurfacePad[] = [];
-    for (let c = 0; c < cols; c++) {
-      const midi = baseMidi + c * fifthStep + r * thirdStep;
+    for (let c = 0; c < isoConfig.cols; c++) {
+      const midi = baseMidi + c * xStep + r * yStep;
       const mapping = midiToDWithTuning(midi, effectiveConfig, currentFundamentalD, tuningA4Hz, tplHz);
       const stepDelta = midi - rootMidi;
       const cents = is31 ? (stepDelta * 1200) / 31 : stepDelta * 100;
       const normCents = ((cents % 1200) + 1200) % 1200;
       const inScale = isCentsInScale(cents, activeCentsMod, is31 ? 16 : 22);
       const isRoot = Math.min(normCents, 1200 - normCents) < 15;
-      const label = is31
-        ? `${((stepDelta % 31) + 31) % 31}\\31`
-        : mapping.address.syllable;
+      const label = is31 ? `${((stepDelta % 31) + 31) % 31}\\31` : mapping.address.syllable;
 
       rowPads.push({
         id: `iso-${r}-${c}`,
-        midiId: 3000 + r * cols + c,
+        midiId: 3000 + r * isoConfig.cols + c,
         label,
         subLabel: `${Math.round(normCents)}¢`,
         d: mapping.d,
@@ -144,20 +221,8 @@ export function buildIsomorphicGrid(
   return grid;
 }
 
-const GUITAR_STRINGS: Array<{ name: string; openMidi: number }> = [
-  { name: 'e4', openMidi: 64 },
-  { name: 'B3', openMidi: 59 },
-  { name: 'G3', openMidi: 55 },
-  { name: 'D3', openMidi: 50 },
-  { name: 'A2', openMidi: 45 },
-  { name: 'E2', openMidi: 40 },
-];
-
-/**
- * Builds a 6-string Guitar Fretboard (0..fretCount) with active Tuning degree highlighting.
- */
 export function buildGuitarFretboard(
-  fretCount: number,
+  guitarConfig: GuitarConfig,
   midiTuning: MidiTuningConfig,
   currentFundamentalD: number,
   tuningA4Hz: number,
@@ -166,10 +231,11 @@ export function buildGuitarFretboard(
   const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
   const activeDegrees = resolveTuningDegrees(midiTuning).filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
+  const strings = GUITAR_TUNING_PRESETS[guitarConfig.presetId]?.strings ?? GUITAR_TUNING_PRESETS['6-std'].strings;
 
-  return GUITAR_STRINGS.map((str, stringIndex) => {
+  return strings.map((str, stringIndex) => {
     const frets: SurfacePad[] = [];
-    for (let f = 0; f <= fretCount; f++) {
+    for (let f = 0; f <= guitarConfig.fretCount; f++) {
       const midi = str.openMidi + f;
       const mapping = midiToDWithTuning(midi, midiTuning, currentFundamentalD, tuningA4Hz, tplHz);
       const cents = (midi - rootMidi) * 100;
@@ -188,10 +254,6 @@ export function buildGuitarFretboard(
         isRoot,
       });
     }
-    return {
-      stringIndex,
-      stringName: str.name,
-      frets,
-    };
+    return { stringIndex, stringName: str.name, frets };
   });
 }

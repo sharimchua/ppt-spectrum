@@ -1,16 +1,22 @@
 /**
  * Alternate playable surfaces for VirtualKeyboard:
- * Scale-Degree Strip, 2D Isomorphic Lattice, and 6-String Guitar Fretboard.
+ * Scale-Degree Strip, 2D Isomorphic Lattice (Rect or Hex), and configurable Guitar Fretboard.
  * Australian English spelling maintained.
  */
 
 import React, { useEffect, useRef } from 'react';
-import { GuitarStringRow, InstrumentSurfaceMode, SurfacePad } from './instrument-layouts';
+import {
+  GuitarStringRow,
+  InstrumentSurfaceMode,
+  IsoTileShape,
+  SurfacePad,
+} from './instrument-layouts';
 
 export interface AlternateSurfacesProps {
   mode: Exclude<InstrumentSurfaceMode, 'piano'>;
   stripPads: SurfacePad[];
   isoGrid: SurfacePad[][];
+  isoTileShape: IsoTileShape;
   guitarStrings: GuitarStringRow[];
   activeSet: Set<number>;
   isMidiHoldActive: boolean;
@@ -19,10 +25,13 @@ export interface AlternateSurfacesProps {
   onToggleLatch: (midiId: number, explicitD: number) => void;
 }
 
+const HEX_CLIP_PATH = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+
 export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
   mode,
   stripPads,
   isoGrid,
+  isoTileShape,
   guitarStrings,
   activeSet,
   isMidiHoldActive,
@@ -114,13 +123,17 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
   }
 
   if (mode === 'isomorphic') {
+    const isHex = isoTileShape === 'hex';
     return (
-      <div className="flex flex-col gap-1 overflow-x-auto pb-1">
+      <div className={`flex flex-col overflow-x-auto pb-1 ${isHex ? 'pt-1' : 'gap-1'}`}>
         {isoGrid.map((row, rIdx) => (
           <div
             key={`iso-row-${rIdx}`}
-            className="flex items-center gap-1"
-            style={{ paddingLeft: rIdx % 2 === 1 ? '18px' : '0px' }}
+            className={`flex items-center ${isHex ? 'gap-0.5' : 'gap-1'}`}
+            style={{
+              paddingLeft: rIdx % 2 === 1 ? (isHex ? '25px' : '18px') : '0px',
+              marginTop: isHex && rIdx > 0 ? '-8px' : undefined,
+            }}
           >
             {row.map((pad) => {
               const isActive = activeSet.has(pad.midiId);
@@ -129,22 +142,26 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
                   key={pad.id}
                   type="button"
                   onPointerDown={(e) => handleDown(pad, e)}
+                  onPointerEnter={() => handleEnter(pad)}
                   onPointerUp={() => handleUpOrLeave(pad)}
                   onPointerLeave={() => handleUpOrLeave(pad)}
-                  className={`min-w-[54px] h-10 rounded-md border flex flex-col items-center justify-center transition cursor-pointer ${
+                  className={`${
+                    isHex ? 'w-[48px] h-[52px]' : 'min-w-[54px] h-10 rounded-md border'
+                  } flex flex-col items-center justify-center transition cursor-pointer shrink-0 ${
                     isActive
-                      ? 'ring-2 ring-white brightness-125'
+                      ? 'brightness-125 ring-2 ring-white'
                       : pad.inScale
                       ? 'opacity-100 hover:brightness-110'
-                      : 'opacity-40 hover:opacity-75'
+                      : 'opacity-35 hover:opacity-75'
                   }`}
                   style={{
-                    backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}28`,
+                    ...(isHex ? { clipPath: HEX_CLIP_PATH } : {}),
+                    backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}33`,
                     borderColor: pad.isRoot ? '#fbbf24' : `${pad.colorHex}75`,
                   }}
                 >
                   <span className="text-[10px] font-bold text-white leading-tight">{pad.label}</span>
-                  <span className="text-[8px] font-mono text-slate-300 leading-tight">{pad.subLabel}</span>
+                  <span className="text-[8px] font-mono text-slate-200 leading-tight">{pad.subLabel}</span>
                 </button>
               );
             })}
@@ -160,15 +177,16 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
         <div key={row.stringName} className="flex items-center gap-0.5">
           {row.frets.map((pad, fIdx) => {
             const isActive = activeSet.has(pad.midiId);
-            const isMarker = fIdx === 3 || fIdx === 5 || fIdx === 7 || fIdx === 9 || fIdx === 12;
+            const isMarker = fIdx === 3 || fIdx === 5 || fIdx === 7 || fIdx === 9 || fIdx === 12 || fIdx === 15;
             return (
               <button
                 key={pad.id}
                 type="button"
                 onPointerDown={(e) => handleDown(pad, e)}
+                onPointerEnter={() => handleEnter(pad)}
                 onPointerUp={() => handleUpOrLeave(pad)}
                 onPointerLeave={() => handleUpOrLeave(pad)}
-                className={`min-w-[38px] flex-1 h-7 rounded border flex items-center justify-center gap-1 transition cursor-pointer ${
+                className={`min-w-[34px] flex-1 h-7 rounded border flex items-center justify-center gap-1 transition cursor-pointer ${
                   fIdx === 0 ? 'border-r-2 border-r-amber-400/70' : ''
                 } ${
                   isActive

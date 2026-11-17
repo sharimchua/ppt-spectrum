@@ -7,7 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eraser, Keyboard as MidiIcon, Maximize2, Minimize2, Minus, Plus, Ruler, Sliders, Sparkles, X,
+  Eraser, Keyboard as MidiIcon, Minus, Plus, Sliders, Sparkles, X,
 } from 'lucide-react';
 import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
 import { PITCH_NAMES } from '../core/axis';
@@ -18,14 +18,18 @@ import {
   getBlackKeyOffset,
   loadSavedKeyboardRange,
   resolveVisibleRangeForNotes,
-  saveKeyboardRange,
   VirtualKeyItem,
 } from './keyboard/keyboard-layout';
 import { AlternateSurfaces } from './keyboard/AlternateSurfaces';
 import { PianoKeybed } from './keyboard/PianoKeybed';
+import { PianoToolbarControls } from './keyboard/PianoToolbarControls';
 import { PlayPanelStrumBar } from './keyboard/PlayPanelStrumBar';
+import { InstrumentConfigMenu } from './keyboard/InstrumentConfigMenu';
 import {
+  GuitarConfig,
   InstrumentSurfaceMode,
+  IsomorphicConfig,
+  ScaleStripConfig,
   buildGuitarFretboard,
   buildIsomorphicGrid,
   buildScaleStripPads,
@@ -71,6 +75,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
   const [showIntervals, setShowIntervals] = useState<boolean>(false);
   const [surfaceMode, setSurfaceMode] = useState<InstrumentSurfaceMode>('piano');
+  const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState<boolean>(false);
+  const [scaleConfig, setScaleConfig] = useState<ScaleStripConfig>({ octaves: 2, showInactive: true });
+  const [isoConfig, setIsoConfig] = useState<IsomorphicConfig>({
+    tileShape: 'hex', layoutPreset: 'harmonic', rows: 4, cols: 8,
+  });
+  const [guitarConfig, setGuitarConfig] = useState<GuitarConfig>({ presetId: '6-std', fretCount: 12 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
@@ -132,23 +142,23 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const stripPads = useMemo(
     () =>
       surfaceMode === 'scale-strip'
-        ? buildScaleStripPads(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        ? buildScaleStripPads(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig)
         : [],
-    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig]
   );
   const isoGrid = useMemo(
     () =>
       surfaceMode === 'isomorphic'
-        ? buildIsomorphicGrid(4, 8, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        ? buildIsomorphicGrid(isoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
         : [],
-    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+    [surfaceMode, isoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
   );
   const guitarStrings = useMemo(
     () =>
       surfaceMode === 'guitar'
-        ? buildGuitarFretboard(12, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        ? buildGuitarFretboard(guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
         : [],
-    [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+    [surfaceMode, guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
   );
 
   const keyCenterMap = useMemo(() => {
@@ -258,36 +268,30 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             </button>
           )}
 
-          {/* Range Selector */}
-          <select
-            value={rangePresetId}
-            onChange={(e) => {
-              const nextId = e.target.value;
-              setRangePresetId(nextId);
-              saveKeyboardRange(nextId);
-              setOctaveOffset(0);
-              e.currentTarget.blur();
-            }}
-            className="bg-slate-900 border border-slate-700/80 rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer shrink-0"
-            aria-label="Select visible key range"
-          >
-            {KEYBOARD_RANGE_PRESETS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Fit vs Fixed Width */}
-          <button
-            type="button"
-            onClick={() => setIsFitMode((v) => !v)}
-            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[11px] text-slate-300 transition cursor-pointer shrink-0"
-            title={isFitMode ? 'Fit to window width (click for Fixed key size)' : 'Fixed key size (click to Fit window)'}
-          >
-            {isFitMode ? <Minimize2 className="w-3 h-3 text-sky-400" /> : <Maximize2 className="w-3 h-3 text-sky-400" />}
-            <span className="hidden sm:inline">{isFitMode ? 'Fit' : 'Fixed'}</span>
-          </button>
+          {surfaceMode === 'piano' ? (
+            <PianoToolbarControls
+              rangePresetId={rangePresetId}
+              onChangeRangePreset={(nextId) => { setRangePresetId(nextId); setOctaveOffset(0); }}
+              isFitMode={isFitMode}
+              onToggleFitMode={() => setIsFitMode((v) => !v)}
+              showIntervals={showIntervals}
+              onToggleIntervals={() => setShowIntervals((v) => !v)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLayoutMenuOpen((v) => !v)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
+                isLayoutMenuOpen
+                  ? 'bg-sky-950/70 border-sky-500/70 text-sky-200'
+                  : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:text-white'
+              }`}
+              title="Configure active instrument surface layout"
+            >
+              <Sliders className="w-3 h-3 text-sky-400" />
+              <span>Layout</span>
+            </button>
+          )}
 
           {/* MIDI Hold Toggle (H) */}
           <button
@@ -302,21 +306,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           >
             <span>Hold</span>
             <kbd className="hidden sm:inline text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
-          </button>
-
-          {/* Interval Bands Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowIntervals((v) => !v)}
-            className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer shrink-0 ${
-              showIntervals
-                ? 'bg-indigo-950/70 border-indigo-500/70 text-indigo-200'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-            title="Show pairwise interval ratios & frequency distance bands above keys"
-          >
-            <Ruler className="w-3 h-3" />
-            <span className="hidden sm:inline">Intervals</span>
           </button>
         </div>
 
@@ -351,8 +340,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             </span>
           </button>
 
-          {/* Octave Shift (disabled in 88-key mode) */}
-          {!is88 && (
+          {/* Octave Shift (Piano only, disabled in 88-key mode) */}
+          {surfaceMode === 'piano' && !is88 && (
             <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg shrink-0">
               <button
                 type="button"
@@ -388,7 +377,20 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
         </div>
       </div>
 
-      {/* Inline Strum & Scale Walk Bar (when Strum is toggled on) */}
+      {/* Inline Instrument Layout Config Sub-Menu */}
+      {surfaceMode !== 'piano' && isLayoutMenuOpen && (
+        <InstrumentConfigMenu
+          mode={surfaceMode}
+          scaleConfig={scaleConfig}
+          onChangeScaleConfig={setScaleConfig}
+          isoConfig={isoConfig}
+          onChangeIsoConfig={setIsoConfig}
+          guitarConfig={guitarConfig}
+          onChangeGuitarConfig={setGuitarConfig}
+        />
+      )}
+
+      {/* Inline Strum & Scale Walk Bar (when Auto is toggled on) */}
       {tuningStrum?.isStrumMode && (
         <PlayPanelStrumBar
           midiTuning={midiTuning}
@@ -403,6 +405,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           mode={surfaceMode}
           stripPads={stripPads}
           isoGrid={isoGrid}
+          isoTileShape={isoConfig.tileShape}
           guitarStrings={guitarStrings}
           activeSet={activeSet}
           isMidiHoldActive={isMidiHoldActive}

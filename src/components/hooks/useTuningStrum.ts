@@ -63,6 +63,7 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
 
   const seqStartTimeRef = useRef<number>(0);
   const activeVoiceMidiRef = useRef<number | null>(null);
+  const playDegreeRef = useRef<(index: number, list: TuningDegree[]) => void>(() => {});
   const placementD = scene.placements[0]?.d ?? -3.0;
 
   const allDegrees = useMemo(
@@ -165,6 +166,8 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     }
   }, [isSequencing, isStrumMode, stopSequencer]);
 
+  playDegreeRef.current = playDegreeAtIndex;
+
   useEffect(() => {
     if (!isSequencing || activeDegrees.length === 0) return;
 
@@ -177,14 +180,14 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
       const { stepPosition, degreeIndex } = evaluateSequenceStep(elapsed, stepMs, indices);
       if (stepPosition !== lastStepPos && degreeIndex >= 0) {
         lastStepPos = stepPosition;
-        playDegreeAtIndex(degreeIndex, activeDegrees);
+        playDegreeRef.current(degreeIndex, activeDegrees);
       }
     };
 
     tick();
     const intervalId = window.setInterval(tick, Math.min(40, Math.floor(stepMs / 3)));
     return () => window.clearInterval(intervalId);
-  }, [isSequencing, activeDegrees, sequencePattern, sequenceTempoBpm, playDegreeAtIndex]);
+  }, [isSequencing, activeDegrees, sequencePattern, sequenceTempoBpm]);
 
   return {
     isStrumMode,

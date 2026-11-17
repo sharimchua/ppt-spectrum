@@ -46,7 +46,9 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/keyboard/instrument-layouts.ts` — Pure layout builders for Scale-Degree Strip, 2D Isomorphic Lattice, and 6-string Guitar Fretboard driven by `MidiTuningConfig`.
 - `src/components/keyboard/AlternateSurfaces.tsx` — Interactive renderer for Scale-Degree Strip, Isomorphic Lattice, and Guitar Fretboard surfaces inside `VirtualKeyboard`.
 - `src/components/keyboard/PianoKeybed.tsx` — Standard 12-key Solfège piano keybed with stacked interval distance bands.
+- `src/components/keyboard/PianoToolbarControls.tsx` — Piano-only range, Fit/Fixed, and Interval Bands toolbar controls.
 - `src/components/keyboard/PlayPanelStrumBar.tsx` — Inline Strum & Stepped Scale Sequencer bar docked inside `VirtualKeyboard`.
+- `src/components/keyboard/InstrumentConfigMenu.tsx` — Inline configuration sub-menu for Scale Strip, Isomorphic Lattice (Hex/Rect, Harmonic/Wicki-Hayden/Fourths), and Guitar/Bass/Ukulele Fretboard.
 - `src/components/keyboard/IntervalBandsStrip.tsx` — Stacked Harmonic-Geometry-style interval ratio & frequency distance bands above the keybed.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 - `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with regime narration, sweep Pause/Resume toggle, and one-click return to the active tutorial section.
