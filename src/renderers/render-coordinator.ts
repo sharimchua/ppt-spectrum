@@ -449,7 +449,9 @@ export class RenderCoordinator {
     transportTime: number
   ): void {
     const targetAlpha = isAudioActive ? 1.0 : 0.0;
-    this.edgeGlowAlpha += (targetAlpha - this.edgeGlowAlpha) * Math.min(1.0, dtMs / 120);
+    const safeDt = Number.isFinite(dtMs) && dtMs > 0 ? dtMs : 16.67;
+    if (!Number.isFinite(this.edgeGlowAlpha)) this.edgeGlowAlpha = 0;
+    this.edgeGlowAlpha += (targetAlpha - this.edgeGlowAlpha) * Math.min(1.0, safeDt / 120);
 
     if (this.edgeGlowAlpha < 0.005) return;
 
@@ -481,35 +483,36 @@ export class RenderCoordinator {
       b = 248;
     }
 
-    if (glowIntensity <= 0.001) return;
+    if (!Number.isFinite(glowIntensity) || glowIntensity <= 0.001) return;
+    const safeAlpha = Math.max(0, Math.min(1, glowIntensity)).toFixed(4);
 
     ctx.save();
     const glowThickness = Math.max(16, Math.min(32, Math.min(w, h) * 0.04));
 
     // Top border glow
     const gradTop = ctx.createLinearGradient(0, 0, 0, glowThickness);
-    gradTop.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradTop.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${safeAlpha})`);
     gradTop.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
     ctx.fillStyle = gradTop;
     ctx.fillRect(0, 0, w, glowThickness);
 
     // Bottom border glow
     const gradBottom = ctx.createLinearGradient(0, h, 0, h - glowThickness);
-    gradBottom.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradBottom.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${safeAlpha})`);
     gradBottom.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
     ctx.fillStyle = gradBottom;
     ctx.fillRect(0, h - glowThickness, w, glowThickness);
 
     // Left border glow
     const gradLeft = ctx.createLinearGradient(0, 0, glowThickness, 0);
-    gradLeft.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradLeft.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${safeAlpha})`);
     gradLeft.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
     ctx.fillStyle = gradLeft;
     ctx.fillRect(0, 0, glowThickness, h);
 
     // Right border glow
     const gradRight = ctx.createLinearGradient(w, 0, w - glowThickness, 0);
-    gradRight.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+    gradRight.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${safeAlpha})`);
     gradRight.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
     ctx.fillStyle = gradRight;
     ctx.fillRect(w - glowThickness, 0, glowThickness, h);
