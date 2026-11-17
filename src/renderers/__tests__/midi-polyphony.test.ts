@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildPolyphonicMidiScene } from '../midi-polyphony-utils';
 import { DEFAULT_SCENE } from '../../core/config';
 import { calculateCoincidenceCycle } from '../../core/alignment';
+import { getShapeAnchors } from '../../core/shape';
 import { HeldMidiNote } from '../render-coordinator';
 
 describe('midi-polyphony-utils', () => {
@@ -27,6 +28,8 @@ describe('midi-polyphony-utils', () => {
     const poly = buildPolyphonicMidiScene(sineScene, held);
     expect(poly).not.toBeNull();
     const virtualShape = poly!.scene.shapes[0];
+    expect(getShapeAnchors(virtualShape)).toHaveLength(2);
+    expect(getShapeAnchors(virtualShape)[1].ratio).toEqual({ kind: 'rational', num: 5, den: 4 });
     expect(virtualShape.partials).toHaveLength(2);
     expect(virtualShape.partials[1].ratio).toEqual({ kind: 'rational', num: 5, den: 4 });
     expect(virtualShape.partials[1].phase).toBeCloseTo(0, 6);

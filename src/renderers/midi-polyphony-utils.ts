@@ -2,16 +2,17 @@
  * Pure rendering utility that synthesises an effective virtual Shape + Placement
  * when 2+ MIDI keys are held simultaneously.
  *
- * By passing this unified virtual Scene through RenderCoordinator to all lenses
- * (CycleWheel, EventLanes, Phasor, WaveformPhasor, PrimeProfile, AlignmentMeter,
- * RingClock, Ruler), held MIDI chords/polyrhythms render identically to authored
- * shapes—forming true Super-Cycles for rational Just ratios and Aperiodic Orbits
- * for tempered 12-TET intervals.
+ * Each held MIDI key becomes a first-class VoiceAnchor on the virtual Shape,
+ * so PhasorLens renders one radiating anchor arm per held key (with its overtone
+ * tree branching from its tip) and every other lens (CycleWheel, EventLanes,
+ * WaveformPhasor, PrimeProfile, AlignmentMeter, RingClock, Ruler) evaluates the
+ * flattened anchors identically to authored multi-anchor shapes.
  */
 
-import { PartialComponent, Placement, Ratio, Scene, Shape } from '../core/types';
-import { dToFreq } from '../core/axis';
-import { rationalise, ratioToValue, reduceRational } from '../core/rational';
+import { PartialComponent, Placement, Ratio, Scene, Shape, VoiceAnchor } from '../core/types';
+import { dToFreq, resolveDuPeriodAddress } from '../core/axis';
+import { rationalise, reduceRational } from '../core/rational';
+import { flattenAnchorsToPartials, getEffectivePartials } from '../core/shape';
 import { HeldMidiNote } from './render-coordinator';
 
 export interface PolyphonicMidiSceneResult {
@@ -32,22 +33,15 @@ function wrapPhase(rawPhase: number): number {
 function toExactOrRealRatio(val: number): Ratio {
   const cand = rationalise(val, RATIONAL_SNAP_TOLERANCE, RATIONAL_MAX_DENOMINATOR);
   if (cand.den > 0 && Math.abs(val - cand.num / cand.den) < RATIONAL_SNAP_TOLERANCE) {
-    return { kind: 'rational', num: cand.num, den: cand.den };
+    const reduced = reduceRational(cand.num, cand.den);
+    return { kind: 'rational', num: reduced.num, den: reduced.den };
   }
   return { kind: 'real', value: val };
 }
 
-function multiplyRatios(a: Ratio, b: Ratio): Ratio {
-  if (a.kind === 'rational' && b.kind === 'rational') {
-    const reduced = reduceRational(a.num * b.num, a.den * b.den);
-    return { kind: 'rational', num: reduced.num, den: reduced.den };
-  }
-  return { kind: 'real', value: ratioToValue(a) * ratioToValue(b) };
-}
-
 /**
- * Builds an effective virtual Scene whose primary shape/placement combines all
- * held MIDI notes equally, anchored to the lowest held note (largest d).
+ * Builds an effective virtual Scene whose primary shape maps each held MIDI key
+ * to a VoiceAnchor, anchored to the lowest held note (largest d).
  * Returns null when fewer than 2 MIDI notes are held.
  */
 export function buildPolyphonicMidiScene(
@@ -70,52 +64,61 @@ export function buildPolyphonicMidiScene(
   const anchorFreqHz = dToFreq(anchorNote.d, tplHz);
   const anchorLivePhase = anchorNote.livePhase ?? 0;
 
-  const activePartials = primaryShape.partials.filter((p) => p.amp > 0.001);
+  const basePartials = getEffectivePartials(primaryShape).filter((p) => p.amp > 0.001);
   const expandPartials =
-    activePartials.length > 0 && sorted.length * activePartials.length <= MAX_EXPANDED_STREAMS;
+    basePartials.length > 0 && sorted.length * basePartials.length <= MAX_EXPANDED_STREAMS;
 
-  const combinedPartials: PartialComponent[] = [];
+  const virtualAnchors: VoiceAnchor[] = [];
 
   for (let nIdx = 0; nIdx < sorted.length; nIdx++) {
     const gn = sorted[nIdx];
     const voiceFreq = dToFreq(gn.d, tplHz);
     const voiceRatioVal = voiceFreq / Math.max(1e-6, anchorFreqHz);
-    const voiceRatio = nIdx === 0 ? ({ kind: 'rational', num: 1, den: 1 } as const) : toExactOrRealRatio(voiceRatioVal);
+    const voiceRatio: Ratio =
+      nIdx === 0 ? { kind: 'rational', num: 1, den: 1 } : toExactOrRealRatio(voiceRatioVal);
 
     const voiceLivePhase = gn.livePhase ?? 0;
     const keyStrikeOffsetTurns =
       anchorNote.livePhase !== undefined && gn.livePhase !== undefined
         ? (anchorLivePhase * voiceRatioVal - voiceLivePhase) / Math.max(1e-6, voiceRatioVal)
         : 0;
+    const phaseOffset = wrapPhase(keyStrikeOffsetTurns);
+    const addr = resolveDuPeriodAddress(gn.d);
 
-    if (expandPartials) {
-      for (let pIdx = 0; pIdx < activePartials.length; pIdx++) {
-        const p = activePartials[pIdx];
-        const wrappedPhase = wrapPhase(p.phase + keyStrikeOffsetTurns);
-        combinedPartials.push({
+    const anchorPartials: PartialComponent[] = expandPartials
+      ? basePartials.map((p, pIdx) => ({
           ...p,
           id: `${p.id}__midi_${gn.midi}_${pIdx}`,
-          ratio: multiplyRatios(voiceRatio, p.ratio),
-          amp: p.amp * Math.max(0.25, gn.velocity),
-          phase: wrappedPhase,
-        });
-      }
-    } else {
-      const wrappedPhase = wrapPhase(keyStrikeOffsetTurns);
-      combinedPartials.push({
-        id: `midi_${gn.midi}_fund`,
-        ratio: voiceRatio,
-        amp: Math.max(0.25, gn.velocity),
-        phase: wrappedPhase,
-      });
-    }
+        }))
+      : [
+          {
+            id: `midi_${gn.midi}_fund`,
+            ratio: { kind: 'rational', num: 1, den: 1 },
+            amp: 1.0,
+            phase: 0,
+            voice: basePartials[0]?.voice ?? 'woodblock',
+          },
+        ];
+
+    virtualAnchors.push({
+      id: `midi-anchor-${gn.midi}`,
+      name: addr.formatted,
+      ratio: voiceRatio,
+      phaseOffset,
+      offsetToken: addr.syllable,
+      gain: Math.max(0.25, gn.velocity),
+      voice: anchorPartials[0]?.voice ?? 'woodblock',
+      mute: false,
+      partials: anchorPartials,
+    });
   }
 
   const virtualShapeId = `${primaryShape.id}__midi_poly`;
   const virtualShape: Shape = {
     ...primaryShape,
     id: virtualShapeId,
-    partials: combinedPartials,
+    anchors: virtualAnchors,
+    partials: flattenAnchorsToPartials(virtualAnchors),
   };
   const virtualPlacement: Placement = {
     ...primaryPlacement,
