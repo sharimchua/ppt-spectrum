@@ -304,6 +304,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onCycleFilterMode={onCycleFilterMode}
         onOpenLibrary={onOpenLibrary}
         onOpenBundles={bundlesApi.openBundleModal}
+        onToggleKeyboard={midi.toggleKeyboard}
         onOpenCapture={onOpenCapture}
         onOpenSettings={onOpenSettings}
         onOpenFilters={onOpenFilters}

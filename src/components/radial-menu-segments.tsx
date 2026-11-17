@@ -13,6 +13,7 @@ import {
   Activity,
   Package,
   ArrowLeftRight,
+  Keyboard,
 } from 'lucide-react';
 import { Scene } from '../core/types';
 import { BookmarkSettings } from './bookmarks-storage';
@@ -44,6 +45,7 @@ export interface BuildRadialSegmentsOptions {
   onSelectSubMenu: (sub: RadialSubMenu) => void;
   onOpenLibrary: () => void;
   onOpenBundles?: () => void;
+  onToggleKeyboard?: () => void;
   onOpenCapture: () => void;
   onOpenSettings: () => void;
   onOpenFilters?: () => void;
@@ -65,7 +67,7 @@ export interface BuildRadialSegmentsOptions {
 export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWedgeSegment[] {
   const {
     activeSubMenu, scene, isPlaying, isOscillating, currentD, bookmarks, onSelectSubMenu,
-    onOpenLibrary, onOpenBundles, onOpenCapture, onOpenSettings, onOpenFilters,
+    onOpenLibrary, onOpenBundles, onToggleKeyboard, onOpenCapture, onOpenSettings, onOpenFilters,
     onOpenEnvelopes, onToggleEnvelope, onTogglePlay, onFlipPolarity, onToggleOscillate,
     onJumpBookmarkA, onJumpBookmarkB, onSetBookmarkA, onSetBookmarkB,
     onToggleFilter, onCycleFilterMode, onEnterFilterEditMode, onClose,
@@ -160,55 +162,14 @@ export function buildRadialSegments(opts: BuildRadialSegmentsOptions): RadialWed
   }
 
   if (activeSubMenu === 'north') {
+    const step = 360 / 5;
+    const deg = (i: number) => -135 + i * step;
     return [
-      {
-        id: 'sub-shape-library',
-        startDeg: -135,
-        endDeg: -45,
-        title: 'SHAPE LIBRARY',
-        subtitle: 'Presets & Synth',
-        icon: <SlidersHorizontal className="w-4 h-4 text-red-400" />,
-        accentHex: '#ef4444',
-        fillRgba: 'rgba(36, 18, 26, 0.94)',
-        activeFillRgba: 'rgba(239, 68, 68, 0.4)',
-        onSelect: () => { onOpenLibrary(); onClose(); },
-      },
-      {
-        id: 'sub-bundles',
-        startDeg: -45,
-        endDeg: 45,
-        title: 'BUNDLES',
-        subtitle: 'Share & Import',
-        icon: <Package className="w-4 h-4 text-purple-400" />,
-        accentHex: '#a855f7',
-        fillRgba: 'rgba(28, 18, 40, 0.94)',
-        activeFillRgba: 'rgba(168, 85, 247, 0.4)',
-        onSelect: () => { onOpenBundles?.(); onClose(); },
-      },
-      {
-        id: 'sub-mic-sampling',
-        startDeg: 45,
-        endDeg: 135,
-        title: 'MIC SAMPLING',
-        subtitle: 'Pitch & Rhythm',
-        icon: <Radio className="w-4 h-4 text-amber-400" />,
-        accentHex: '#f59e0b',
-        fillRgba: 'rgba(34, 24, 16, 0.94)',
-        activeFillRgba: 'rgba(245, 158, 11, 0.4)',
-        onSelect: () => { onOpenCapture(); onClose(); },
-      },
-      {
-        id: 'sub-north-back',
-        startDeg: 135,
-        endDeg: 225,
-        title: '◄ BACK',
-        subtitle: 'Main Compass',
-        icon: <ArrowLeft className="w-4 h-4 text-slate-300" />,
-        accentHex: '#94a3b8',
-        fillRgba: 'rgba(20, 26, 38, 0.94)',
-        activeFillRgba: 'rgba(148, 163, 184, 0.35)',
-        onSelect: () => onSelectSubMenu('none'),
-      },
+      { id: 'sub-shape-library', startDeg: deg(0), endDeg: deg(1), title: 'SHAPE LIBRARY', subtitle: 'Presets & Synth', icon: <SlidersHorizontal className="w-4 h-4 text-red-400" />, accentHex: '#ef4444', fillRgba: 'rgba(36, 18, 26, 0.94)', activeFillRgba: 'rgba(239, 68, 68, 0.4)', onSelect: () => { onOpenLibrary(); onClose(); } },
+      { id: 'sub-bundles', startDeg: deg(1), endDeg: deg(2), title: 'BUNDLES', subtitle: 'Share & Import', icon: <Package className="w-4 h-4 text-purple-400" />, accentHex: '#a855f7', fillRgba: 'rgba(28, 18, 40, 0.94)', activeFillRgba: 'rgba(168, 85, 247, 0.4)', onSelect: () => { onOpenBundles?.(); onClose(); } },
+      { id: 'sub-keyboard', startDeg: deg(2), endDeg: deg(3), title: 'KEYBOARD', subtitle: 'Keys & Tuning', icon: <Keyboard className="w-4 h-4 text-amber-300" />, accentHex: '#fbbf24', fillRgba: 'rgba(34, 26, 14, 0.94)', activeFillRgba: 'rgba(251, 191, 36, 0.4)', onSelect: () => { onToggleKeyboard?.(); onClose(); } },
+      { id: 'sub-mic-sampling', startDeg: deg(3), endDeg: deg(4), title: 'MIC SAMPLING', subtitle: 'Pitch & Rhythm', icon: <Radio className="w-4 h-4 text-amber-400" />, accentHex: '#f59e0b', fillRgba: 'rgba(34, 24, 16, 0.94)', activeFillRgba: 'rgba(245, 158, 11, 0.4)', onSelect: () => { onOpenCapture(); onClose(); } },
+      { id: 'sub-north-back', startDeg: deg(4), endDeg: deg(5), title: '◄ BACK', subtitle: 'Main Compass', icon: <ArrowLeft className="w-4 h-4 text-slate-300" />, accentHex: '#94a3b8', fillRgba: 'rgba(20, 26, 38, 0.94)', activeFillRgba: 'rgba(148, 163, 184, 0.35)', onSelect: () => onSelectSubMenu('none') },
     ];
   }
 

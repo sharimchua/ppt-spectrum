@@ -22,6 +22,7 @@ export interface RadialMenuOverlayProps {
   onCycleFilterMode: () => void;
   onOpenLibrary: () => void;
   onOpenBundles?: () => void;
+  onToggleKeyboard?: () => void;
   onOpenCapture: () => void;
   onOpenSettings: () => void;
   onOpenFilters?: () => void;
@@ -91,6 +92,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
   onCycleFilterMode,
   onOpenLibrary,
   onOpenBundles,
+  onToggleKeyboard,
   onOpenCapture,
   onOpenSettings,
   onOpenFilters,
@@ -205,6 +207,7 @@ export const RadialMenuOverlay: React.FC<RadialMenuOverlayProps> = ({
     onSelectSubMenu: (sub) => setActiveSubMenu(sub),
     onOpenLibrary,
     onOpenBundles,
+    onToggleKeyboard,
     onOpenCapture,
     onOpenSettings,
     onOpenFilters,
