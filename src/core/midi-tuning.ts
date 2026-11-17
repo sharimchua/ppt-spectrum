@@ -22,7 +22,7 @@ export type TritoneTuning = 'Undec' | 'Sep' | 'Qui' | 'Tri' | 'Du';
 export type PrimeFamilyLabel = 'Du' | 'Tri' | 'Qui' | 'Sep' | 'Undec';
 
 export interface MidiIntervalTuningConfig {
-  m2: TriDuTuning;
+  m2: TriQuiDuTuning;
   M2: TriDuTuning;
   m3: TriQuiSepDuTuning;
   M3: TriQuiDuTuning;
@@ -114,9 +114,9 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   '5-limit': {
     label: '5-Limit Just (Qui)',
-    description: 'Pure 3- and 5-limit harmonic ratios (3:2, 4:3, 5:4, 6:5).',
+    description: 'Pure 3- and 5-limit harmonic ratios (3:2, 4:3, 5:4, 6:5, 16:15).',
     intervals: {
-      m2: 'Tri',
+      m2: 'Qui',
       M2: 'Tri',
       m3: 'Qui',
       M3: 'Qui',
@@ -150,7 +150,7 @@ export const MIDI_TUNING_PRESETS: Record<
     label: '7-Limit Septimal (Sep)',
     description: 'Ptolemaic tuning with septimal minor 3rd (7:6), tritone (7:5), and 7th (7:4).',
     intervals: {
-      m2: 'Tri',
+      m2: 'Qui',
       M2: 'Tri',
       m3: 'Sep',
       M3: 'Qui',
@@ -164,15 +164,15 @@ export const MIDI_TUNING_PRESETS: Record<
     },
   },
   '11-limit': {
-    label: 'PPT Native (11-Limit)',
-    description: 'Prime Period Theory native 11-limit tuning (5-limit thirds, 7:4 seventh, 11:8 tritone).',
+    label: 'PPT Native',
+    description: 'Prime Period Theory native tuning: Just harmony with Fi as the Du antipode (√2).',
     intervals: {
-      m2: 'Tri',
+      m2: 'Qui',
       M2: 'Tri',
       m3: 'Qui',
       M3: 'Qui',
       P4: 'Tri',
-      TT: 'Undec',
+      TT: 'Du',
       P5: 'Tri',
       m6: 'Qui',
       M6: 'Qui',
@@ -228,7 +228,8 @@ export function resolveSemitoneInterval(
       break;
     case 1:
       if (intervals.m2 === 'Du') setEdo();
-      else setJi(16, 15, 'Tri');
+      else if (intervals.m2 === 'Tri') setJi(256, 243, 'Tri');
+      else setJi(16, 15, 'Qui');
       break;
     case 2:
       if (intervals.M2 === 'Du') setEdo();

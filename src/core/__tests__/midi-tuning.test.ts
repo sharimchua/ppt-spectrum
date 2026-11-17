@@ -23,18 +23,28 @@ describe('midi-tuning', () => {
     expect(m3.centsFromEdo).toBe(-14);
   });
 
-  it('resolves 7-limit and PPT Native 11-limit intervals accurately', () => {
+  it('resolves 7-limit, PPT Native, and Qui/Tri minor 2nd intervals accurately', () => {
+    const cfg5 = createDefaultMidiTuningConfig('5-limit');
+    const m2Qui = resolveSemitoneInterval(1, cfg5.intervals);
+    expect(m2Qui.rational).toEqual({ num: 16, den: 15 });
+    expect(m2Qui.primeFamily).toBe('Qui');
+
+    const cfgPyth = createDefaultMidiTuningConfig('pythagorean');
+    const m2Tri = resolveSemitoneInterval(1, cfgPyth.intervals);
+    expect(m2Tri.rational).toEqual({ num: 256, den: 243 });
+    expect(m2Tri.primeFamily).toBe('Tri');
+
     const cfg7 = createDefaultMidiTuningConfig('7-limit');
     expect(resolveSemitoneInterval(3, cfg7.intervals).rational).toEqual({ num: 7, den: 6 });
     expect(resolveSemitoneInterval(6, cfg7.intervals).rational).toEqual({ num: 7, den: 5 });
     expect(resolveSemitoneInterval(10, cfg7.intervals).rational).toEqual({ num: 7, den: 4 });
 
-    const cfg11 = createDefaultMidiTuningConfig('11-limit');
-    const tt = resolveSemitoneInterval(6, cfg11.intervals);
-    expect(tt.rational).toEqual({ num: 11, den: 8 });
-    expect(tt.primeFamily).toBe('Undec');
+    const cfgPpt = createDefaultMidiTuningConfig('11-limit');
+    const tt = resolveSemitoneInterval(6, cfgPpt.intervals);
+    expect(tt.rational).toBeNull();
+    expect(tt.primeFamily).toBe('Du');
 
-    const m7 = resolveSemitoneInterval(10, cfg11.intervals);
+    const m7 = resolveSemitoneInterval(10, cfgPpt.intervals);
     expect(m7.rational).toEqual({ num: 7, den: 4 });
     expect(m7.primeFamily).toBe('Sep');
   });

@@ -37,7 +37,7 @@ interface IntervalRowDef {
 }
 
 const INTERVAL_ROWS: IntervalRowDef[] = [
-  { key: 'm2', semitone: 1, solfege: 'Ra', label: 'Minor 2nd', options: ['Du', 'Tri'] },
+  { key: 'm2', semitone: 1, solfege: 'Ra', label: 'Minor 2nd', options: ['Du', 'Tri', 'Qui'] },
   { key: 'M2', semitone: 2, solfege: 'Re', label: 'Major 2nd', options: ['Du', 'Tri'] },
   { key: 'm3', semitone: 3, solfege: 'Me', label: 'Minor 3rd', options: ['Du', 'Tri', 'Qui', 'Sep'] },
   { key: 'M3', semitone: 4, solfege: 'Mi', label: 'Major 3rd', options: ['Du', 'Tri', 'Qui'] },
