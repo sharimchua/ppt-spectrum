@@ -270,12 +270,11 @@ export function useMidi({
   );
 
   const flipPolarity = useCallback(() => {
-    const sc = sceneRef.current;
-    const currentD = sc.placements[0]?.d ?? 2.0;
-    const flippedD =
-      currentD >= 0 ? Math.max(-7.0, currentD - 8) : Math.min(7.0, currentD + 8);
-
+    const currentD = sceneRef.current.placements[0]?.d ?? 2.0;
+    const flippedD = currentD >= 0 ? Math.max(-7.0, currentD - 8) : Math.min(7.0, currentD + 8);
     if (heldStackRef.current.length > 0) {
+      const top = heldStackRef.current[heldStackRef.current.length - 1];
+      if (top.explicitNoteD !== undefined || top.midi >= 1000) onUpdatePlacementDRef.current(flippedD);
       retargetHeldNotesToPolarityD(flippedD, midiTuningRef.current);
     } else {
       onUpdatePlacementDRef.current(flippedD);
