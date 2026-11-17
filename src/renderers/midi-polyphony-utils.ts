@@ -48,12 +48,29 @@ export function buildPolyphonicMidiScene(
   scene: Scene,
   heldNotes: HeldMidiNote[] | undefined
 ): PolyphonicMidiSceneResult | null {
-  if (!heldNotes || heldNotes.length < 2) {
+  if (!heldNotes || heldNotes.length === 0) {
     return null;
   }
 
   const primaryPlacement = scene.placements[0];
   if (!primaryPlacement) return null;
+
+  // Monophonic held note: update display cells to the played note's d while keeping scene Tonic intact
+  if (heldNotes.length === 1) {
+    const only = heldNotes[0];
+    if (Math.abs(only.d - primaryPlacement.d) < 1e-4) {
+      return null;
+    }
+    return {
+      scene: {
+        ...scene,
+        placements: [{ ...primaryPlacement, d: only.d }, ...scene.placements.slice(1)],
+      },
+      anchorPhase: only.livePhase ?? 0,
+      anchorFreqHz: dToFreq(only.d, scene.anchors.tplFrequencyHz),
+    };
+  }
+
   const primaryShape = scene.shapes.find((s) => s.id === primaryPlacement.shapeId);
   if (!primaryShape) return null;
 

@@ -11,10 +11,15 @@ describe('midi-polyphony-utils', () => {
     placements: [{ ...DEFAULT_SCENE.placements[0], shapeId: 'pure-tone', d: 4.0 }],
   };
 
-  it('returns null when fewer than 2 MIDI notes are held', () => {
-    const single: HeldMidiNote[] = [{ midi: 68, d: 4.0, velocity: 0.8, isPrimary: true, livePhase: 0.25 }];
-    expect(buildPolyphonicMidiScene(sineScene, single)).toBeNull();
+  it('returns null when empty or single note matches placement, and updates d for shifted monophonic note', () => {
+    const singleSame: HeldMidiNote[] = [{ midi: 68, d: 4.0, velocity: 0.8, isPrimary: true, livePhase: 0.25 }];
+    expect(buildPolyphonicMidiScene(sineScene, singleSame)).toBeNull();
     expect(buildPolyphonicMidiScene(sineScene, [])).toBeNull();
+
+    const singleShifted: HeldMidiNote[] = [{ midi: 2001, d: 3.5, velocity: 0.8, isPrimary: true, livePhase: 0.25 }];
+    const mono = buildPolyphonicMidiScene(sineScene, singleShifted);
+    expect(mono).not.toBeNull();
+    expect(mono!.scene.placements[0].d).toBeCloseTo(3.5, 6);
   });
 
   it('synthesises a compact rational Super-Cycle for Just Intonation chords (3:2 & 5:4)', () => {
