@@ -366,7 +366,7 @@ export const App: React.FC = () => {
             onNudgeCellFlex={handleNudgeCellFlex}
             onEqualiseCellFlex={handleEqualiseCellFlex}
           />
-          <TutorialReturnToast activeDemo={teachingDemo.activeDemo} isInfoOpen={isInfoOpen} isKeyboardOpen={midi.isKeyboardOpen} onFlipPolarity={midi.flipPolarity} onReturnToTutorial={teachingDemo.handleReturnToTutorial} onCycleDemo={teachingDemo.handleCycleDemo} onDismiss={teachingDemo.handleDismissDemoToast} />
+          <TutorialReturnToast activeDemo={teachingDemo.activeDemo} isInfoOpen={isInfoOpen} isKeyboardOpen={midi.isKeyboardOpen} onReturnToTutorial={teachingDemo.handleReturnToTutorial} onCycleDemo={teachingDemo.handleCycleDemo} onDismiss={teachingDemo.handleDismissDemoToast} />
         </div>
       </SpectrumViewport>
 

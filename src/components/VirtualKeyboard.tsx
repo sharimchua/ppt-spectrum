@@ -24,7 +24,9 @@ import {
   buildIntervalBands,
   buildVirtualKeys,
   getBlackKeyOffset,
+  loadSavedKeyboardRange,
   resolveVisibleRangeForNotes,
+  saveKeyboardRange,
   VirtualKeyItem,
 } from './keyboard/keyboard-layout';
 import { IntervalBandsStrip } from './keyboard/IntervalBandsStrip';
@@ -53,13 +55,13 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 }) => {
   const {
     isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers,
-    latchedMidiNumbers, midiState, toggleVirtualNote: onToggleLatchNote,
+    midiState, toggleVirtualNote: onToggleLatchNote,
     virtualNoteOn: onVirtualNoteOn, virtualNoteOff: onVirtualNoteOff,
     isMidiHoldActive, toggleMidiHold, clearAllNotes: onClearAllNotes,
     openTuningModal: onOpenTuningModal, openMidiModal: onOpenMidiModal,
   } = midi;
 
-  const [rangePresetId, setRangePresetId] = useState<string>('2oct-f');
+  const [rangePresetId, setRangePresetId] = useState<string>(() => loadSavedKeyboardRange());
   const [octaveOffset, setOctaveOffset] = useState<number>(0);
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
   const [showIntervals, setShowIntervals] = useState<boolean>(false);
@@ -106,7 +108,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   const isRhythm = currentFundamentalD >= 0;
   const activeSet = useMemo(() => new Set(activeMidiNumbers), [activeMidiNumbers]);
-  const latchedSet = useMemo(() => new Set(latchedMidiNumbers), [latchedMidiNumbers]);
 
   const keys = useMemo(
     () => buildVirtualKeys(startMidi, endMidi, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz),
@@ -193,8 +194,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <select
             value={rangePresetId}
             onChange={(e) => {
-              setRangePresetId(e.target.value);
+              const nextId = e.target.value;
+              setRangePresetId(nextId);
+              saveKeyboardRange(nextId);
               setOctaveOffset(0);
+              e.currentTarget.blur();
             }}
             className="bg-slate-900 border border-slate-700/80 rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-mono text-slate-200 focus:outline-none cursor-pointer shrink-0"
             aria-label="Select visible key range"
@@ -335,7 +339,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <div className="relative h-24 sm:h-28 w-full flex">
             {whiteKeys.map((k) => {
               const isActive = activeSet.has(k.midi);
-              const isLatched = latchedSet.has(k.midi);
               const darkInk = k.semitoneFromRoot === 3 || k.semitoneFromRoot === 4;
               return (
                 <button
@@ -346,7 +349,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={
                     isActive
-                      ? { backgroundColor: k.colorHex, borderColor: k.colorHex }
+                      ? {
+                          backgroundColor: k.colorHex,
+                          borderColor: '#0f172a',
+                          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.45)',
+                        }
                       : undefined
                   }
                   className={`relative flex-1 h-full border rounded-b-lg flex flex-col items-center justify-end pb-1.5 transition-colors cursor-pointer ${
@@ -370,9 +377,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   {!isCompact && (
                     <span className="text-[8px] opacity-65 font-mono leading-none mt-0.5">{k.noteName}</span>
                   )}
-                  {isLatched && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white/90 shadow" />
-                  )}
                 </button>
               );
             })}
@@ -380,7 +384,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             {/* Black Keys */}
             {blackKeys.map((k) => {
               const isActive = activeSet.has(k.midi);
-              const isLatched = latchedSet.has(k.midi);
               const centerPct = (keyCenterMap.get(k.midi) ?? 0) * 100;
               const widthPct = (1 / totalWhite) * 58;
               const darkInk = k.semitoneFromRoot === 3 || k.semitoneFromRoot === 4;
@@ -394,7 +397,13 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   style={{
                     left: `calc(${centerPct}% - ${widthPct / 2}%)`,
                     width: `${widthPct}%`,
-                    ...(isActive ? { backgroundColor: k.colorHex, borderColor: k.colorHex } : {}),
+                    ...(isActive
+                      ? {
+                          backgroundColor: k.colorHex,
+                          borderColor: '#020617',
+                          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.45)',
+                        }
+                      : {}),
                   }}
                   className={`absolute top-0 h-[62%] z-10 border rounded-b-md flex flex-col items-center justify-end pb-1 shadow-md transition-colors cursor-pointer ${
                     isActive
@@ -413,9 +422,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   )}
                   {!isCompact && (
                     <span className="text-[9px] font-mono leading-none">{k.syllable}</span>
-                  )}
-                  {isLatched && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white/90" />
                   )}
                 </button>
               );

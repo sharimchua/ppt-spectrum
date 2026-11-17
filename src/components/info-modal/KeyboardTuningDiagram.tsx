@@ -7,10 +7,11 @@
 
 import React, { useState } from 'react';
 import { Keyboard, Lock, Play, Shuffle, ArrowLeftRight, Sparkles } from 'lucide-react';
-import { TutorialDemoId } from './tutorial-demos';
+import { CustomTutorialDemoOverride, TutorialDemoId } from './tutorial-demos';
+import { buildTempoCadenceOverride } from './tempo-cadence-demos';
 
 interface KeyboardTuningDiagramProps {
-  onPlayDemo: (demoId: TutorialDemoId) => void;
+  onPlayDemo: (demoId: TutorialDemoId, customOverride?: CustomTutorialDemoOverride) => void;
 }
 
 type ExplorerTab = 'drift-vs-lock' | 'tempo-cadences';
@@ -320,37 +321,66 @@ export const KeyboardTuningDiagram: React.FC<KeyboardTuningDiagramProps> = ({ on
         <div className="flex items-center gap-2 text-xs text-stone-200">
           <Sparkles className="h-4 w-4 text-cyan-400 shrink-0" />
           <span>
-            <strong>Try on the Live Keyboard:</strong> These demos automatically open the Solfège
-            Keyboard (<kbd className="font-mono text-cyan-300">K</kbd>), turn on Interval Bands, and
-            latch keys with <kbd className="font-mono text-amber-300">Hold (H)</kbd>.
+            {activeTab === 'drift-vs-lock' ? (
+              <>
+                <strong>Try on the Live Keyboard:</strong> Opens the Solfège Keyboard (
+                <kbd className="font-mono text-cyan-300">K</kbd>) in Rhythm Space with{' '}
+                <kbd className="font-mono text-amber-300">Hold (H)</kbd> and Interval Bands matching
+                your selection above.
+              </>
+            ) : (
+              <>
+                <strong>Hear Metric Modulation Live:</strong> Uses a{' '}
+                <strong className="text-amber-300">Supercycle Band Filter</strong> to step between
+                the selected tempo layers on each rotation against The Sam.
+              </>
+            )}
           </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => onPlayDemo('keyboard-12tet-drift')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 font-semibold text-[11px] transition cursor-pointer"
-          >
-            <Play className="w-3 h-3 fill-current" />
-            <span>12-TET Drift (Do+Mi)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onPlayDemo('keyboard-5limit-lock')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 font-semibold text-[11px] transition cursor-pointer"
-          >
-            <Play className="w-3 h-3 fill-current" />
-            <span>5-Limit 5:4 Lock (Do+Mi)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onPlayDemo('keyboard-tempo-triad')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 font-semibold text-[11px] transition cursor-pointer"
-          >
-            <Play className="w-3 h-3 fill-current" />
-            <span>4:5:6 Keyboard Triad</span>
-          </button>
+          {activeTab === 'drift-vs-lock' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onPlayDemo('keyboard-12tet-drift')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold text-[11px] transition cursor-pointer border ${
+                  !isJust
+                    ? 'bg-rose-500/30 text-rose-100 border-rose-400 ring-1 ring-rose-400/40'
+                    : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border-rose-500/40'
+                }`}
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>12-TET Drift (Do+Mi)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onPlayDemo('keyboard-5limit-lock')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold text-[11px] transition cursor-pointer border ${
+                  isJust
+                    ? 'bg-emerald-500/30 text-emerald-100 border-emerald-400 ring-1 ring-emerald-400/40'
+                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border-emerald-500/40'
+                }`}
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>5-Limit 5:4 Lock (Do+Mi)</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                onPlayDemo(
+                  'tempo-cadence-modulation',
+                  buildTempoCadenceOverride(selectedCadence.id)
+                )
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/25 hover:bg-amber-500/35 text-amber-100 border border-amber-400 font-semibold text-[11px] transition cursor-pointer"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Try {selectedCadence.keysLabel} ({selectedCadence.ratioLabel}) Live</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

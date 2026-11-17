@@ -206,9 +206,12 @@ export function useTeachingDemo({
             adsr: { attack: 0.03, decay: 0.4, sustain: 0.85, release: 0.25, damping: 0.1 },
             partials: activePartials.map((p, idx) => ({
               id: `tut_p_${idx + 1}`,
-              ratio: Number.isInteger(p.ratioVal)
-                ? { kind: 'rational', num: p.ratioVal, den: 1 }
-                : { kind: 'real', value: p.ratioVal },
+              ratio:
+                p.num !== undefined && p.den !== undefined
+                  ? { kind: 'rational', num: p.num, den: p.den }
+                  : Number.isInteger(p.ratioVal)
+                    ? { kind: 'rational', num: p.ratioVal, den: 1 }
+                    : { kind: 'real', value: p.ratioVal },
               amp: p.amp,
               phase: 0,
               voice: VOICE_CYCLE[idx % VOICE_CYCLE.length],
@@ -227,7 +230,9 @@ export function useTeachingDemo({
               placements: prev.placements.map((pl, idx) =>
                 idx === 0 ? { ...pl, shapeId: customShape.id, d: initialD } : pl
               ),
-              filter: { ...prev.filter, enabled: false },
+              filter: customOverride.customFilter
+                ? { ...customOverride.customFilter, enabled: true }
+                : { ...prev.filter, enabled: false },
               audio: {
                 ...prev.audio,
                 pitchCarrier: nextCarrier,
@@ -281,8 +286,9 @@ export function useTeachingDemo({
         }
       }
 
-      if (effectiveDemo.requiresKeyboard && effectiveDemo.keyboardConfig) {
-        const { tuningPresetId, latchedMidiNotes, rhythmPhaseMode } = effectiveDemo.keyboardConfig;
+      const effectiveKeyboardConfig = customOverride?.keyboardConfig ?? effectiveDemo.keyboardConfig;
+      if (effectiveDemo.requiresKeyboard && effectiveKeyboardConfig) {
+        const { tuningPresetId, latchedMidiNotes, rhythmPhaseMode } = effectiveKeyboardConfig;
         const presetCfg = createDefaultMidiTuningConfig(tuningPresetId);
         if (rhythmPhaseMode) presetCfg.rhythmPhaseMode = rhythmPhaseMode;
         midi.setMidiTuning(presetCfg);
@@ -291,7 +297,7 @@ export function useTeachingDemo({
           midi.toggleMidiHold();
         }
         for (const note of latchedMidiNotes) {
-          midi.virtualNoteOn(note, 0.85);
+          midi.virtualNoteOn(note, 0.85, baseDemo.rhythmD ?? 4.0);
         }
       }
 

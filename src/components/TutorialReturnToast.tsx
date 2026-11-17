@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeftRight, BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Keyboard, Volume2, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Keyboard, Volume2, X } from 'lucide-react';
 import { TutorialDemoConfig, FEATURED_TOUR_DEMOS } from './info-modal/tutorial-demos';
 
 interface TutorialReturnToastProps {
   activeDemo: TutorialDemoConfig | null;
   isInfoOpen: boolean;
   isKeyboardOpen?: boolean;
-  onFlipPolarity?: () => void;
   onReturnToTutorial: () => void;
   onCycleDemo: (direction: -1 | 1) => void;
   onDismiss: () => void;
@@ -16,7 +15,6 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
   activeDemo,
   isInfoOpen,
   isKeyboardOpen = false,
-  onFlipPolarity,
   onReturnToTutorial,
   onCycleDemo,
   onDismiss,
@@ -61,18 +59,6 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
             </span>
             <ChevronUp className="h-3.5 w-3.5 shrink-0 text-stone-400 group-hover:text-white transition" />
           </button>
-
-          {activeDemo.requiresKeyboard && onFlipPolarity && (
-            <button
-              type="button"
-              onClick={onFlipPolarity}
-              className="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-200 transition cursor-pointer shrink-0"
-              title="Flip between Rhythm and Pitch space (Tab)"
-            >
-              <ArrowLeftRight className="h-2.5 w-2.5" />
-              <span>R↔P</span>
-            </button>
-          )}
 
           <div className="flex items-center rounded-full border border-stone-700/80 bg-stone-900/90 px-0.5 shrink-0">
             <button
@@ -157,18 +143,6 @@ export const TutorialReturnToast: React.FC<TutorialReturnToastProps> = ({
 
           {/* Right: Step Demos, Back to Tutorial, Minimise & Dismiss */}
           <div className="flex items-center justify-end gap-1.5 shrink-0 border-t sm:border-t-0 border-stone-800/80 pt-2 sm:pt-0">
-            {activeDemo.requiresKeyboard && onFlipPolarity && (
-              <button
-                type="button"
-                onClick={onFlipPolarity}
-                className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 px-2.5 py-1.5 text-xs font-mono font-bold text-cyan-200 transition cursor-pointer"
-                title="Flip between Rhythm and Pitch space (Tab)"
-              >
-                <ArrowLeftRight className="h-3.5 w-3.5" />
-                <span>Flip R↔P</span>
-              </button>
-            )}
-
             <div className="flex items-center rounded-lg border border-stone-700/80 bg-stone-900/90 p-0.5">
               <button
                 type="button"

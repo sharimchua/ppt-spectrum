@@ -4,7 +4,7 @@
  * with a context-aware "Back to Guide" return toast.
  */
 
-import { PitchCarrierMode, RhythmContainerMode } from '../../core/types';
+import { Filter, PitchCarrierMode, RhythmContainerMode } from '../../core/types';
 import { MidiPhaseMode } from '../../core/midi-tuning';
 
 export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
@@ -27,7 +27,7 @@ export type TutorialDemoId =
   | 'cross-shape-clarinet-hemiola'
   | 'keyboard-12tet-drift'
   | 'keyboard-5limit-lock'
-  | 'keyboard-tempo-triad';
+  | 'tempo-cadence-modulation';
 
 export interface KeyboardDemoConfig {
   tuningPresetId: '12tet' | 'dutri' | 'ppt-native' | '5-limit' | 'pythagorean' | '7-limit';
@@ -41,12 +41,15 @@ export interface CustomTutorialDemoOverride {
   shortTitle?: string;
   badge?: string;
   listenHint?: string;
-  /** Custom overtone partials mixed by the user in OvertoneTimbreDiagram */
-  customPartials?: { ratioVal: number; amp: number; label: string }[];
+  /** Custom overtone partials mixed by the user in OvertoneTimbreDiagram or cadence demos */
+  customPartials?: { ratioVal: number; num?: number; den?: number; amp: number; label: string }[];
   /** Custom 8-slot cycle sieve toggled by the user in UnderTheHoodSection */
   customSieveSlots?: boolean[];
+  /** Custom filter (e.g. Supercycle Band Filter for metric modulation demos) */
+  customFilter?: Filter;
   pitchCarrier?: PitchCarrierMode;
   rhythmContainer?: RhythmContainerMode;
+  keyboardConfig?: KeyboardDemoConfig;
 }
 
 export interface TutorialDemoConfig {
@@ -348,7 +351,7 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     badge: 'Keyboard · 5-Limit (Qui)',
     summary: 'Opens the Solfège Keyboard with Do + Mi latched in 5-Limit Just tuning so a Pure Sine locks into a 5:4 polyrhythm.',
     listenHint:
-      'Do + Mi are latched in 5-Limit (Qui) tuning (exact 5:4 ratio). Watch the Cycle Wheel lock every 4 bars—press Tab (or Flip R↔P) to hear it as a beatless Major Third!',
+      'Do + Mi are latched in 5-Limit (Qui) tuning (exact 5:4 ratio) in Rhythm Space. Watch the yellow Mi beat lock cleanly onto The Sam every 4 bars!',
     fromSection: 'concepts',
     mode: 'static-place',
     shapeId: 'pure-tone',
@@ -387,26 +390,21 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
     },
   },
   {
-    id: 'keyboard-tempo-triad',
-    title: 'Keyboard Polyrhythm Triad: 4:5:6 from One Pulse (Do + Mi + So)',
-    shortTitle: 'Keyboard 4:5:6 Triad',
-    badge: 'Keyboard · Do+Mi+So',
-    summary: 'Latches Do, Mi, and So on a single Pure Sine pulse to build a 4:5:6 polyrhythm—tap other keys to play tempo cadences!',
+    id: 'tempo-cadence-modulation',
+    title: 'Tempo Cadence: Supercycle Metric Modulation',
+    shortTitle: 'Tempo Cadence',
+    badge: 'Supercycle Band Filter',
+    summary: 'Uses a Supercycle Range Filter to step between harmonic tempos across The Sam.',
     listenHint:
-      'Three keys on a single-pulse Sine create a full 4:5:6 groove. Tap extra keys to add voices, or press Tab to flip your held rhythm into a glowing Major chord!',
+      'Watch the Supercycle Band Filter alternate between tempo layers on each rotation—aligning back onto The Sam!',
     fromSection: 'concepts',
     mode: 'static-place',
-    shapeId: 'pure-tone',
+    shapeId: 'hemiola-3-2',
     rhythmBpm: 96.75,
     rhythmD: 4.0,
     pitchD: 4.0,
-    requiresKeyboard: true,
-    keyboardConfig: {
-      tuningPresetId: '5-limit',
-      latchedMidiNotes: [68, 72, 75],
-      showIntervals: true,
-      rhythmPhaseMode: 'sam-aligned',
-    },
+    pitchCarrier: 'kit',
+    requiresKeyboard: false,
   },
 ];
 

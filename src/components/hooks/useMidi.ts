@@ -78,7 +78,7 @@ export interface UseMidiResult {
   heldMappings: MidiNoteMappingResult[];
   activeMidiNumbers: number[];
   latchedMidiNumbers: number[];
-  virtualNoteOn: (midi: number, velocity?: number) => void;
+  virtualNoteOn: (midi: number, velocity?: number, explicitPolarityD?: number) => void;
   virtualNoteOff: (midi: number) => void;
   toggleVirtualNote: (midi: number, velocity?: number) => void;
   transposeLatchedNotes: (semitones: number) => boolean;
@@ -325,8 +325,8 @@ export function useMidi({
   }, [audioEngine, coordinator, dispatchNoteOff, dispatchNoteOn]);
 
   const virtualNoteOn = useCallback(
-    (midi: number, velocity: number = 0.85) => {
-      dispatchNoteOn(midi, velocity, 'virtual');
+    (midi: number, velocity: number = 0.85, explicitPolarityD?: number) => {
+      dispatchNoteOn(midi, velocity, 'virtual', explicitPolarityD);
     },
     [dispatchNoteOn]
   );

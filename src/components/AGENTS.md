@@ -62,6 +62,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `PrimeFamiliesDiagram.tsx` — Interactive 5 Prime Families explorer detailing harmonic intervals, rhythmic feel, and coincidence cycles.
 - `FractalCouplingDiagram.tsx` — Interactive Cross-Limen Coupling explorer (`Pitch Carrier` & `Rhythm Container`) comparing `Self` (Fractal Mirror), `Neutral` (Drum Kit / Static), and `Cross-Shape Coupling` with live demo launchers.
 - `KeyboardTuningDiagram.tsx` — Interactive Solfège Keyboard & Tuning explorer comparing `12-TET` drift vs `5-Limit` Super-Cycle lock on a 4-bar coincidence timeline and demonstrating melodic rhythm / tempo cadences (`3:2` and `4:3`).
+- `tempo-cadence-demos.ts` — Pure Supercycle Band-Filter builders for the Section 7 metric-modulation cadence demos (`3:2`, `4:3`, and `4:5:6:8`).
 
 ### Envelopes (`src/components/envelopes/`)
 

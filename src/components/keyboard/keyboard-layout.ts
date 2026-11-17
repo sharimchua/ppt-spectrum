@@ -286,3 +286,27 @@ export function resolveVisibleRangeForNotes(
 
   return null;
 }
+
+const KEYBOARD_RANGE_STORAGE_KEY = 'ppt_spectrum_keyboard_range_v1';
+
+export function loadSavedKeyboardRange(): string {
+  if (typeof window === 'undefined' || !window.localStorage) return '2oct-f';
+  try {
+    const saved = window.localStorage.getItem(KEYBOARD_RANGE_STORAGE_KEY);
+    if (saved && KEYBOARD_RANGE_PRESETS.some((p) => p.id === saved)) {
+      return saved;
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+  return '2oct-f';
+}
+
+export function saveKeyboardRange(presetId: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(KEYBOARD_RANGE_STORAGE_KEY, presetId);
+  } catch {
+    // Ignore storage quota errors
+  }
+}
