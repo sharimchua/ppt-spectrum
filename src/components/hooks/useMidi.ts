@@ -116,6 +116,7 @@ export function useMidi({
   const heldStackRef = useRef<HeldStackEntry[]>([]);
   const sourcesByMidiRef = useRef<Map<number, Set<NoteInputSource>>>(new Map());
   const physicalMidiDownRef = useRef<Set<number>>(new Set());
+  const sostenutoMidiRef = useRef<Set<number>>(new Set());
   const isMidiHoldRef = useRef<boolean>(false);
   const midiTuningRef = useRef<MidiTuningConfig>(midiTuning);
   midiTuningRef.current = midiTuning;
@@ -297,7 +298,7 @@ export function useMidi({
 
     const unsubOff = midiManagerInstance.onNoteOff((midi) => {
       physicalMidiDownRef.current.delete(midi);
-      if (!isMidiHoldRef.current) {
+      if (!(isMidiHoldRef.current && sostenutoMidiRef.current.has(midi))) {
         dispatchNoteOff(midi, 'midi');
       }
     });
@@ -314,6 +315,7 @@ export function useMidi({
       heldStackRef.current = [];
       sourcesMap.clear();
       physicalDown.clear();
+      sostenutoMidiRef.current.clear();
       setHeldMappings([]);
       setActiveMidiNumbers([]);
       setLatchedMidiNumbers([]);
@@ -379,17 +381,18 @@ export function useMidi({
     setIsMidiHoldActive((prev) => {
       const next = !prev;
       isMidiHoldRef.current = next;
-      if (!next) {
-        // Release any MIDI notes held by Hold whose physical keys are already up
-        const toRelease: number[] = [];
-        for (const [m, srcs] of sourcesByMidiRef.current.entries()) {
-          if (srcs.has('midi') && !physicalMidiDownRef.current.has(m)) {
-            toRelease.push(m);
-          }
-        }
-        for (const m of toRelease) {
-          dispatchNoteOff(m, 'midi');
-        }
+      if (next) {
+        // Sostenuto: capture only the physical MIDI keys currently held down
+        sostenutoMidiRef.current = new Set(physicalMidiDownRef.current);
+      } else {
+        // Turning Hold off clears captured Sostenuto MIDI notes (if physically up) and all virtual keys
+        const toReleaseMidi = [...sostenutoMidiRef.current].filter((m) => !physicalMidiDownRef.current.has(m));
+        sostenutoMidiRef.current.clear();
+        for (const m of toReleaseMidi) dispatchNoteOff(m, 'midi');
+        const toReleaseVirtual = [...sourcesByMidiRef.current.entries()]
+          .filter(([, srcs]) => srcs.has('virtual'))
+          .map(([m]) => m);
+        for (const m of toReleaseVirtual) dispatchNoteOff(m, 'virtual');
       }
       return next;
     });

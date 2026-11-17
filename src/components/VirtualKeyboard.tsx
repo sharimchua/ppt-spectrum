@@ -217,7 +217,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 ? 'bg-red-600/25 border-red-500/70 text-red-200'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
-            title="Hold hardware MIDI notes after releasing keys (H)"
+            title="Sostenuto for MIDI (captures currently held keys) & Sustain for Virtual Keyboard; turning off clears held keys (H)"
           >
             <span>Hold</span>
             <kbd className="text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
