@@ -165,20 +165,23 @@ export function buildIntervalBands(
     }
     rawPairs.sort((p, q) => p.span - q.span || p.a.midi - q.a.midi);
 
-    // Greedy interval packing into rows so overlapping bands never collide
-    const rowEnds: number[] = [];
+    // Greedy interval packing into rows so non-overlapping bands share the lowest row
+    const rowRanges: Array<Array<[number, number]>> = [];
     for (const pair of rawPairs) {
       let assignedRow = -1;
-      for (let r = 0; r < rowEnds.length; r++) {
-        if (pair.a.midi >= rowEnds[r]) {
+      for (let r = 0; r < rowRanges.length; r++) {
+        const overlaps = rowRanges[r].some(
+          ([s, e]) => !(pair.b.midi <= s || pair.a.midi >= e)
+        );
+        if (!overlaps) {
           assignedRow = r;
-          rowEnds[r] = pair.b.midi;
+          rowRanges[r].push([pair.a.midi, pair.b.midi]);
           break;
         }
       }
       if (assignedRow === -1) {
-        assignedRow = rowEnds.length;
-        rowEnds.push(pair.b.midi);
+        assignedRow = rowRanges.length;
+        rowRanges.push([[pair.a.midi, pair.b.midi]]);
       }
 
       const ratio = pair.b.mapping.freqHz / Math.max(1e-6, pair.a.mapping.freqHz);
@@ -196,7 +199,7 @@ export function buildIntervalBands(
         isSubtleStep: false,
       });
     }
-    return { bands, rowCount: Math.max(1, rowEnds.length) };
+    return { bands, rowCount: Math.max(1, rowRanges.length) };
   }
 
   // Adjacent semitone step sizes across visible keys
