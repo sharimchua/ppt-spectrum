@@ -5,13 +5,14 @@
  */
 
 import { Filter, PitchCarrierMode, RhythmContainerMode } from '../../core/types';
-import { MidiPhaseMode } from '../../core/midi-tuning';
+import { MidiPhaseMode, MidiTuningPresetId } from '../../core/midi-tuning';
 import { PRIME_SWEEP_DEMOS } from './prime-sweep-demos';
 import { TIMBRE_SWEEP_DEMOS } from './timbre-sweep-demos';
 import { COUPLING_DEMOS } from './coupling-demos';
 import { KEYBOARD_CADENCE_DEMOS } from './keyboard-cadence-demos';
+import { TUNING_SYSTEM_DEMOS } from './tuning-demos';
 
-export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'customise';
+export type TutorialSectionId = 'overview' | 'concepts' | 'tuning' | 'hood' | 'customise';
 
 export type TutorialDemoId =
   | 'hemiola-sweep'
@@ -34,10 +35,14 @@ export type TutorialDemoId =
   | 'cross-shape-clarinet-hemiola'
   | 'keyboard-12tet-drift'
   | 'keyboard-5limit-lock'
-  | 'tempo-cadence-modulation';
+  | 'tempo-cadence-modulation'
+  | 'pythagorean-pentatonic-demo'
+  | 'pythagorean-heptatonic-dissonance'
+  | '31edo-meantone-demo'
+  | '31edo-septimal-demo';
 
 export interface KeyboardDemoConfig {
-  tuningPresetId: '12tet' | 'dutri' | 'ppt-native' | '5-limit' | 'pythagorean' | '7-limit';
+  tuningPresetId: Exclude<MidiTuningPresetId, 'custom'>;
   latchedMidiNotes: number[];
   showIntervals?: boolean;
   rhythmPhaseMode?: MidiPhaseMode;
@@ -92,7 +97,7 @@ export interface SpotlightVoiceConfig {
 }
 
 export interface TuningCompareConfig {
-  altPresetId: '12tet' | 'dutri' | 'ppt-native' | '5-limit' | 'pythagorean' | '7-limit';
+  altPresetId: Exclude<MidiTuningPresetId, 'custom'>;
   label: string;
   altLabel: string;
   altNarration: string;
@@ -346,6 +351,7 @@ export const TUTORIAL_DEMOS: TutorialDemoConfig[] = [
   },
   ...COUPLING_DEMOS,
   ...KEYBOARD_CADENCE_DEMOS,
+  ...TUNING_SYSTEM_DEMOS,
 ];
 
 export const FEATURED_TOUR_DEMOS: TutorialDemoConfig[] = TUTORIAL_DEMOS.filter((d) => d.featuredInTour);

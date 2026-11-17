@@ -1,0 +1,115 @@
+import type { TutorialDemoConfig } from './tutorial-demos';
+
+export const TUNING_SYSTEM_DEMOS: TutorialDemoConfig[] = [
+  {
+    id: 'pythagorean-pentatonic-demo',
+    title: '3:2 Chain: Pentatonic (5 Fifths) vs Heptatonic (7 Fifths)',
+    shortTitle: '3:2 Chain Pentatonic',
+    badge: 'Tuning · 3:2 Chain',
+    summary:
+      'Explores the 5-step Pythagorean Pentatonic chain with full Piano overtones, then opens 2 more fifths to hear minor 2nds and the tritone enter.',
+    listenHint:
+      'Listening to the 5-step 3:2 chain (Pentatonic)—no minor 2nds or tritones. Switch to the Scale Strip or Strum Mode, or toggle Heptatonic to hear the 90.2¢ semitones appear.',
+    fromSection: 'tuning',
+    mode: 'static-place',
+    shapeId: 'piano',
+    rhythmBpm: 96.75,
+    rhythmD: -3.0,
+    pitchD: -3.0,
+    desktopLayoutId: 'pitch-lab',
+    mobileLayoutId: 'solo-cycle',
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: 'pythagorean-pentatonic',
+      latchedMidiNotes: [68, 72, 75],
+      showIntervals: true,
+    },
+    tuningCompare: {
+      altPresetId: 'pythagorean-heptatonic',
+      label: 'Open to Heptatonic (7× 3:2)',
+      altLabel: 'Back to Pentatonic (5× 3:2)',
+      altNarration:
+        'Extended to 7 fifths (Heptatonic): the 729/512 tritone and two 90.2¢ minor 2nds are now active in the tuning lattice!',
+    },
+    featuredInTour: true,
+  },
+  {
+    id: 'pythagorean-heptatonic-dissonance',
+    title: 'Heptatonic Dissonance: 729/512 Tritone & 256/243 Semitone',
+    shortTitle: 'Heptatonic Tritone',
+    badge: 'Tuning · 7-Step Chain',
+    summary:
+      'Hears the 7-step 3:2 chain with a rich Sawtooth timbre so the beating of the Pythagorean minor 2nd and tritone stands out.',
+    listenHint:
+      'With 7 fifths active, adjacent semitones and the 729/512 tritone create sharp acoustic beating in the Sawtooth overtones.',
+    fromSection: 'tuning',
+    mode: 'static-place',
+    shapeId: 'sawtooth',
+    rhythmBpm: 96.75,
+    rhythmD: -3.0,
+    pitchD: -3.0,
+    desktopLayoutId: 'pitch-lab',
+    mobileLayoutId: 'solo-cycle',
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: 'pythagorean-heptatonic',
+      latchedMidiNotes: [68, 74, 79],
+      showIntervals: true,
+    },
+  },
+  {
+    id: '31edo-meantone-demo',
+    title: '31-EDO Meantone vs 12-TET: Pure-Sounding Major Thirds',
+    shortTitle: '31-EDO Meantone',
+    badge: 'Tuning · 31-EDO',
+    summary:
+      'Compares a 31-EDO quarter-comma meantone triad (10\\31 = 387.1¢) against standard 12-TET (4\\12 = 400¢) using rich Piano partials.',
+    listenHint:
+      'In 31-EDO, step 10\\31 sits within 0.8¢ of a pure 5/4 Major 3rd! Click "Compare 12-TET" to hear the 13.7¢ sharp 12-TET third beat against the harmonic series.',
+    fromSection: 'tuning',
+    mode: 'static-place',
+    shapeId: 'piano',
+    rhythmBpm: 96.75,
+    rhythmD: -3.0,
+    pitchD: -3.0,
+    desktopLayoutId: 'pitch-lab',
+    mobileLayoutId: 'solo-cycle',
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: '31edo-meantone',
+      latchedMidiNotes: [68, 72, 75],
+      showIntervals: true,
+    },
+    tuningCompare: {
+      altPresetId: '12tet',
+      label: 'Compare 12-TET',
+      altLabel: 'Back to 31-EDO',
+      altNarration:
+        'Switched to 12-TET: notice how the 400¢ major third beats faster against the 5th harmonic than 31-EDO.',
+    },
+  },
+  {
+    id: '31edo-septimal-demo',
+    title: '31-EDO Septimal Harmony (7-Limit)',
+    shortTitle: '31-EDO Septimal',
+    badge: 'Tuning · 31-EDO 7-Limit',
+    summary:
+      'Explores 31-EDO steps 7\\31 (~7/6) and 25\\31 (~7/4) on the Virtual Keyboard and Isomorphic Lattice.',
+    listenHint:
+      '31-EDO divides the octave finely enough to capture 7-limit intervals like the harmonic 7th (25\\31 ≈ 967.7¢). Switch the keyboard to Scale or Iso to explore!',
+    fromSection: 'tuning',
+    mode: 'static-place',
+    shapeId: 'clarinet',
+    rhythmBpm: 96.75,
+    rhythmD: -3.0,
+    pitchD: -3.0,
+    desktopLayoutId: 'pitch-lab',
+    mobileLayoutId: 'solo-cycle',
+    requiresKeyboard: true,
+    keyboardConfig: {
+      tuningPresetId: '31edo-septimal',
+      latchedMidiNotes: [68, 72, 75, 78],
+      showIntervals: true,
+    },
+  },
+];

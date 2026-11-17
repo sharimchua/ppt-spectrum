@@ -58,6 +58,8 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `timbre-sweep-demos.ts` — Guided Sine, Sawtooth, Clarinet, Bell, and Custom Overtone Mix timbre sweep demo configurations.
 - `coupling-demos.ts` — Guided Cross-Limen coupling demo configurations (Fractal Self, Neutral Kit/Static, Cross-Shape Clarinet).
 - `keyboard-cadence-demos.ts` — Guided Solfège Keyboard tuning (5-Limit vs 12-TET) and Supercycle tempo cadence demo configurations.
+- `tuning-demos.ts` — Guided Tuning Systems demos (Pythagorean 3:2 Pentatonic vs Heptatonic, 31-EDO Meantone, 31-EDO Septimal).
+- `TuningSystemsSection.tsx` — Interactive Tuning Systems guide section with 3:2 chain slider, 31-EDO comparison table, and playable surface overview.
 - `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time, the Bicycle-Spoke thought experiment, 'Who is PPT Spectrum for?' persona tiles, terminology primer, 'What is a Shape?' card, interactive `<LensPreviewGrid />`, and quick interaction tips.
 - `WhatIsAShapeCard.tsx` — Overview card defining Shape, Voice Anchor, and partial, with three one-click listening examples.
 - `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.

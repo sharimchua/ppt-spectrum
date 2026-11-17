@@ -7,9 +7,11 @@ import {
   Compass,
   Play,
   Wrench,
+  Music,
 } from 'lucide-react';
 import { OverviewSection } from './info-modal/OverviewSection';
 import { ConceptsSection } from './info-modal/ConceptsSection';
+import { TuningSystemsSection } from './info-modal/TuningSystemsSection';
 import { UnderTheHoodSection } from './info-modal/UnderTheHoodSection';
 import { CustomiseSection } from './info-modal/CustomiseSection';
 import { LinksSection } from './info-modal/LinksSection';
@@ -44,8 +46,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: '1. Start Here & Demos', icon: <Compass className="w-3.5 h-3.5" /> },
   { id: 'concepts', label: '2. How It Works', icon: <Sparkles className="w-3.5 h-3.5" /> },
-  { id: 'hood', label: '3. Under the Hood', icon: <Wrench className="w-3.5 h-3.5" /> },
-  { id: 'customise', label: '4. Controls & Links', icon: <Sliders className="w-3.5 h-3.5" /> },
+  { id: 'tuning', label: '3. Tuning Systems', icon: <Music className="w-3.5 h-3.5" /> },
+  { id: 'hood', label: '4. Under the Hood', icon: <Wrench className="w-3.5 h-3.5" /> },
+  { id: 'customise', label: '5. Controls & Links', icon: <Sliders className="w-3.5 h-3.5" /> },
 ];
 
 export const InfoModal: React.FC<InfoModalProps> = ({
@@ -118,7 +121,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({
       if (onScrollTopChange) {
         onScrollTopChange(container.scrollTop);
       }
-      const sectionIds: TutorialSectionId[] = ['overview', 'concepts', 'hood', 'customise'];
+      const sectionIds: TutorialSectionId[] = ['overview', 'concepts', 'tuning', 'hood', 'customise'];
       const scrollPos = container.scrollTop + 140;
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
@@ -279,7 +282,25 @@ export const InfoModal: React.FC<InfoModalProps> = ({
             />
           </section>
 
-          {/* Divider 3: Under the Hood */}
+          {/* Divider 3: Tuning Systems */}
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-stone-800" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-[#0c101a] px-3.5 py-1 rounded-full border border-stone-800 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-rose-400 flex items-center gap-1.5 shadow-sm">
+                <Music className="w-3.5 h-3.5" />
+                <span>3. Tuning Systems — 3:2 Chains &amp; 31-EDO</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Section 3: Tuning Systems */}
+          <section id="ppt-section-tuning" className="scroll-mt-4">
+            <TuningSystemsSection onPlayDemo={handlePlayDemoClick} />
+          </section>
+
+          {/* Divider 4: Under the Hood */}
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full border-t border-stone-800" />
