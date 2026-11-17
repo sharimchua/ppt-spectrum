@@ -99,7 +99,7 @@ export const App: React.FC = () => {
     sceneRef,
     onUpdatePlacementD: handleUpdatePlacementD,
   });
-  const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, latchedMidiNumbers } = midi;
+  const { clearAllNotes, flipPolarity, toggleKeyboard, transposeLatchedNotes, latchedMidiNumbers, toggleMidiHold } = midi;
   const handleManualPlacementD = useCallback((d: number) => { clearAllNotes(); handleUpdatePlacementD(d); }, [clearAllNotes, handleUpdatePlacementD]);
   const handleArrowStep = useCallback((step: number) => {
     if (latchedMidiNumbers.length > 0) transposeLatchedNotes(Math.round(-step * 12)); else handleStepPrimaryD(step);
@@ -265,12 +265,13 @@ export const App: React.FC = () => {
       onToggleBundlesOpen: () => (bundlesApi.isBundleModalOpen ? bundlesApi.closeBundleModal() : bundlesApi.openBundleModal()),
       onToggleKeyboard: toggleKeyboard,
       onFlipPolarity: flipPolarity,
+      onToggleMidiHold: toggleMidiHold,
       onPanicClear: handlePanicClear,
     }),
     [
       handleTogglePlay, closeFilters, toggleOscillating, toggleFilterEditMode, toggleFilter, toggleFiltersOpen,
       handleNoteOn, handleNoteOff, handleJumpBookmarkA, handleJumpBookmarkB, setBookmarkFromCurrent,
-      handleArrowStep, historyBack, historyForward, envelopes, bundlesApi, toggleKeyboard, flipPolarity, handlePanicClear,
+      handleArrowStep, historyBack, historyForward, envelopes, bundlesApi, toggleKeyboard, flipPolarity, toggleMidiHold, handlePanicClear,
     ]
   );
 

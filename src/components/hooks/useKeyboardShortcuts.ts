@@ -34,6 +34,7 @@ export interface KeyboardActions {
   onToggleBundlesOpen?: () => void;
   onToggleKeyboard?: () => void;
   onFlipPolarity?: () => void;
+  onToggleMidiHold?: () => void;
   onPanicClear?: () => void;
   onNoteOn: () => void;
   onNoteOff: () => void;
@@ -193,6 +194,9 @@ export function useKeyboardShortcuts({
       } else if (e.key === 'k' || e.key === 'K') {
         e.preventDefault();
         actionsRef.current.onToggleKeyboard?.();
+      } else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        actionsRef.current.onToggleMidiHold?.();
       } else if (e.key === 'ArrowRight') {
         // Move UP in frequency / pitch (decrease d)
         e.preventDefault();

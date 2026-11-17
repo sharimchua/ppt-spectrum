@@ -30,8 +30,6 @@ import {
 import { IntervalBandsStrip } from './keyboard/IntervalBandsStrip';
 import { UseMidiResult } from './hooks/useMidi';
 
-export type VirtualKeyboardMode = 'latch' | 'hold';
-
 export interface VirtualKeyboardProps {
   midi: UseMidiResult;
   currentFundamentalD: number;
@@ -59,8 +57,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     latchedMidiNumbers,
     midiState,
     toggleVirtualNote: onToggleLatchNote,
-    virtualNoteOn: onHoldNoteOn,
-    virtualNoteOff: onHoldNoteOff,
+    isMidiHoldActive,
+    toggleMidiHold,
     clearAllNotes: onClearAllNotes,
     openTuningModal: onOpenTuningModal,
     openMidiModal: onOpenMidiModal,
@@ -69,7 +67,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [rangePresetId, setRangePresetId] = useState<string>('2oct-f');
   const [octaveOffset, setOctaveOffset] = useState<number>(0);
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
-  const [mode, setMode] = useState<VirtualKeyboardMode>('latch');
   const [showIntervals, setShowIntervals] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(() =>
@@ -159,12 +156,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   const handleKeyPointerDown = (k: VirtualKeyItem, e: React.PointerEvent) => {
     e.preventDefault();
-    if (mode === 'latch') onToggleLatchNote(k.midi);
-    else onHoldNoteOn(k.midi);
-  };
-
-  const handleKeyPointerUpOrLeave = (k: VirtualKeyItem) => {
-    if (mode === 'hold' && activeSet.has(k.midi)) onHoldNoteOff(k.midi);
+    onToggleLatchNote(k.midi);
   };
 
   return (
@@ -216,27 +208,20 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <span>{isFitMode ? 'Fit' : 'Fixed'}</span>
           </button>
 
-          {/* Latch vs Hold Toggle */}
-          <div className="flex rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setMode('latch')}
-              className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
-                mode === 'latch' ? 'bg-red-600/25 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Latch
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('hold')}
-              className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
-                mode === 'hold' ? 'bg-red-600/25 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Hold
-            </button>
-          </div>
+          {/* MIDI Hold Toggle (H) */}
+          <button
+            type="button"
+            onClick={toggleMidiHold}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+              isMidiHoldActive
+                ? 'bg-red-600/25 border-red-500/70 text-red-200'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+            title="Hold hardware MIDI notes after releasing keys (H)"
+          >
+            <span>Hold</span>
+            <kbd className="text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
+          </button>
 
           {/* Interval Bands Toggle */}
           <button
@@ -347,8 +332,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   key={k.midi}
                   type="button"
                   onPointerDown={(e) => handleKeyPointerDown(k, e)}
-                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
-                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={
                     isActive
                       ? { backgroundColor: k.colorHex, borderColor: k.colorHex }
@@ -394,8 +377,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                   key={k.midi}
                   type="button"
                   onPointerDown={(e) => handleKeyPointerDown(k, e)}
-                  onPointerUp={() => handleKeyPointerUpOrLeave(k)}
-                  onPointerLeave={() => handleKeyPointerUpOrLeave(k)}
                   style={{
                     left: `calc(${centerPct}% - ${widthPct / 2}%)`,
                     width: `${widthPct}%`,

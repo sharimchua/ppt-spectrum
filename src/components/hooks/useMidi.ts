@@ -82,6 +82,8 @@ export interface UseMidiResult {
   virtualNoteOff: (midi: number) => void;
   toggleVirtualNote: (midi: number, velocity?: number) => void;
   transposeLatchedNotes: (semitones: number) => void;
+  isMidiHoldActive: boolean;
+  toggleMidiHold: () => void;
   clearAllNotes: () => void;
   flipPolarity: () => void;
 }
@@ -108,10 +110,13 @@ export function useMidi({
   const [heldMappings, setHeldMappings] = useState<MidiNoteMappingResult[]>([]);
   const [activeMidiNumbers, setActiveMidiNumbers] = useState<number[]>([]);
   const [latchedMidiNumbers, setLatchedMidiNumbers] = useState<number[]>([]);
+  const [isMidiHoldActive, setIsMidiHoldActive] = useState<boolean>(false);
 
   // Ordered list of currently held MIDI notes (most recent at the end)
   const heldStackRef = useRef<HeldStackEntry[]>([]);
   const sourcesByMidiRef = useRef<Map<number, Set<NoteInputSource>>>(new Map());
+  const physicalMidiDownRef = useRef<Set<number>>(new Set());
+  const isMidiHoldRef = useRef<boolean>(false);
   const midiTuningRef = useRef<MidiTuningConfig>(midiTuning);
   midiTuningRef.current = midiTuning;
 
@@ -280,16 +285,21 @@ export function useMidi({
 
   useEffect(() => {
     const sourcesMap = sourcesByMidiRef.current;
+    const physicalDown = physicalMidiDownRef.current;
     const unsubState = midiManagerInstance.onStateChange((next) => {
       setMidiState(next);
     });
 
     const unsubOn = midiManagerInstance.onNoteOn((midi, velocity) => {
+      physicalMidiDownRef.current.add(midi);
       dispatchNoteOn(midi, velocity, 'midi');
     });
 
     const unsubOff = midiManagerInstance.onNoteOff((midi) => {
-      dispatchNoteOff(midi, 'midi');
+      physicalMidiDownRef.current.delete(midi);
+      if (!isMidiHoldRef.current) {
+        dispatchNoteOff(midi, 'midi');
+      }
     });
 
     const unsubSustain = midiManagerInstance.onSustainChange((isDown) => {
@@ -303,6 +313,7 @@ export function useMidi({
       unsubSustain();
       heldStackRef.current = [];
       sourcesMap.clear();
+      physicalDown.clear();
       setHeldMappings([]);
       setActiveMidiNumbers([]);
       setLatchedMidiNumbers([]);
@@ -364,6 +375,26 @@ export function useMidi({
     [dispatchNoteOff, dispatchNoteOn]
   );
 
+  const toggleMidiHold = useCallback(() => {
+    setIsMidiHoldActive((prev) => {
+      const next = !prev;
+      isMidiHoldRef.current = next;
+      if (!next) {
+        // Release any MIDI notes held by Hold whose physical keys are already up
+        const toRelease: number[] = [];
+        for (const [m, srcs] of sourcesByMidiRef.current.entries()) {
+          if (srcs.has('midi') && !physicalMidiDownRef.current.has(m)) {
+            toRelease.push(m);
+          }
+        }
+        for (const m of toRelease) {
+          dispatchNoteOff(m, 'midi');
+        }
+      }
+      return next;
+    });
+  }, [dispatchNoteOff]);
+
   const openMidiModal = useCallback(() => setIsMidiModalOpen(true), []);
   const closeMidiModal = useCallback(() => setIsMidiModalOpen(false), []);
   const openTuningModal = useCallback(() => setIsTuningModalOpen(true), []);
@@ -404,6 +435,8 @@ export function useMidi({
     virtualNoteOff,
     toggleVirtualNote,
     transposeLatchedNotes,
+    isMidiHoldActive,
+    toggleMidiHold,
     clearAllNotes,
     flipPolarity,
   };
