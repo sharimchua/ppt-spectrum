@@ -19,6 +19,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
     this.voiceStates = new Map(); // key -> { active, sampleIndex, decaySamples, pitchHz, gate }
     this.noteStates = new Map(); // shapeId -> { noteAge, lastD, isKeyDown, isAuditioning, isReleased, releaseAge, releaseStartAmp, rhythmTurnsElapsed }
     this.midiVoices = new Map(); // midiNote -> { midiNote, targetD, velocity, masterPhase, noteAge, isKeyDown, isSustained, isReleased, releaseAge, currentAmp }
+    this.midiSamEpochTime = null;
     this.sustainPedalDown = false;
     this.isPlaying = false; // Transport playback state
 
@@ -116,18 +117,39 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           v.active = false;
         }
         this.midiVoices.clear();
+        this.midiSamEpochTime = null;
         this.sustainPedalDown = false;
       } else if (type === 'MIDI_NOTE_ON') {
-        const { midiNote, targetD, velocity } = payload || {};
+        const { midiNote, targetD, velocity, phaseMode } = payload || {};
         if (midiNote !== undefined) {
           const existing = this.midiVoices.get(midiNote);
           const nextVel = velocity !== undefined ? Math.max(0.05, Math.min(1.0, velocity)) : 0.8;
           const nextD = targetD !== undefined ? targetD : 0;
+          const nowSec = typeof globalThis.currentTime === 'number' ? globalThis.currentTime : 0;
+          let hasActiveOther = false;
+          for (const [k, v] of this.midiVoices.entries()) {
+            if (k !== midiNote && !v.isReleased) {
+              hasActiveOther = true;
+              break;
+            }
+          }
+          let alignedPhase = 0.0;
+          if (phaseMode === 'sam-aligned') {
+            if (this.midiSamEpochTime === null || !hasActiveOther) {
+              this.midiSamEpochTime = nowSec;
+            }
+            const f0Sam = this.tplHz * Math.pow(2, -nextD);
+            alignedPhase = Math.max(0.0, (nowSec - this.midiSamEpochTime) * f0Sam);
+          }
+
           if (existing && existing.currentAmp > 0.0005) {
             // Preserve phase and ramp from current velocity-scaled amplitude to avoid re-strike clicks
             existing.attackStartAmp = Math.min(1.0, (existing.currentAmp * existing.velocity) / nextVel);
             existing.targetD = nextD;
             existing.velocity = nextVel;
+            if (phaseMode === 'sam-aligned') {
+              existing.masterPhase = alignedPhase;
+            }
             existing.noteAge = 0.0;
             existing.isKeyDown = true;
             existing.isSustained = false;
@@ -138,7 +160,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
               midiNote,
               targetD: nextD,
               velocity: nextVel,
-              masterPhase: 0.0,
+              masterPhase: alignedPhase,
               noteAge: 0.0,
               isKeyDown: true,
               isSustained: false,
@@ -852,7 +874,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           if (!mv.gateSmooths) mv.gateSmooths = [];
 
           for (let s = 0; s < numSamples; s++) {
-            const isFirstSample = mv.noteAge === 0.0;
+            const isFirstSample = mv.noteAge === 0.0 && (mv.masterPhase % 1.0) < 0.04;
             const prevMvPhase = mvPhase;
             mvPhase += f0 * sampleDt;
             if (mvPhase > 9369360) mvPhase -= 9369360;

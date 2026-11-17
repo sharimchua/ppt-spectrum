@@ -591,7 +591,8 @@ export class AudioEngine {
     midiNote: number,
     velocity: number,
     targetD: number,
-    sceneOverride?: Scene
+    sceneOverride?: Scene,
+    phaseMode: 'sam-aligned' | 'key-strike' = 'sam-aligned'
   ): Promise<void> {
     if (sceneOverride) {
       this.scene = sceneOverride;
@@ -608,7 +609,7 @@ export class AudioEngine {
       this.applyMasterGain();
       this.postToSynth({
         type: 'MIDI_NOTE_ON',
-        payload: { midiNote, targetD, velocity },
+        payload: { midiNote, targetD, velocity, phaseMode },
       });
       return;
     }
@@ -620,7 +621,7 @@ export class AudioEngine {
 
     this.postToSynth({
       type: 'MIDI_NOTE_ON',
-      payload: { midiNote, targetD, velocity },
+      payload: { midiNote, targetD, velocity, phaseMode },
     });
   }
 

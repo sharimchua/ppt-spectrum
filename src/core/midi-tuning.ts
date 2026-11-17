@@ -42,6 +42,9 @@ export type MidiTuningPresetId =
   | '11-limit'
   | 'custom';
 
+export type TplPolarity = 'rhythm' | 'pitch';
+export type MidiPhaseMode = 'sam-aligned' | 'key-strike';
+
 export interface MidiTuningConfig {
   presetId: MidiTuningPresetId;
   intervals: MidiIntervalTuningConfig;
@@ -51,6 +54,8 @@ export interface MidiTuningConfig {
   rhythmRootMidi: number;
   /** MIDI note number acting as Do in Pitch Space for Just tunings (default 68 = G#4). */
   pitchRootMidi: number;
+  /** Phase alignment for polyphonic Rhythm Space MIDI voices ('sam-aligned' vs 'key-strike'). */
+  rhythmPhaseMode: MidiPhaseMode;
 }
 
 export interface IntervalTuningResolution {
@@ -60,8 +65,6 @@ export interface IntervalTuningResolution {
   primeFamily: PrimeFamilyLabel;
   centsFromEdo: number;
 }
-
-export type TplPolarity = 'rhythm' | 'pitch';
 
 export interface MidiNoteMappingResult {
   midi: number;
@@ -187,6 +190,7 @@ export function createDefaultMidiTuningConfig(
     rhythmAnchorBand: DEFAULT_RHYTHM_ANCHOR_BAND,
     rhythmRootMidi: DEFAULT_RHYTHM_ROOT_MIDI,
     pitchRootMidi: DEFAULT_PITCH_ROOT_MIDI,
+    rhythmPhaseMode: 'sam-aligned',
   };
 }
 

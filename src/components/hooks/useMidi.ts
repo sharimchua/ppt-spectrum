@@ -136,7 +136,13 @@ export function useMidi({
       );
 
       // Dispatch audio note-on first for minimum keypress-to-sound latency
-      void audioEngine.midiNoteOn(midi, velocity, mapping.d);
+      void audioEngine.midiNoteOn(
+        midi,
+        velocity,
+        mapping.d,
+        undefined,
+        midiTuningRef.current.rhythmPhaseMode
+      );
 
       // Move or append this note as the latest primary note
       const filtered = heldStackRef.current.filter((item) => item.midi !== midi);

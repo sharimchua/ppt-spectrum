@@ -9,6 +9,7 @@ import {
   MIDI_TUNING_PRESETS,
   MidiIntervalTuningConfig,
   MidiNoteMappingResult,
+  MidiPhaseMode,
   MidiTuningConfig,
   MidiTuningPresetId,
   PrimeFamilyLabel,
@@ -228,6 +229,44 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
             ))}
           </select>
         </label>
+      </div>
+
+      {/* Rhythm Phase Alignment Mode */}
+      <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <span className="text-xs font-semibold text-slate-200 block">Rhythm Phase Alignment</span>
+          <span className="text-[11px] text-slate-400">
+            {midiTuning.rhythmPhaseMode === 'sam-aligned'
+              ? 'Voices join mid-cycle so periodic ratios lock at the Sam.'
+              : 'Each key strike restarts its own cycle from phase 0.'}
+          </span>
+        </div>
+        <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 shrink-0">
+          {(
+            [
+              { id: 'sam-aligned', label: 'Sam-Aligned' },
+              { id: 'key-strike', label: 'Key-Strike' },
+            ] as Array<{ id: MidiPhaseMode; label: string }>
+          ).map((opt) => {
+            const active = (midiTuning.rhythmPhaseMode ?? 'sam-aligned') === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() =>
+                  onChangeTuning((prev) => ({ ...prev, rhythmPhaseMode: opt.id }))
+                }
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+                  active
+                    ? 'bg-red-600/25 text-white border border-red-500/60'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Harmonic Profiler Interval Matrix */}
