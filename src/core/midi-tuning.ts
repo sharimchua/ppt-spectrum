@@ -1,7 +1,7 @@
 /**
  * Pure Prime Period Theory (PPT) MIDI tuning and polarity-aware DuPeriod mapping.
- * Mirrors the Harmonic Profiler tuning model across both Pitch Space (d < 0)
- * and Rhythm Space (d >= 0), preserving Temporal-Place Limen (TPL) polarity.
+ * Mirrors the Harmonic Profiler tuning model and Du-Fractal DuTri Closure across
+ * both Pitch Space (d < 0) and Rhythm Space (d >= 0), preserving TPL polarity.
  */
 
 import { TPL_FREQUENCY_HZ } from './ppt-constants';
@@ -14,37 +14,46 @@ import {
   resolveDuPeriodAddress,
 } from './axis';
 
-export type TriDuTuning = 'Tri' | 'Du';
-export type TriQuiDuTuning = 'Tri' | 'Qui' | 'Du';
-export type TriQuiSepDuTuning = 'Tri' | 'Qui' | 'Sep' | 'Du';
-export type TriSepDuTuning = 'Tri' | 'Sep' | 'Du';
-export type TritoneTuning = 'Undec' | 'Sep' | 'Qui' | 'Tri' | 'Du';
-export type PrimeFamilyLabel = 'Du' | 'Tri' | 'Qui' | 'Sep' | 'Undec';
+export type PrimeFamilyLabel =
+  | '12TET'
+  | 'Du'
+  | 'DuTri'
+  | 'Tri'
+  | 'Qui'
+  | 'Sep'
+  | 'Undec';
+
+export type Interval12Tet = '12TET';
+export type DuTriOrTriOr12Tet = 'DuTri' | 'Tri' | '12TET';
+export type DuTriQuiTriOr12Tet = 'DuTri' | 'Qui' | 'Tri' | '12TET';
+export type DuOrTriQuiSep12Tet = 'Du' | 'Tri' | 'Qui' | 'Sep' | '12TET';
+export type DuTriSepTriOr12Tet = 'DuTri' | 'Sep' | 'Tri' | '12TET';
+export type DuOrTriQui12Tet = 'Du' | 'Tri' | 'Qui' | '12TET';
+export type TriOr12Tet = 'Tri' | '12TET';
+export type TritoneTuning = 'Du' | 'Undec' | 'Sep' | 'Qui' | 'Tri' | '12TET';
 
 export interface MidiIntervalTuningConfig {
-  m2: TriQuiDuTuning;
-  M2: TriDuTuning;
-  m3: TriQuiSepDuTuning;
-  M3: TriQuiDuTuning;
-  P4: TriDuTuning;
+  m2: DuTriQuiTriOr12Tet;
+  M2: DuTriOrTriOr12Tet;
+  m3: DuOrTriQuiSep12Tet;
+  M3: DuTriQuiTriOr12Tet;
+  P4: TriOr12Tet;
   TT: TritoneTuning;
-  P5: TriDuTuning;
-  m6: TriQuiDuTuning;
-  M6: TriQuiDuTuning;
-  m7: TriSepDuTuning;
-  M7: TriQuiDuTuning;
+  P5: TriOr12Tet;
+  m6: DuTriQuiTriOr12Tet;
+  M6: DuOrTriQui12Tet;
+  m7: DuTriSepTriOr12Tet;
+  M7: DuTriQuiTriOr12Tet;
 }
 
 export type MidiTuningPresetId =
   | '12tet'
+  | 'dutri'
+  | 'ppt-native'
   | '5-limit'
   | 'pythagorean'
   | '7-limit'
-  | '11-limit'
   | 'custom';
-
-export type TplPolarity = 'rhythm' | 'pitch';
-export type MidiPhaseMode = 'sam-aligned' | 'key-strike';
 
 export interface MidiTuningConfig {
   presetId: MidiTuningPresetId;
@@ -53,7 +62,7 @@ export interface MidiTuningConfig {
   rhythmAnchorBand: number;
   /** MIDI note number acting as Do in Rhythm Space (default 68 = G#4, exact TPL mirror of Do-4). */
   rhythmRootMidi: number;
-  /** MIDI note number acting as Do in Pitch Space for Just tunings (default 68 = G#4). */
+  /** MIDI note number acting as Do in Pitch Space for Just/DuTri tunings (default 68 = G#4). */
   pitchRootMidi: number;
   /** Phase alignment for polyphonic Rhythm Space MIDI voices ('sam-aligned' vs 'key-strike'). */
   rhythmPhaseMode: MidiPhaseMode;
@@ -66,6 +75,9 @@ export interface IntervalTuningResolution {
   primeFamily: PrimeFamilyLabel;
   centsFromEdo: number;
 }
+
+export type TplPolarity = 'rhythm' | 'pitch';
+export type MidiPhaseMode = 'sam-aligned' | 'key-strike';
 
 export interface MidiNoteMappingResult {
   midi: number;
@@ -96,20 +108,54 @@ export const MIDI_TUNING_PRESETS: Record<
   { label: string; description: string; intervals: MidiIntervalTuningConfig }
 > = {
   '12tet': {
-    label: '12-TET (Du)',
-    description: 'Equal-tempered 12-tone division of the DuPeriod.',
+    label: '12-TET',
+    description: 'Equal-tempered 12-tone division of the DuPeriod (2^(k/12)).',
     intervals: {
-      m2: 'Du',
-      M2: 'Du',
+      m2: '12TET',
+      M2: '12TET',
+      m3: '12TET',
+      M3: '12TET',
+      P4: '12TET',
+      TT: '12TET',
+      P5: '12TET',
+      m6: '12TET',
+      M6: '12TET',
+      m7: '12TET',
+      M7: '12TET',
+    },
+  },
+  dutri: {
+    label: 'DuTri Closure',
+    description: 'Du-Fractal dim7 skeleton (Do, Me, Fi, La) dressed with ±3:2/4:3 Tri operators (~102¢/96¢ steps).',
+    intervals: {
+      m2: 'DuTri',
+      M2: 'DuTri',
       m3: 'Du',
-      M3: 'Du',
-      P4: 'Du',
+      M3: 'DuTri',
+      P4: 'Tri',
       TT: 'Du',
-      P5: 'Du',
-      m6: 'Du',
+      P5: 'Tri',
+      m6: 'DuTri',
       M6: 'Du',
-      m7: 'Du',
-      M7: 'Du',
+      m7: 'DuTri',
+      M7: 'DuTri',
+    },
+  },
+  'ppt-native': {
+    label: 'PPT Native',
+    description: 'Prime Period Theory native tuning: Just harmony with Fi as the Du antipode (√2).',
+    intervals: {
+      m2: 'Qui',
+      M2: 'Tri',
+      m3: 'Qui',
+      M3: 'Qui',
+      P4: 'Tri',
+      TT: 'Du',
+      P5: 'Tri',
+      m6: 'Qui',
+      M6: 'Qui',
+      m7: 'Sep',
+      M7: 'Qui',
     },
   },
   '5-limit': {
@@ -163,23 +209,6 @@ export const MIDI_TUNING_PRESETS: Record<
       M7: 'Qui',
     },
   },
-  '11-limit': {
-    label: 'PPT Native',
-    description: 'Prime Period Theory native tuning: Just harmony with Fi as the Du antipode (√2).',
-    intervals: {
-      m2: 'Qui',
-      M2: 'Tri',
-      m3: 'Qui',
-      M3: 'Qui',
-      P4: 'Tri',
-      TT: 'Du',
-      P5: 'Tri',
-      m6: 'Qui',
-      M6: 'Qui',
-      m7: 'Sep',
-      M7: 'Qui',
-    },
-  },
 };
 
 export function createDefaultMidiTuningConfig(
@@ -216,10 +245,10 @@ export function resolveSemitoneInterval(
     primeFamily = family;
   };
 
-  const setEdo = () => {
-    ratioValue = edoRatio;
+  const setIrrational = (val: number, family: PrimeFamilyLabel) => {
+    ratioValue = val;
     rational = null;
-    primeFamily = 'Du';
+    primeFamily = family;
   };
 
   switch (s) {
@@ -227,57 +256,66 @@ export function resolveSemitoneInterval(
       setJi(1, 1, 'Du');
       break;
     case 1:
-      if (intervals.m2 === 'Du') setEdo();
+      if (intervals.m2 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.m2 === 'DuTri') setIrrational((3 * Math.SQRT2) / 4, 'DuTri');
       else if (intervals.m2 === 'Tri') setJi(256, 243, 'Tri');
       else setJi(16, 15, 'Qui');
       break;
     case 2:
-      if (intervals.M2 === 'Du') setEdo();
+      if (intervals.M2 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.M2 === 'DuTri') setIrrational((2 * Math.pow(2, 0.75)) / 3, 'DuTri');
       else setJi(9, 8, 'Tri');
       break;
     case 3:
-      if (intervals.m3 === 'Du') setEdo();
+      if (intervals.m3 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.m3 === 'Du') setIrrational(Math.pow(2, 0.25), 'Du');
       else if (intervals.m3 === 'Tri') setJi(32, 27, 'Tri');
       else if (intervals.m3 === 'Sep') setJi(7, 6, 'Sep');
       else setJi(6, 5, 'Qui');
       break;
     case 4:
-      if (intervals.M3 === 'Du') setEdo();
+      if (intervals.M3 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.M3 === 'DuTri') setIrrational((3 * Math.pow(2, 0.75)) / 4, 'DuTri');
       else if (intervals.M3 === 'Tri') setJi(81, 64, 'Tri');
       else setJi(5, 4, 'Qui');
       break;
     case 5:
-      if (intervals.P4 === 'Du') setEdo();
+      if (intervals.P4 === '12TET') setIrrational(edoRatio, '12TET');
       else setJi(4, 3, 'Tri');
       break;
     case 6:
-      if (intervals.TT === 'Du') setEdo();
+      if (intervals.TT === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.TT === 'Du') setIrrational(Math.SQRT2, 'Du');
       else if (intervals.TT === 'Undec') setJi(11, 8, 'Undec');
       else if (intervals.TT === 'Sep') setJi(7, 5, 'Sep');
       else if (intervals.TT === 'Tri') setJi(729, 512, 'Tri');
       else setJi(45, 32, 'Qui');
       break;
     case 7:
-      if (intervals.P5 === 'Du') setEdo();
+      if (intervals.P5 === '12TET') setIrrational(edoRatio, '12TET');
       else setJi(3, 2, 'Tri');
       break;
     case 8:
-      if (intervals.m6 === 'Du') setEdo();
+      if (intervals.m6 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.m6 === 'DuTri') setIrrational((4 * Math.pow(2, 0.25)) / 3, 'DuTri');
       else if (intervals.m6 === 'Tri') setJi(128, 81, 'Tri');
       else setJi(8, 5, 'Qui');
       break;
     case 9:
-      if (intervals.M6 === 'Du') setEdo();
+      if (intervals.M6 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.M6 === 'Du') setIrrational(Math.pow(2, 0.75), 'Du');
       else if (intervals.M6 === 'Tri') setJi(27, 16, 'Tri');
       else setJi(5, 3, 'Qui');
       break;
     case 10:
-      if (intervals.m7 === 'Du') setEdo();
+      if (intervals.m7 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.m7 === 'DuTri') setIrrational((3 * Math.pow(2, 0.25)) / 2, 'DuTri');
       else if (intervals.m7 === 'Sep') setJi(7, 4, 'Sep');
       else setJi(16, 9, 'Tri');
       break;
     case 11:
-      if (intervals.M7 === 'Du') setEdo();
+      if (intervals.M7 === '12TET') setIrrational(edoRatio, '12TET');
+      else if (intervals.M7 === 'DuTri') setIrrational((4 * Math.SQRT2) / 3, 'DuTri');
       else if (intervals.M7 === 'Tri') setJi(243, 128, 'Tri');
       else setJi(15, 8, 'Qui');
       break;
@@ -303,21 +341,21 @@ export function getPolarityFromD(d: number): TplPolarity {
 }
 
 /**
- * Checks whether all intervals in a config are set to 12-TET ('Du').
+ * Checks whether all intervals in a config are set to 12-TET.
  */
 export function isAllEqualTemperament(intervals: MidiIntervalTuningConfig): boolean {
   return (
-    intervals.m2 === 'Du' &&
-    intervals.M2 === 'Du' &&
-    intervals.m3 === 'Du' &&
-    intervals.M3 === 'Du' &&
-    intervals.P4 === 'Du' &&
-    intervals.TT === 'Du' &&
-    intervals.P5 === 'Du' &&
-    intervals.m6 === 'Du' &&
-    intervals.M6 === 'Du' &&
-    intervals.m7 === 'Du' &&
-    intervals.M7 === 'Du'
+    intervals.m2 === '12TET' &&
+    intervals.M2 === '12TET' &&
+    intervals.m3 === '12TET' &&
+    intervals.M3 === '12TET' &&
+    intervals.P4 === '12TET' &&
+    intervals.TT === '12TET' &&
+    intervals.P5 === '12TET' &&
+    intervals.m6 === '12TET' &&
+    intervals.M6 === '12TET' &&
+    intervals.m7 === '12TET' &&
+    intervals.M7 === '12TET'
   );
 }
 

@@ -39,7 +39,7 @@ describe('midi-tuning', () => {
     expect(resolveSemitoneInterval(6, cfg7.intervals).rational).toEqual({ num: 7, den: 5 });
     expect(resolveSemitoneInterval(10, cfg7.intervals).rational).toEqual({ num: 7, den: 4 });
 
-    const cfgPpt = createDefaultMidiTuningConfig('11-limit');
+    const cfgPpt = createDefaultMidiTuningConfig('ppt-native');
     const tt = resolveSemitoneInterval(6, cfgPpt.intervals);
     expect(tt.rational).toBeNull();
     expect(tt.primeFamily).toBe('Du');
@@ -47,6 +47,26 @@ describe('midi-tuning', () => {
     const m7 = resolveSemitoneInterval(10, cfgPpt.intervals);
     expect(m7.rational).toEqual({ num: 7, den: 4 });
     expect(m7.primeFamily).toBe('Sep');
+  });
+
+  it('resolves Du-Fractal DuTri Closure intervals with ~102¢ / ~96¢ alternating steps', () => {
+    const cfgDuTri = createDefaultMidiTuningConfig('dutri');
+    // Dim7 Du anchors: Me (300c), Fi (600c), La (900c)
+    expect(resolveSemitoneInterval(3, cfgDuTri.intervals).primeFamily).toBe('Du');
+    expect(resolveSemitoneInterval(6, cfgDuTri.intervals).primeFamily).toBe('Du');
+    expect(resolveSemitoneInterval(9, cfgDuTri.intervals).primeFamily).toBe('Du');
+    // Tri base anchors: Fa (4/3), So (3/2)
+    expect(resolveSemitoneInterval(5, cfgDuTri.intervals).rational).toEqual({ num: 4, den: 3 });
+    expect(resolveSemitoneInterval(7, cfgDuTri.intervals).rational).toEqual({ num: 3, den: 2 });
+    // DuTri dressed nodes: Ra (101.955c => +2c from 12-TET), Re (198.045c => -2c), Ti (1098.045c => -2c)
+    const ra = resolveSemitoneInterval(1, cfgDuTri.intervals);
+    expect(ra.primeFamily).toBe('DuTri');
+    expect(ra.rational).toBeNull();
+    expect(ra.centsFromEdo).toBe(2);
+
+    const re = resolveSemitoneInterval(2, cfgDuTri.intervals);
+    expect(re.primeFamily).toBe('DuTri');
+    expect(re.centsFromEdo).toBe(-2);
   });
 
   it('maintains Rhythm Space polarity and maps G#4 (MIDI 68) to Do+4', () => {

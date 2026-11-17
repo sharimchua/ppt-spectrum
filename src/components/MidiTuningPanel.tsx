@@ -37,17 +37,17 @@ interface IntervalRowDef {
 }
 
 const INTERVAL_ROWS: IntervalRowDef[] = [
-  { key: 'm2', semitone: 1, solfege: 'Ra', label: 'Minor 2nd', options: ['Du', 'Tri', 'Qui'] },
-  { key: 'M2', semitone: 2, solfege: 'Re', label: 'Major 2nd', options: ['Du', 'Tri'] },
-  { key: 'm3', semitone: 3, solfege: 'Me', label: 'Minor 3rd', options: ['Du', 'Tri', 'Qui', 'Sep'] },
-  { key: 'M3', semitone: 4, solfege: 'Mi', label: 'Major 3rd', options: ['Du', 'Tri', 'Qui'] },
-  { key: 'P4', semitone: 5, solfege: 'Fa', label: 'Perfect 4th', options: ['Du', 'Tri'] },
-  { key: 'TT', semitone: 6, solfege: 'Fi', label: 'Tritone', options: ['Du', 'Tri', 'Qui', 'Sep', 'Undec'] },
-  { key: 'P5', semitone: 7, solfege: 'So', label: 'Perfect 5th', options: ['Du', 'Tri'] },
-  { key: 'm6', semitone: 8, solfege: 'Le', label: 'Minor 6th', options: ['Du', 'Tri', 'Qui'] },
-  { key: 'M6', semitone: 9, solfege: 'La', label: 'Major 6th', options: ['Du', 'Tri', 'Qui'] },
-  { key: 'm7', semitone: 10, solfege: 'Te', label: 'Minor 7th', options: ['Du', 'Tri', 'Sep'] },
-  { key: 'M7', semitone: 11, solfege: 'Ti', label: 'Major 7th', options: ['Du', 'Tri', 'Qui'] },
+  { key: 'm2', semitone: 1, solfege: 'Ra', label: 'Minor 2nd', options: ['12TET', 'DuTri', 'Tri', 'Qui'] },
+  { key: 'M2', semitone: 2, solfege: 'Re', label: 'Major 2nd', options: ['12TET', 'DuTri', 'Tri'] },
+  { key: 'm3', semitone: 3, solfege: 'Me', label: 'Minor 3rd', options: ['12TET', 'Du', 'Tri', 'Qui', 'Sep'] },
+  { key: 'M3', semitone: 4, solfege: 'Mi', label: 'Major 3rd', options: ['12TET', 'DuTri', 'Tri', 'Qui'] },
+  { key: 'P4', semitone: 5, solfege: 'Fa', label: 'Perfect 4th', options: ['12TET', 'Tri'] },
+  { key: 'TT', semitone: 6, solfege: 'Fi', label: 'Tritone', options: ['12TET', 'Du', 'Tri', 'Qui', 'Sep', 'Undec'] },
+  { key: 'P5', semitone: 7, solfege: 'So', label: 'Perfect 5th', options: ['12TET', 'Tri'] },
+  { key: 'm6', semitone: 8, solfege: 'Le', label: 'Minor 6th', options: ['12TET', 'DuTri', 'Tri', 'Qui'] },
+  { key: 'M6', semitone: 9, solfege: 'La', label: 'Major 6th', options: ['12TET', 'Du', 'Tri', 'Qui'] },
+  { key: 'm7', semitone: 10, solfege: 'Te', label: 'Minor 7th', options: ['12TET', 'DuTri', 'Tri', 'Sep'] },
+  { key: 'M7', semitone: 11, solfege: 'Ti', label: 'Major 7th', options: ['12TET', 'DuTri', 'Tri', 'Qui'] },
 ];
 
 const ROOT_OPTIONS: Array<{ midi: number; label: string }> = [
@@ -58,7 +58,9 @@ const ROOT_OPTIONS: Array<{ midi: number; label: string }> = [
 ];
 
 const FAMILY_BADGE_STYLES: Record<PrimeFamilyLabel, string> = {
+  '12TET': 'bg-slate-800 text-slate-200 border-slate-600',
   Du: 'bg-sky-950/70 text-sky-300 border-sky-700/60',
+  DuTri: 'bg-teal-950/70 text-teal-300 border-teal-700/60',
   Tri: 'bg-emerald-950/70 text-emerald-300 border-emerald-700/60',
   Qui: 'bg-amber-950/70 text-amber-300 border-amber-700/60',
   Sep: 'bg-purple-950/70 text-purple-300 border-purple-700/60',
@@ -136,7 +138,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-3 font-mono text-[11px] text-slate-300">
-                  <span>{m.rational ? `${m.rational.num}:${m.rational.den}` : '12-TET'}</span>
+                  <span>{m.rational ? `${m.rational.num}:${m.rational.den}` : m.primeFamily}</span>
                   <span>
                     {m.polarity === 'rhythm'
                       ? `${m.bpm.toFixed(2)} BPM`
@@ -299,7 +301,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
                   <span className="font-mono font-semibold text-slate-200 w-6">{row.solfege}</span>
                   <span className="text-slate-400 truncate">{row.label}</span>
                   <span className="font-mono text-[11px] text-slate-300">
-                    {res.rational ? `${res.rational.num}:${res.rational.den}` : '12-TET'}
+                    {res.rational ? `${res.rational.num}:${res.rational.den}` : res.primeFamily}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
