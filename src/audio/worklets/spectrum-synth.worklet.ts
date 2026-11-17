@@ -411,6 +411,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
 
     const sendTelemetry = (this.telemetryCounter + 1) >= 12;
     const phaseTelemetry = this.phaseTelemetry;
+    const midiTelemetry = {};
     if (sendTelemetry) {
       for (const k in phaseTelemetry) {
         delete phaseTelemetry[k];
@@ -1057,6 +1058,12 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           mv.masterPhase = mvPhase;
           if (finished) {
             this.midiVoices.delete(midiNote);
+          } else if (sendTelemetry) {
+            midiTelemetry[midiNote] = {
+              masterPhase: mvPhase,
+              f0,
+              targetD: mv.targetD,
+            };
           }
         }
       }
@@ -1077,6 +1084,7 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
         type: 'AUDIO_SYNC',
         payload: {
           phases: phaseTelemetry,
+          midiPhases: midiTelemetry,
           currentTime: currentTime,
         }
       });

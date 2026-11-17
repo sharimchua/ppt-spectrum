@@ -203,6 +203,7 @@ export function buildAudioPayloadShapes(scene: Scene): WorkletShapePayload[] {
 
 export interface AudioTelemetryData {
   phases: Record<string, { masterPhase: number; f0: number; smoothedD: number; noteAge?: number; isAuditioning?: boolean }>;
+  midiPhases?: Record<number, { masterPhase: number; f0: number; targetD: number }>;
   currentTime: number;
 }
 
@@ -238,6 +239,7 @@ export class AudioEngine {
   private isAuditioningLocal: boolean = false;
   private playStartTime: number = 0;
   private activeMidiNotes: Set<number> = new Set();
+  private primaryMidiNote: number | null = null;
   private lastMidiNoteOnTime: number = 0;
   private midiAuditionUntil: number = 0;
 
@@ -596,6 +598,7 @@ export class AudioEngine {
     }
     this.isMutedForFocus = false;
     this.activeMidiNotes.add(midiNote);
+    this.primaryMidiNote = midiNote;
     this.lastMidiNoteOnTime = performance.now();
     this.midiAuditionUntil = 0;
     this.isKeyDownLocal = true;
@@ -637,6 +640,10 @@ export class AudioEngine {
    */
   public midiNoteOff(midiNote: number): void {
     this.activeMidiNotes.delete(midiNote);
+    if (this.primaryMidiNote === midiNote) {
+      const remaining = Array.from(this.activeMidiNotes);
+      this.primaryMidiNote = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+    }
     if (this.activeMidiNotes.size === 0) {
       this.isKeyDownLocal = false;
       const envEnabled = this.scene.envelope ? this.scene.envelope.enabled : true;
@@ -655,6 +662,7 @@ export class AudioEngine {
    */
   public releaseAllMidiNotes(): void {
     this.activeMidiNotes.clear();
+    this.primaryMidiNote = null;
     this.isKeyDownLocal = false;
     this.midiAuditionUntil = 0;
     this.isAuditioningLocal = false;
@@ -801,6 +809,19 @@ export class AudioEngine {
     const isAuditioning = Boolean(shapeData?.isAuditioning || this.isAuditioningLocal);
     if (!this.isUnlocked || (!this.isPlaying && !isAuditioning) || this.isMutedForFocus || this.scene.audio.masterGain <= 0.0001) {
       return 0.0;
+    }
+    if (!this.isPlaying && this.activeMidiNotes.size > 0) {
+      const midiKey = this.primaryMidiNote ?? Array.from(this.activeMidiNotes)[this.activeMidiNotes.size - 1];
+      const midiData = midiKey !== undefined ? this.latestTelemetry?.midiPhases?.[midiKey] : undefined;
+      if (midiData) {
+        const dt = (performance.now() - this.latestTelemetryTime) / 1000.0;
+        return midiData.masterPhase + midiData.f0 * dt;
+      }
+      const pl = this.scene.placements.find((p) => p.shapeId === shapeId) || this.scene.placements[0];
+      const d = pl ? pl.d : 0;
+      const f0 = this.scene.anchors.tplFrequencyHz * Math.pow(2, -d);
+      const elapsedSec = Math.max(0, (performance.now() - this.lastMidiNoteOnTime) / 1000.0);
+      return elapsedSec * f0;
     }
     if (!shapeData) {
       // Smooth local fallback phase before first telemetry tick or when running without worklet telemetry

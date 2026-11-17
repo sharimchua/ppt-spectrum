@@ -31,6 +31,7 @@ describe('Audio Synthesiser Worklet Source', () => {
   it('routes polyphonic midiVoices through the limen-crossing kernel for Rhythm Space polyrhythms', () => {
     expect(SPECTRUM_WORKLET_CODE).toContain("const voiceKey = 'midi_' + midiNote + '_' + pIdx;");
     expect(SPECTRUM_WORKLET_CODE).toContain('const sig = (toneSample + eventSample) * mv.velocity');
+    expect(SPECTRUM_WORKLET_CODE).toContain('midiPhases: midiTelemetry');
   });
 });
 
