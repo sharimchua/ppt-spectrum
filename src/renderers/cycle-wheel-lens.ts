@@ -255,11 +255,12 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
             }
           } else {
             const envGain = evaluateRhythmEnvelopeGain(scene.envelope, onsetSceneTurns, p.ratioValue);
-            const effectiveAmp = p.amp * onsetGain * envGain;
-            const shouldFlash = isStrike && !isHighFreq && envGain > 0.05;
+            const dotEnvScale = 0.55 + 0.45 * envGain;
+            const effectiveAmp = p.amp * onsetGain * dotEnvScale;
+            const shouldFlash = isStrike && !isHighFreq && envGain > 0.02;
             const dotRadius = (2.4 + effectiveAmp * 3.6) * densityScale * (shouldFlash ? 1.65 : 1.0);
 
-            ctx.globalAlpha = 0.22 + 0.78 * envGain;
+            ctx.globalAlpha = 0.55 + 0.45 * envGain;
             ctx.fillStyle = shouldFlash ? '#ffffff' : neonCol;
             ctx.beginPath();
             ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
@@ -314,11 +315,12 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
           ctx.stroke();
         } else {
           const envGain = evaluateRhythmEnvelopeGain(scene.envelope, unwrappedRootTurns, p.ratioValue);
-          const effectiveAmp = p.amp * onsetGain * envGain;
-          const shouldFlash = isStrike && !isHighFreq && envGain > 0.05;
+          const dotEnvScale = 0.55 + 0.45 * envGain;
+          const effectiveAmp = p.amp * onsetGain * dotEnvScale;
+          const shouldFlash = isStrike && !isHighFreq && envGain > 0.02;
           const dotRadius = (2.8 + effectiveAmp * 3.7) * (shouldFlash ? 1.6 : 1.0);
 
-          ctx.globalAlpha = 0.22 + 0.78 * envGain;
+          ctx.globalAlpha = 0.55 + 0.45 * envGain;
           ctx.beginPath();
           ctx.moveTo(centerX, centerY);
           ctx.lineTo(px, py);
