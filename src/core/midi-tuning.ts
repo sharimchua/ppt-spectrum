@@ -4,7 +4,7 @@
  * both Pitch Space (d < 0) and Rhythm Space (d >= 0), preserving TPL polarity.
  */
 
-import { TPL_FREQUENCY_HZ } from './ppt-constants';
+import { SOLFEGE_SYLLABLES, TPL_FREQUENCY_HZ } from './ppt-constants';
 import {
   DuPeriodAddress,
   dToBpm,
@@ -329,7 +329,7 @@ export function applyTuningPreset(
     presetId,
     intervals: { ...preset.intervals },
     systemMode: preset.systemMode ?? 'chromatic-12',
-    systemSpec: preset.systemSpec,
+    systemSpec: preset.systemSpec ?? buildExplicitSpecFromIntervals(preset.intervals),
     subsetId: preset.subsetId ?? 'all',
     projectionMode: preset.projectionMode ?? 'nearest-12',
     pythagoreanChainLength: preset.pythagoreanChainLength ?? prev.pythagoreanChainLength ?? 5,
@@ -351,12 +351,41 @@ export function createDefaultMidiTuningConfig(
     pitchRootMidi: DEFAULT_PITCH_ROOT_MIDI,
     rhythmPhaseMode: 'sam-aligned',
     systemMode: preset.systemMode ?? 'chromatic-12',
-    systemSpec: preset.systemSpec,
+    systemSpec: preset.systemSpec ?? buildExplicitSpecFromIntervals(preset.intervals),
     subsetId: preset.subsetId ?? 'all',
     projectionMode: preset.projectionMode ?? 'nearest-12',
     pythagoreanChainLength: preset.pythagoreanChainLength ?? 5,
     edo31Subset: preset.edo31Subset ?? 'meantone-7',
     midiStepMap: '12-key',
+  };
+}
+
+/**
+ * Builds a 12-degree explicit TuningSystemSpec from a Prime Family interval matrix
+ * so Scale Strip, TuningSystemExplorer, and Auto-Play reflect the exact tuned ratios & cents.
+ */
+export function buildExplicitSpecFromIntervals(
+  intervals: MidiIntervalTuningConfig
+): TuningSystemSpec {
+  if (isAllEqualTemperament(intervals)) {
+    return { kind: 'edo', divisions: 12, periodRatio: 2.0 };
+  }
+  const degrees = Array.from({ length: 12 }, (_, s) => {
+    const res = resolveSemitoneInterval(s, intervals);
+    const cents = Math.round(Math.log2(res.ratioValue) * 1200);
+    return {
+      label: SOLFEGE_SYLLABLES[s] ?? `${s}`,
+      subLabel: res.rational ? `${res.rational.num}:${res.rational.den}` : `${cents}¢`,
+      ratioValue: res.ratioValue,
+      rational: res.rational,
+      primeFamily: res.primeFamily,
+    };
+  });
+  return {
+    kind: 'explicit',
+    id: '12-explicit',
+    periodRatio: 2.0,
+    degrees,
   };
 }
 

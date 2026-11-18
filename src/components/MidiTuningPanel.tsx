@@ -14,6 +14,7 @@ import {
   PrimeFamilyLabel,
   ROOT_KEY_ANCHORS,
   applyTuningPreset,
+  buildExplicitSpecFromIntervals,
   resolveRootAnchorD,
   resolveRootFrequencyHz,
   resolveSemitoneInterval,
@@ -103,16 +104,20 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   };
 
   const handleIntervalChange = (key: keyof MidiIntervalTuningConfig, family: PrimeFamilyLabel) => {
-    onChangeTuning((prev) => ({
-      ...prev,
-      presetId: 'custom',
-      systemMode: 'chromatic-12',
-      activeDegreeMask: undefined,
-      intervals: {
+    onChangeTuning((prev) => {
+      const nextIntervals = {
         ...prev.intervals,
         [key]: family,
-      },
-    }));
+      };
+      return {
+        ...prev,
+        presetId: 'custom',
+        systemMode: 'chromatic-12',
+        systemSpec: buildExplicitSpecFromIntervals(nextIntervals),
+        activeDegreeMask: undefined,
+        intervals: nextIntervals,
+      };
+    });
   };
 
   return (

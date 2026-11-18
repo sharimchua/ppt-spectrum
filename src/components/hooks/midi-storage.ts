@@ -7,6 +7,7 @@ import {
   MidiTuningConfig,
   MidiTuningPresetId,
   applyTuningPreset,
+  buildExplicitSpecFromIntervals,
   createDefaultMidiTuningConfig,
 } from '../../core/midi-tuning';
 import { TuningSubsetId } from '../../core/tuning-systems';
@@ -53,6 +54,9 @@ export function loadMidiTuningConfig(): MidiTuningConfig {
     if (legacy) {
       const migrated = applyTuningPreset(merged, legacy.presetId);
       return legacy.subsetId ? { ...migrated, subsetId: legacy.subsetId } : migrated;
+    }
+    if (!merged.systemSpec || (merged.systemMode === 'chromatic-12' && merged.systemSpec.kind === 'edo' && merged.systemSpec.divisions === 12)) {
+      merged.systemSpec = buildExplicitSpecFromIntervals(merged.intervals);
     }
     return merged;
   } catch {

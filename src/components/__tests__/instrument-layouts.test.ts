@@ -19,6 +19,11 @@ describe('Alternate Instrument Surfaces', () => {
     // Shifting base frequency shifts the Scale Strip tonic
     const padsAtNeg2 = buildScaleStripPads(cfg, -2.0, 440, 25.8);
     expect(padsAtNeg2[0].d).toBeCloseTo(-2.0, 4);
+
+    // 5-limit Scale Strip uses true 5-limit ratios (5:4 = 386¢), not 12-TET 400¢
+    const just5 = buildScaleStripPads(createDefaultMidiTuningConfig('5-limit'), -3.0, 440, 25.8);
+    expect(just5[4].subLabel).toBe('5:4');
+    expect(just5[4].d).toBeCloseTo(-3.0 - Math.log2(5 / 4), 5);
   });
 
   it('builds 2D Isomorphic Grid with 31-EDO and Wicki-Hayden support', () => {
