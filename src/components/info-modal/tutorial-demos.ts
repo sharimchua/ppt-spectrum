@@ -6,6 +6,7 @@
 
 import { Filter, PitchCarrierMode, RhythmContainerMode } from '../../core/types';
 import { MidiPhaseMode, MidiTuningPresetId } from '../../core/midi-tuning';
+import { TuningSubsetId } from '../../core/tuning-systems';
 import { PRIME_SWEEP_DEMOS } from './prime-sweep-demos';
 import { TIMBRE_SWEEP_DEMOS } from './timbre-sweep-demos';
 import { COUPLING_DEMOS } from './coupling-demos';
@@ -43,6 +44,7 @@ export type TutorialDemoId =
 
 export interface KeyboardDemoConfig {
   tuningPresetId: Exclude<MidiTuningPresetId, 'custom'>;
+  subsetId?: TuningSubsetId;
   latchedMidiNotes: number[];
   showIntervals?: boolean;
   rhythmPhaseMode?: MidiPhaseMode;
@@ -98,6 +100,7 @@ export interface SpotlightVoiceConfig {
 
 export interface TuningCompareConfig {
   altPresetId: Exclude<MidiTuningPresetId, 'custom'>;
+  altSubsetId?: TuningSubsetId;
   label: string;
   altLabel: string;
   altNarration: string;

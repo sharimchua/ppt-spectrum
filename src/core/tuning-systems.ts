@@ -23,7 +23,11 @@ export type ProjectionMode = 'nearest-12' | 'step-system' | 'step-subset';
 export type TuningSubsetId =
   | 'all'
   | 'pentatonic'
+  | 'blues'
+  | 'whole-tone'
   | 'heptatonic'
+  | 'octatonic'
+  | 'nonatonic'
   | 'meantone'
   | 'septimal'
   | 'rast'
@@ -155,7 +159,11 @@ export function buildPythagoreanChainDegrees(
 const EDO_SUBSET_STEPS: Record<number, Partial<Record<TuningSubsetId, number[]>>> = {
   12: {
     pentatonic: [0, 2, 4, 7, 9],
+    blues: [0, 3, 5, 6, 7, 10],
+    'whole-tone': [0, 2, 4, 6, 8, 10],
     heptatonic: [0, 2, 4, 5, 7, 9, 11],
+    octatonic: [0, 2, 3, 5, 6, 8, 9, 11],
+    nonatonic: [0, 2, 3, 4, 5, 7, 9, 10, 11],
   },
   24: {
     pentatonic: [0, 4, 7, 14, 18],
@@ -275,7 +283,11 @@ const EXPLICIT_SUBSET_INDICES: Record<string, Partial<Record<TuningSubsetId, num
   },
   '12-explicit': {
     pentatonic: [0, 2, 4, 7, 9],
+    blues: [0, 3, 5, 6, 7, 10],
+    'whole-tone': [0, 2, 4, 6, 8, 10],
     heptatonic: [0, 2, 4, 5, 7, 9, 11],
+    octatonic: [0, 2, 3, 5, 6, 8, 9, 11],
+    nonatonic: [0, 2, 3, 4, 5, 7, 9, 10, 11],
   },
 };
 
@@ -324,6 +336,17 @@ export function getAvailableSubsetsForSystem(
         { id: 'heptatonic', label: 'Lambda (9)' },
       ];
     }
+    if (spec.divisions === 12) {
+      return [
+        { id: 'all', label: 'All 12' },
+        { id: 'pentatonic', label: 'Pentatonic (5)' },
+        { id: 'blues', label: 'Blues (6)' },
+        { id: 'whole-tone', label: 'Whole-Tone (6)' },
+        { id: 'heptatonic', label: 'Diatonic (7)' },
+        { id: 'octatonic', label: 'Octatonic (8)' },
+        { id: 'nonatonic', label: 'Nonatonic (9)' },
+      ];
+    }
     return [
       { id: 'all', label: `All ${spec.divisions}` },
       { id: 'heptatonic', label: 'Diatonic (7)' },
@@ -340,8 +363,12 @@ export function getAvailableSubsetsForSystem(
   if (spec.degrees.length === 12) {
     return [
       { id: 'all', label: 'All 12' },
-      { id: 'heptatonic', label: 'Diatonic (7)' },
       { id: 'pentatonic', label: 'Pentatonic (5)' },
+      { id: 'blues', label: 'Blues (6)' },
+      { id: 'whole-tone', label: 'Whole-Tone (6)' },
+      { id: 'heptatonic', label: 'Diatonic (7)' },
+      { id: 'octatonic', label: 'Octatonic (8)' },
+      { id: 'nonatonic', label: 'Nonatonic (9)' },
     ];
   }
   return [{ id: 'all', label: `All ${spec.degrees.length}` }];

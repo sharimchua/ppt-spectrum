@@ -8,7 +8,7 @@ import {
 
 describe('Alternate Instrument Surfaces', () => {
   it('builds Scale-Degree Strip pads relative to currentFundamentalD', () => {
-    const cfg = createDefaultMidiTuningConfig('pythagorean-pentatonic');
+    const cfg = { ...createDefaultMidiTuningConfig('pythagorean'), subsetId: 'pentatonic' as const };
     const padsAtNeg3 = buildScaleStripPads(cfg, -3.0, 440, 25.8);
     expect(padsAtNeg3.length).toBe(24);
     expect(padsAtNeg3.filter((p) => p.inScale).length).toBe(10);
@@ -21,7 +21,7 @@ describe('Alternate Instrument Surfaces', () => {
   });
 
   it('builds 2D Isomorphic Grid with 31-EDO and Wicki-Hayden support', () => {
-    const cfg = createDefaultMidiTuningConfig('31edo-meantone');
+    const cfg = { ...createDefaultMidiTuningConfig('31edo'), subsetId: 'meantone' as const };
     const grid = buildIsomorphicGrid(
       { tileShape: 'hex', layoutPreset: 'harmonic', rows: 4, cols: 8 },
       cfg, -3.0, 440, 25.8
@@ -32,7 +32,7 @@ describe('Alternate Instrument Surfaces', () => {
   });
 
   it('builds configurable Guitar / Bass / Ukulele Fretboard', () => {
-    const cfg = createDefaultMidiTuningConfig('pythagorean-pentatonic');
+    const cfg = { ...createDefaultMidiTuningConfig('pythagorean'), subsetId: 'pentatonic' as const };
     const strings6 = buildGuitarFretboard({ presetId: '6-std', fretCount: 12 }, cfg, -3.0, 440, 25.8);
     expect(strings6.length).toBe(6);
     expect(strings6[0].frets.length).toBe(13);

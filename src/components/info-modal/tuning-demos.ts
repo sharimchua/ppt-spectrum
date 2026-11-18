@@ -20,12 +20,14 @@ export const TUNING_SYSTEM_DEMOS: TutorialDemoConfig[] = [
     mobileLayoutId: 'solo-cycle',
     requiresKeyboard: true,
     keyboardConfig: {
-      tuningPresetId: 'pythagorean-pentatonic',
+      tuningPresetId: 'pythagorean',
+      subsetId: 'pentatonic',
       latchedMidiNotes: [68, 72, 75],
       showIntervals: true,
     },
     tuningCompare: {
-      altPresetId: 'pythagorean-heptatonic',
+      altPresetId: 'pythagorean',
+      altSubsetId: 'heptatonic',
       label: 'Open to Heptatonic (7× 3:2)',
       altLabel: 'Back to Pentatonic (5× 3:2)',
       altNarration:
@@ -52,7 +54,8 @@ export const TUNING_SYSTEM_DEMOS: TutorialDemoConfig[] = [
     mobileLayoutId: 'solo-cycle',
     requiresKeyboard: true,
     keyboardConfig: {
-      tuningPresetId: 'pythagorean-heptatonic',
+      tuningPresetId: 'pythagorean',
+      subsetId: 'heptatonic',
       latchedMidiNotes: [68, 74, 79],
       showIntervals: true,
     },
@@ -76,7 +79,8 @@ export const TUNING_SYSTEM_DEMOS: TutorialDemoConfig[] = [
     mobileLayoutId: 'solo-cycle',
     requiresKeyboard: true,
     keyboardConfig: {
-      tuningPresetId: '31edo-meantone',
+      tuningPresetId: '31edo',
+      subsetId: 'meantone',
       latchedMidiNotes: [68, 72, 75],
       showIntervals: true,
     },
@@ -107,7 +111,8 @@ export const TUNING_SYSTEM_DEMOS: TutorialDemoConfig[] = [
     mobileLayoutId: 'solo-cycle',
     requiresKeyboard: true,
     keyboardConfig: {
-      tuningPresetId: '31edo-septimal',
+      tuningPresetId: '31edo',
+      subsetId: 'septimal',
       latchedMidiNotes: [68, 72, 75, 78],
       showIntervals: true,
     },

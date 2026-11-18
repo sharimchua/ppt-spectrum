@@ -177,7 +177,11 @@ export function useDemoSpotlight({
     setIsAltTuning((prev) => {
       const nextAlt = !prev;
       const targetPreset = nextAlt ? cfg.altPresetId : basePreset;
+      const targetSubset = nextAlt ? cfg.altSubsetId : activeDemo.keyboardConfig?.subsetId;
       const nextTuning = createDefaultMidiTuningConfig(targetPreset);
+      if (targetSubset) {
+        nextTuning.subsetId = targetSubset;
+      }
       if (activeDemo.keyboardConfig?.rhythmPhaseMode) {
         nextTuning.rhythmPhaseMode = activeDemo.keyboardConfig.rhythmPhaseMode;
       }

@@ -224,10 +224,11 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         </div>
       </div>
 
-      {/* Layer 1 & 2: Generalized System + Subset Explorer OR 12-Tone Interval Matrix */}
-      {midiTuning.systemMode && midiTuning.systemMode !== 'chromatic-12' ? (
-        <TuningSystemExplorer midiTuning={midiTuning} onChangeTuning={onChangeTuning} />
-      ) : (
+      {/* Layer 2 & Projection: Generalized System + Tuning Subset Explorer (always shown) */}
+      <TuningSystemExplorer midiTuning={midiTuning} onChangeTuning={onChangeTuning} />
+
+      {/* Optional 12-Tone Harmonic Profiler Interval Matrix */}
+      {(!midiTuning.systemMode || midiTuning.systemMode === 'chromatic-12') && (
         <div className="space-y-1.5">
           <span className="text-xs font-semibold text-slate-200">
             Harmonic Profiler Interval Matrix

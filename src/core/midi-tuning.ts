@@ -63,13 +63,9 @@ export type MidiTuningPresetId =
   | '5-limit'
   | 'pythagorean'
   | '7-limit'
-  | 'pythagorean-pentatonic'
-  | 'pythagorean-heptatonic'
-  | '31edo-meantone'
-  | '31edo-septimal'
-  | '31edo-chromatic'
-  | '24edo-maqam-rast'
-  | '53edo-pythagorean'
+  | '31edo'
+  | '24edo'
+  | '53edo'
   | 'gamelan-pelog'
   | 'gamelan-slendro'
   | 'bohlen-pierce'
@@ -218,20 +214,14 @@ export const MIDI_TUNING_PRESETS: Record<
     },
   },
   pythagorean: {
-    label: 'Pythagorean (Tri)',
-    description: 'Pure 3-limit fifths and fourths across all chromatic degrees.',
+    label: 'Pythagorean 3:2 Chain',
+    description: '12 stacked 3:2 fifths reduced mod 2:1. Sieve to 5 steps for Pentatonic or 7 for Heptatonic.',
+    systemMode: 'pythagorean-chain',
+    systemSpec: { kind: 'ratio-chain', generatorNum: 3, generatorDen: 2, chainLength: 12, periodRatio: 2.0 },
+    subsetId: 'all',
     intervals: {
-      m2: 'Tri',
-      M2: 'Tri',
-      m3: 'Tri',
-      M3: 'Tri',
-      P4: 'Tri',
-      TT: 'Tri',
-      P5: 'Tri',
-      m6: 'Tri',
-      M6: 'Tri',
-      m7: 'Tri',
-      M7: 'Tri',
+      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
+      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
     },
   },
   '7-limit': {
@@ -251,85 +241,36 @@ export const MIDI_TUNING_PRESETS: Record<
       M7: 'Qui',
     },
   },
-  'pythagorean-pentatonic': {
-    label: 'Pythagorean Pentatonic (5× 3:2)',
-    description: '12-step 3:2 chain sieved to its first 5 fifths (1/1, 9/8, 81/64, 3/2, 27/16) — avoiding minor 2nds and tritones.',
-    systemMode: 'pythagorean-chain',
-    systemSpec: { kind: 'ratio-chain', generatorNum: 3, generatorDen: 2, chainLength: 12, periodRatio: 2.0 },
-    subsetId: 'pentatonic',
-    pythagoreanChainLength: 5,
-    intervals: {
-      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
-      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
-    },
-  },
-  'pythagorean-heptatonic': {
-    label: 'Pythagorean Heptatonic (7× 3:2)',
-    description: '12-step 3:2 chain sieved to 7 fifths, introducing the 729/512 tritone and two 90.2¢ minor 2nds.',
-    systemMode: 'pythagorean-chain',
-    systemSpec: { kind: 'ratio-chain', generatorNum: 3, generatorDen: 2, chainLength: 12, periodRatio: 2.0 },
-    subsetId: 'heptatonic',
-    pythagoreanChainLength: 7,
-    intervals: {
-      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
-      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
-    },
-  },
-  '31edo-meantone': {
-    label: '31-EDO Meantone Diatonic',
-    description: '31-EDO lattice sieved to a 7-note quarter-comma meantone diatonic scale with near-pure 5/4 thirds (387.1¢).',
+  '31edo': {
+    label: '31-EDO',
+    description: '31 equal divisions of the octave (38.7¢ per step), capturing 5/4 (10\\31) and 7/4 (25\\31).',
     systemMode: '31edo',
     systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
-    subsetId: 'meantone',
-    edo31Subset: 'meantone-7',
+    subsetId: 'all',
+    projectionMode: 'nearest-12',
     intervals: {
       m2: 'Qui', M2: 'Tri', m3: 'Qui', M3: 'Qui', P4: 'Tri', TT: 'Qui',
       P5: 'Tri', m6: 'Qui', M6: 'Qui', m7: 'Tri', M7: 'Qui',
     },
   },
-  '31edo-septimal': {
-    label: '31-EDO Septimal (7-Limit)',
-    description: '31-EDO lattice sieved to 7-limit intervals: ~7/6 (7\\31), ~5/4 (10\\31), ~3/2 (18\\31), ~7/4 (25\\31).',
-    systemMode: '31edo',
-    systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
-    subsetId: 'septimal',
-    edo31Subset: 'septimal',
-    intervals: {
-      m2: 'Qui', M2: 'Tri', m3: 'Sep', M3: 'Qui', P4: 'Tri', TT: 'Sep',
-      P5: 'Tri', m6: 'Qui', M6: 'Qui', m7: 'Sep', M7: 'Qui',
-    },
-  },
-  '31edo-chromatic': {
-    label: '31-EDO Chromatic (31 Steps)',
-    description: 'All 31 equal divisions of the octave (38.7¢ per step) for microtonal exploration.',
-    systemMode: '31edo',
-    systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
-    subsetId: 'all',
-    projectionMode: 'step-system',
-    edo31Subset: 'chromatic',
-    intervals: {
-      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
-      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
-    },
-  },
-  '24edo-maqam-rast': {
-    label: '24-EDO Maqam Rast',
-    description: 'Quarter-tone 24-EDO Arabic lattice sieved to Maqam Rast with neutral 3rds (350¢) and 7ths (1050¢).',
+  '24edo': {
+    label: '24-EDO (Quarter-Tone)',
+    description: '24 equal divisions of the octave (50¢ steps) for Arabic Maqam and neutral intervals.',
     systemMode: 'custom-system',
     systemSpec: { kind: 'edo', divisions: 24, periodRatio: 2.0 },
-    subsetId: 'rast',
-    projectionMode: 'step-subset',
+    subsetId: 'all',
+    projectionMode: 'nearest-12',
     intervals: {
       m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
       P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
     },
   },
-  '53edo-pythagorean': {
-    label: '53-EDO (Holderian Comma)',
+  '53edo': {
+    label: '53-EDO (Holderian)',
     description: '53 equal steps per octave (22.6¢ per comma) with near-exact 3:2 fifths and 5:4 thirds.',
     systemMode: 'custom-system',
     systemSpec: { kind: 'edo', divisions: 53, periodRatio: 2.0 },
-    subsetId: 'heptatonic',
+    subsetId: 'all',
     projectionMode: 'nearest-12',
     intervals: {
       m2: 'Tri', M2: 'Tri', m3: 'Qui', M3: 'Qui', P4: 'Tri', TT: 'Qui',
@@ -338,11 +279,11 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   'gamelan-pelog': {
     label: 'Gamelan Pélog (7-Tone)',
-    description: 'Unequal 7-tone Javanese Pélog lattice with 5-tone Pathet Nem subset.',
+    description: 'Unequal 7-tone Javanese Pélog lattice. Sieve to Pathet Nem or Pathet Barang in Subset.',
     systemMode: 'custom-system',
     systemSpec: { kind: 'explicit', id: 'pelog', degrees: PELOG_DEGREES, periodRatio: 2.0 },
-    subsetId: 'pathet-nem',
-    projectionMode: 'step-subset',
+    subsetId: 'all',
+    projectionMode: 'step-system',
     intervals: {
       m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
       P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
@@ -362,11 +303,11 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   'bohlen-pierce': {
     label: 'Bohlen-Pierce (13-Step Tritave)',
-    description: 'Non-octave 3:1 Tritave divided into 13 equal steps (~146.3¢ per step), sieved to the 9-note Lambda scale.',
+    description: 'Non-octave 3:1 Tritave divided into 13 equal steps (~146.3¢ per step).',
     systemMode: 'custom-system',
     systemSpec: { kind: 'edo', divisions: 13, periodRatio: 3.0 },
-    subsetId: 'heptatonic',
-    projectionMode: 'step-subset',
+    subsetId: 'all',
+    projectionMode: 'step-system',
     intervals: {
       m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
       P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',

@@ -44,7 +44,7 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
   });
 
   it('resolves TuningDegrees and preserves TPL polarity in tuningDegreeToMapping', () => {
-    const cfg = createDefaultMidiTuningConfig('pythagorean-pentatonic');
+    const cfg = { ...createDefaultMidiTuningConfig('pythagorean'), subsetId: 'pentatonic' as const };
     const degrees = resolveTuningDegrees(cfg);
     const active = degrees.filter((d) => d.active);
     expect(active.length).toBe(5);
@@ -58,21 +58,30 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(rhythmMap.d).toBeGreaterThan(0);
   });
 
-  it('supports 31-EDO step-per-key hardware MIDI mapping', () => {
-    const cfg = { ...createDefaultMidiTuningConfig('31edo-chromatic'), midiStepMap: '31edo' as const };
+  it('supports 31-EDO step-per-key hardware MIDI mapping and 12-tone rich subsets (Blues, Nonatonic)', () => {
+    const cfg = { ...createDefaultMidiTuningConfig('31edo'), projectionMode: 'step-system' as const };
     const root = midiToDWithTuning(68, cfg, -3.0);
     const octaveUp = midiToDWithTuning(68 + 31, cfg, -3.0);
     expect(root.d - octaveUp.d).toBeCloseTo(1.0, 5);
+
+    const blues = resolveTuningDegrees({ ...createDefaultMidiTuningConfig('12tet'), subsetId: 'blues' });
+    expect(blues.filter((d) => d.active).length).toBe(6);
+
+    const nonatonic = resolveTuningDegrees({ ...createDefaultMidiTuningConfig('12tet'), subsetId: 'nonatonic' });
+    expect(nonatonic.filter((d) => d.active).length).toBe(9);
   });
 
-  it('supports world tunings (24-EDO Maqam, Pelog, Slendro, Bohlen-Pierce Tritave) and Nearest-12 projection', () => {
-    const rast = resolveTuningDegrees(createDefaultMidiTuningConfig('24edo-maqam-rast'));
+  it('supports world tunings (24-EDO Maqam, Pelog all-7 + Pathet subset, Slendro, Bohlen-Pierce Tritave) and Nearest-12 projection', () => {
+    const rast = resolveTuningDegrees({ ...createDefaultMidiTuningConfig('24edo'), subsetId: 'rast' });
     expect(rast.length).toBe(24);
     expect(rast.filter((d) => d.active).length).toBe(7);
 
-    const pelog = resolveTuningDegrees(createDefaultMidiTuningConfig('gamelan-pelog'));
-    expect(pelog.length).toBe(7);
-    expect(pelog.filter((d) => d.active).length).toBe(5);
+    const pelogAll = resolveTuningDegrees(createDefaultMidiTuningConfig('gamelan-pelog'));
+    expect(pelogAll.length).toBe(7);
+    expect(pelogAll.filter((d) => d.active).length).toBe(7);
+
+    const pelogNem = resolveTuningDegrees({ ...createDefaultMidiTuningConfig('gamelan-pelog'), subsetId: 'pathet-nem' });
+    expect(pelogNem.filter((d) => d.active).length).toBe(5);
 
     const slendro = resolveTuningDegrees(createDefaultMidiTuningConfig('gamelan-slendro'));
     expect(slendro.length).toBe(5);
@@ -85,7 +94,7 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(bpRoot.d - bpTritave.d).toBeCloseTo(Math.log2(3), 4);
 
     // Nearest-12 projection maps 12-key M3 (4 semitones) onto 10\31 in 31-EDO
-    const edo31Nearest = midiToDWithTuning(72, createDefaultMidiTuningConfig('31edo-meantone'), -3.0);
+    const edo31Nearest = midiToDWithTuning(72, createDefaultMidiTuningConfig('31edo'), -3.0);
     expect(edo31Nearest.ratioValue).toBeCloseTo(Math.pow(2, 10 / 31), 5);
   });
 

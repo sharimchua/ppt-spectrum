@@ -312,8 +312,9 @@ export function useTeachingDemo({
 
       const effectiveKeyboardConfig = customOverride?.keyboardConfig ?? effectiveDemo.keyboardConfig;
       if (effectiveDemo.requiresKeyboard && effectiveKeyboardConfig) {
-        const { tuningPresetId, latchedMidiNotes, rhythmPhaseMode } = effectiveKeyboardConfig;
+        const { tuningPresetId, subsetId, latchedMidiNotes, rhythmPhaseMode } = effectiveKeyboardConfig;
         const presetCfg = createDefaultMidiTuningConfig(tuningPresetId);
+        if (subsetId) presetCfg.subsetId = subsetId;
         if (rhythmPhaseMode) presetCfg.rhythmPhaseMode = rhythmPhaseMode;
         midi.setMidiTuning(presetCfg);
         midi.openKeyboard();
