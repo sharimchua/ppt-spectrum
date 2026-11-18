@@ -269,7 +269,7 @@ export function buildIsomorphicGrid(
       const mapping = midiToDWithTuning(midi, effectiveConfig, currentFundamentalD, tuningA4Hz, tplHz);
       const outOfRange = mapping.clampedToPolarity || Math.abs(mapping.d) > 8.0;
       const stepDelta = midi - rootMidi;
-      const cents = is31 ? (stepDelta * 1200) / 31 : stepDelta * 100;
+      const cents = Math.log2(mapping.ratioValue) * 1200;
       const normCents = ((cents % 1200) + 1200) % 1200;
       const inScale = !outOfRange && isCentsInScale(cents, activeCentsMod, is31 ? 16 : 22);
       const isRoot = !outOfRange && Math.min(normCents, 1200 - normCents) < 15;
@@ -340,7 +340,6 @@ export function buildGuitarFretboard(
   tuningA4Hz: number,
   tplHz: number
 ): GuitarStringRow[] {
-  const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
   const allDegrees = resolveTuningDegrees(midiTuning);
   const activeDegrees = allDegrees.filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
@@ -382,7 +381,7 @@ export function buildGuitarFretboard(
       } else {
         const midi = str.openMidi + f;
         const mapping = midiToDWithTuning(midi, midiTuning, currentFundamentalD, tuningA4Hz, tplHz);
-        const cents = (midi - rootMidi) * 100;
+        const cents = Math.log2(mapping.ratioValue) * 1200;
         const normCents = ((cents % 1200) + 1200) % 1200;
         const inScale = isCentsInScale(cents, activeCentsMod, 25);
         const isRoot = Math.min(normCents, 1200 - normCents) < 20;

@@ -87,5 +87,13 @@ describe('Alternate Instrument Surfaces', () => {
     const heldDoD = placementD; // Auto-Play playing Do (ratio 1:1)
     const active = mergeAutoPlayActiveIds([], [heldDoD], [], iso, guitar, placementD, rootD, 2.0);
     expect(active.size).toBeGreaterThan(0);
+
+    // 5-limit M3 (386¢) and P5 (702¢) should show true tuned cents, not 400¢ / 700¢ 12-TET
+    const allIsoCents = iso.flat().map((p) => p.subLabel);
+    expect(allIsoCents).toContain('386¢');
+    expect(allIsoCents).toContain('702¢');
+    const allGuitarCents = guitar.flatMap((s) => s.frets.map((f) => f.centsLabel));
+    expect(allGuitarCents).toContain('386¢');
+    expect(allGuitarCents).toContain('702¢');
   });
 });
