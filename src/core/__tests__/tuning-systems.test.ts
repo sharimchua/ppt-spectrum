@@ -12,11 +12,11 @@ import { buildSequenceIndices, evaluateSequenceStep } from '../scale-sequencer';
 
 describe('Alternate Tuning Systems & Scale Sequencer', () => {
   it('computes exact octave-reduced 3:2 fifth chain ratios', () => {
-    expect(pythagoreanFifthStep(0)).toEqual({ num: 1, den: 1, chainStep: 0 });
-    expect(pythagoreanFifthStep(1)).toEqual({ num: 3, den: 2, chainStep: 1 });
-    expect(pythagoreanFifthStep(2)).toEqual({ num: 9, den: 8, chainStep: 2 });
-    expect(pythagoreanFifthStep(4)).toEqual({ num: 81, den: 64, chainStep: 4 });
-    expect(pythagoreanFifthStep(6)).toEqual({ num: 729, den: 512, chainStep: 6 });
+    expect(pythagoreanFifthStep(0)).toMatchObject({ num: 1, den: 1, chainStep: 0 });
+    expect(pythagoreanFifthStep(1)).toMatchObject({ num: 3, den: 2, chainStep: 1 });
+    expect(pythagoreanFifthStep(2)).toMatchObject({ num: 9, den: 8, chainStep: 2 });
+    expect(pythagoreanFifthStep(4)).toMatchObject({ num: 81, den: 64, chainStep: 4 });
+    expect(pythagoreanFifthStep(6)).toMatchObject({ num: 729, den: 512, chainStep: 6 });
   });
 
   it('activates 5 steps for Pentatonic and 7 steps for Heptatonic in Pythagorean 3:2 chain', () => {
@@ -63,6 +63,30 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     const root = midiToDWithTuning(68, cfg, -3.0);
     const octaveUp = midiToDWithTuning(68 + 31, cfg, -3.0);
     expect(root.d - octaveUp.d).toBeCloseTo(1.0, 5);
+  });
+
+  it('supports world tunings (24-EDO Maqam, Pelog, Slendro, Bohlen-Pierce Tritave) and Nearest-12 projection', () => {
+    const rast = resolveTuningDegrees(createDefaultMidiTuningConfig('24edo-maqam-rast'));
+    expect(rast.length).toBe(24);
+    expect(rast.filter((d) => d.active).length).toBe(7);
+
+    const pelog = resolveTuningDegrees(createDefaultMidiTuningConfig('gamelan-pelog'));
+    expect(pelog.length).toBe(7);
+    expect(pelog.filter((d) => d.active).length).toBe(5);
+
+    const slendro = resolveTuningDegrees(createDefaultMidiTuningConfig('gamelan-slendro'));
+    expect(slendro.length).toBe(5);
+
+    const bpCfg = createDefaultMidiTuningConfig('bohlen-pierce');
+    const bp = resolveTuningDegrees(bpCfg);
+    expect(bp.length).toBe(13);
+    const bpRoot = midiToDWithTuning(68, { ...bpCfg, projectionMode: 'step-system' }, -3.0);
+    const bpTritave = midiToDWithTuning(68 + 13, { ...bpCfg, projectionMode: 'step-system' }, -3.0);
+    expect(bpRoot.d - bpTritave.d).toBeCloseTo(Math.log2(3), 4);
+
+    // Nearest-12 projection maps 12-key M3 (4 semitones) onto 10\31 in 31-EDO
+    const edo31Nearest = midiToDWithTuning(72, createDefaultMidiTuningConfig('31edo-meantone'), -3.0);
+    expect(edo31Nearest.ratioValue).toBeCloseTo(Math.pow(2, 10 / 31), 5);
   });
 
   it('supports relative tonic mapping and quartal sequencing', () => {

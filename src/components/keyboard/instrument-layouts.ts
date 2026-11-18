@@ -8,7 +8,12 @@
 
 import { SOLFEGE_COLORS } from '../../core/ppt-constants';
 import { MidiTuningConfig, midiToDWithTuning } from '../../core/midi-tuning';
-import { resolveTuningDegrees, tuningDegreeToRelativeMapping } from '../../core/tuning-systems';
+import {
+  resolveSystemSpec,
+  resolveTuningDegrees,
+  tuningDegreeToMapping,
+  tuningDegreeToRelativeMapping,
+} from '../../core/tuning-systems';
 
 export type InstrumentSurfaceMode = 'piano' | 'scale-strip' | 'isomorphic' | 'guitar';
 
@@ -229,30 +234,61 @@ export function buildGuitarFretboard(
   tplHz: number
 ): GuitarStringRow[] {
   const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
-  const activeDegrees = resolveTuningDegrees(midiTuning).filter((d) => d.active);
+  const allDegrees = resolveTuningDegrees(midiTuning);
+  const activeDegrees = allDegrees.filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
   const strings = GUITAR_TUNING_PRESETS[guitarConfig.presetId]?.strings ?? GUITAR_TUNING_PRESETS['6-std'].strings;
+  const projMode = midiTuning.projectionMode ?? 'nearest-12';
+  const spec = resolveSystemSpec(midiTuning);
+  const periodRatio = spec.periodRatio ?? 2.0;
 
   return strings.map((str, stringIndex) => {
     const frets: SurfacePad[] = [];
-    for (let f = 0; f <= guitarConfig.fretCount; f++) {
-      const midi = str.openMidi + f;
-      const mapping = midiToDWithTuning(midi, midiTuning, currentFundamentalD, tuningA4Hz, tplHz);
-      const cents = (midi - rootMidi) * 100;
-      const normCents = ((cents % 1200) + 1200) % 1200;
-      const inScale = isCentsInScale(cents, activeCentsMod, 25);
-      const isRoot = Math.min(normCents, 1200 - normCents) < 20;
+    const pool = projMode === 'step-subset' && activeDegrees.length > 0 ? activeDegrees : allDegrees;
+    const poolLen = Math.max(1, pool.length);
 
-      frets.push({
-        id: `gtr-${stringIndex}-${f}`,
-        midiId: 4000 + stringIndex * 32 + f,
-        label: f === 0 ? str.name : `${f}`,
-        subLabel: mapping.address.syllable,
-        d: mapping.d,
-        colorHex: solfegeColorForCents(normCents),
-        inScale,
-        isRoot,
-      });
+    for (let f = 0; f <= guitarConfig.fretCount; f++) {
+      if (projMode === 'step-system' || projMode === 'step-subset') {
+        const openStepsFromE2 = Math.round(((str.openMidi - 40) * poolLen) / 12);
+        const totalSteps = openStepsFromE2 + f;
+        const periods = Math.floor(totalSteps / poolLen);
+        const stepIdx = ((totalSteps % poolLen) + poolLen) % poolLen;
+        const deg = pool[stepIdx];
+        const midiId = 4000 + stringIndex * 32 + f;
+        const mapping = tuningDegreeToMapping(
+          deg, periods - 2, midiId, midiTuning, currentFundamentalD, tuningA4Hz, tplHz
+        );
+        const cents = deg.cents + periods * Math.log2(periodRatio) * 1200;
+        const normCents = ((cents % 1200) + 1200) % 1200;
+        frets.push({
+          id: `gtr-${stringIndex}-${f}`,
+          midiId,
+          label: f === 0 ? str.name : deg.label,
+          subLabel: deg.label,
+          d: mapping.d,
+          colorHex: solfegeColorForCents(normCents),
+          inScale: deg.active,
+          isRoot: deg.index === 0,
+        });
+      } else {
+        const midi = str.openMidi + f;
+        const mapping = midiToDWithTuning(midi, midiTuning, currentFundamentalD, tuningA4Hz, tplHz);
+        const cents = (midi - rootMidi) * 100;
+        const normCents = ((cents % 1200) + 1200) % 1200;
+        const inScale = isCentsInScale(cents, activeCentsMod, 25);
+        const isRoot = Math.min(normCents, 1200 - normCents) < 20;
+
+        frets.push({
+          id: `gtr-${stringIndex}-${f}`,
+          midiId: 4000 + stringIndex * 32 + f,
+          label: f === 0 ? str.name : `${f}`,
+          subLabel: mapping.address.syllable,
+          d: mapping.d,
+          colorHex: solfegeColorForCents(normCents),
+          inScale,
+          isRoot,
+        });
+      }
     }
     return { stringIndex, stringName: str.name, frets };
   });

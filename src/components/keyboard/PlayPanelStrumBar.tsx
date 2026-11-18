@@ -1,12 +1,17 @@
 /**
- * Inline Strum & Stepped Scale Sequencer bar docked inside VirtualKeyboard.
- * Includes quick subset selectors for 3:2 Chain and 31-EDO systems plus degree pills.
+ * Inline Auto-Play & Harmony Sequencer bar docked inside VirtualKeyboard.
+ * Houses Harmony patterns (Secundal, Tertial, Quartal, 3:2 Chain), Diatonic vs Borrowed
+ * tone selection, and quick Tuning Subset pills.
  */
 
 import React from 'react';
 import { Play, Square } from 'lucide-react';
 import { MidiTuningConfig } from '../../core/midi-tuning';
-import { Edo31SubsetId } from '../../core/tuning-systems';
+import {
+  getAvailableSubsetsForSystem,
+  resolveSubsetId,
+  resolveSystemSpec,
+} from '../../core/tuning-systems';
 import { SEQUENCE_PATTERNS, SequencePattern } from '../../core/scale-sequencer';
 import { UseTuningStrumResult } from '../hooks/useTuningStrum';
 
@@ -32,64 +37,38 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
     setSequencePattern,
     sequenceTempoBpm,
     setSequenceTempoBpm,
+    useBorrowedTones,
+    setUseBorrowedTones,
     toggleSequencer,
   } = tuningStrum;
+
+  const spec = resolveSystemSpec(midiTuning);
+  const subsetId = resolveSubsetId(midiTuning);
+  const availableSubsets = getAvailableSubsetsForSystem(spec);
 
   return (
     <div className="mb-1.5 rounded-lg bg-slate-900/90 border border-rose-500/35 px-2.5 py-1.5 flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-semibold text-rose-300">
-            Auto-Play ({activeDegrees.length} active · relative to root)
+            Auto-Play ({activeDegrees.length} tones · relative to root)
           </span>
 
-          {midiTuning.systemMode === 'pythagorean-chain' && (
-            <div className="flex items-center gap-1">
-              {[5, 7, 12].map((len) => (
-                <button
-                  key={len}
-                  type="button"
-                  onClick={() =>
-                    onChangeTuning((prev) => ({
-                      ...prev,
-                      pythagoreanChainLength: len,
-                      activeDegreeMask: undefined,
-                    }))
-                  }
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border cursor-pointer ${
-                    (midiTuning.pythagoreanChainLength ?? 5) === len
-                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200'
-                      : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {len === 5 ? '5 Pent' : len === 7 ? '7 Hept' : '12 Full'}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {midiTuning.systemMode === '31edo' && (
-            <div className="flex items-center gap-1">
-              {(
-                [
-                  { id: 'pentatonic-5', label: '5 Pent' },
-                  { id: 'meantone-7', label: '7 Meantone' },
-                  { id: 'septimal', label: '5 Septimal' },
-                  { id: 'chromatic', label: 'All 31' },
-                ] as Array<{ id: Edo31SubsetId; label: string }>
-              ).map((sub) => (
+          {availableSubsets.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {availableSubsets.map((sub) => (
                 <button
                   key={sub.id}
                   type="button"
                   onClick={() =>
                     onChangeTuning((prev) => ({
                       ...prev,
-                      edo31Subset: sub.id,
+                      subsetId: sub.id,
                       activeDegreeMask: undefined,
                     }))
                   }
                   className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border cursor-pointer ${
-                    (midiTuning.edo31Subset ?? 'meantone-7') === sub.id
+                    subsetId === sub.id
                       ? 'bg-amber-600/30 border-amber-500 text-amber-200'
                       : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
                   }`}
@@ -101,7 +80,20 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setUseBorrowedTones(!useBorrowedTones)}
+            className={`px-2 py-0.5 rounded border text-[10px] font-semibold cursor-pointer ${
+              useBorrowedTones
+                ? 'bg-purple-600/30 border-purple-500 text-purple-200'
+                : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white'
+            }`}
+            title="Play strictly within the Tuning Subset (Diatonic) or borrow from the full Tuning System"
+          >
+            {useBorrowedTones ? 'Borrowed (All)' : 'Diatonic (Subset)'}
+          </button>
+
           <select
             value={sequencePattern}
             onChange={(e) => setSequencePattern(e.target.value as SequencePattern)}
@@ -160,7 +152,7 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
                 }
               }}
               className={`px-1.5 py-0.5 rounded text-[9px] font-mono shrink-0 transition cursor-pointer border ${
-                !deg.active
+                !deg.active && !useBorrowedTones
                   ? 'bg-slate-950/50 text-slate-600 border-slate-800/60 line-through'
                   : isPlayingThis
                   ? 'bg-rose-600 text-white border-rose-400'

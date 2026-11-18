@@ -1,13 +1,19 @@
 /**
- * Deliberate 3-layer Tuning configuration for alternate Tuning Systems:
- * 1. Tuning System (interval universe: 3:2 Chain or 31-EDO)
- * 2. Scale Subset (active degrees out of the tuning universe, relative to base frequency on Scale/Strum)
- * 3. Harmony Structure (Secundal / Tertial / Quartal voicing & step shapes)
+ * Clean 2-Layer Relative Tuning UI + Projection selector:
+ * 1. Tuning System (Period lattice: EDO, Ratio-Chain, or Explicit)
+ * 2. Tuning Subset / Sieve (Scale / Key mask over the Tuning System's steps)
+ * 3. Key/MIDI Projection Mode (Nearest-12, Step-System, Step-Subset)
  */
 
 import React from 'react';
 import { MidiTuningConfig } from '../core/midi-tuning';
-import { Edo31SubsetId, resolveTuningDegrees } from '../core/tuning-systems';
+import {
+  ProjectionMode,
+  getAvailableSubsetsForSystem,
+  resolveSubsetId,
+  resolveSystemSpec,
+  resolveTuningDegrees,
+} from '../core/tuning-systems';
 
 export interface TuningSystemExplorerProps {
   midiTuning: MidiTuningConfig;
@@ -18,9 +24,12 @@ export const TuningSystemExplorer: React.FC<TuningSystemExplorerProps> = ({
   midiTuning,
   onChangeTuning,
 }) => {
+  const spec = resolveSystemSpec(midiTuning);
+  const subsetId = resolveSubsetId(midiTuning);
   const resolvedDegrees = resolveTuningDegrees(midiTuning);
   const activeCount = resolvedDegrees.filter((d) => d.active).length;
-  const harmony = midiTuning.harmonyStructure ?? 'tertial';
+  const availableSubsets = getAvailableSubsetsForSystem(spec);
+  const projMode: ProjectionMode = midiTuning.projectionMode ?? 'nearest-12';
 
   const toggleDegreeActive = (idx: number) => {
     const nextMask = resolvedDegrees.map((d, i) => (i === idx ? !d.active : d.active));
@@ -29,91 +38,106 @@ export const TuningSystemExplorer: React.FC<TuningSystemExplorerProps> = ({
 
   return (
     <div className="space-y-3 rounded-xl bg-slate-950/70 border border-slate-800 p-3">
-      {/* Layer 2: Scale Subset */}
-      <div className="space-y-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <span className="text-xs font-semibold text-slate-200 block">
-              Scale Subset ({activeCount} of {resolvedDegrees.length} steps active)
-            </span>
-            <span className="text-[10px] text-slate-400">
-              Scale Strip &amp; Strum shift tonic with the base frequency; Piano &amp; Guitar stay absolute.
-            </span>
-          </div>
+      {/* Layer 1: Tuning System Parameters */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+        <div>
+          <span className="text-xs font-semibold text-slate-200 block">
+            1. Tuning System Lattice ({resolvedDegrees.length} steps / {(spec.periodRatio ?? 2) === 3 ? '3:1 Tritave' : '2:1 Octave'})
+          </span>
+          <span className="text-[10px] text-slate-400">
+            {spec.kind === 'ratio-chain'
+              ? `Ratio chain (${spec.generatorNum}:${spec.generatorDen}) reduced mod ${spec.periodRatio ?? 2}:1`
+              : spec.kind === 'edo'
+              ? `${spec.divisions} equal divisions of ${spec.periodRatio ?? 2}:1`
+              : `Explicit ${spec.degrees.length}-degree lattice`}
+          </span>
+        </div>
 
-          {midiTuning.systemMode === 'pythagorean-chain' && (
-            <div className="flex items-center gap-1">
-              {[5, 7, 12].map((len) => (
-                <button
-                  key={len}
-                  type="button"
-                  onClick={() =>
-                    onChangeTuning((prev) => ({
-                      ...prev,
-                      pythagoreanChainLength: len,
-                      activeDegreeMask: undefined,
-                    }))
-                  }
-                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer ${
-                    (midiTuning.pythagoreanChainLength ?? 5) === len
-                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {len === 5 ? '5 Pentatonic' : len === 7 ? '7 Heptatonic' : '12 Full'}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {midiTuning.systemMode === '31edo' && (
-            <div className="flex flex-wrap items-center gap-1">
-              {(
-                [
-                  { id: 'pentatonic-5', label: 'Pentatonic (5)' },
-                  { id: 'meantone-7', label: 'Meantone (7)' },
-                  { id: 'septimal', label: 'Septimal (5)' },
-                  { id: 'chromatic', label: 'All 31' },
-                ] as Array<{ id: Edo31SubsetId; label: string }>
-              ).map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() =>
-                    onChangeTuning((prev) => ({
-                      ...prev,
-                      edo31Subset: sub.id,
-                      activeDegreeMask: undefined,
-                    }))
-                  }
-                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer ${
-                    (midiTuning.edo31Subset ?? 'meantone-7') === sub.id
-                      ? 'bg-amber-600/30 border-amber-500 text-amber-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
+        {spec.kind === 'ratio-chain' && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-400">Chain:</span>
+            {[12, 19, 31, 53].map((len) => (
               <button
+                key={len}
                 type="button"
                 onClick={() =>
                   onChangeTuning((prev) => ({
                     ...prev,
-                    midiStepMap: prev.midiStepMap === '31edo' ? '12-key' : '31edo',
+                    systemSpec: { ...spec, chainLength: len },
+                    activeDegreeMask: undefined,
                   }))
                 }
-                className={`px-2 py-0.5 rounded text-[10px] font-mono border cursor-pointer ${
-                  midiTuning.midiStepMap === '31edo'
-                    ? 'bg-sky-600/30 border-sky-500 text-sky-200'
-                    : 'bg-slate-900 border-slate-700 text-slate-400'
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border cursor-pointer ${
+                  spec.chainLength === len
+                    ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
                 }`}
-                title="Map consecutive hardware MIDI keys 1:1 to 31-EDO steps"
               >
-                MIDI: {midiTuning.midiStepMap === '31edo' ? '31-Step/Key' : '12-Key'}
+                {len}
               </button>
-            </div>
-          )}
+            ))}
+          </div>
+        )}
+
+        {spec.kind === 'edo' && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-400">Steps:</span>
+            <input
+              type="number"
+              min={5}
+              max={72}
+              value={spec.divisions}
+              onChange={(e) => {
+                const divs = Math.max(5, Math.min(72, Number(e.target.value) || 12));
+                onChangeTuning((prev) => ({
+                  ...prev,
+                  presetId: 'custom',
+                  systemMode: divs === 31 ? '31edo' : 'custom-system',
+                  systemSpec: { ...spec, divisions: divs },
+                  subsetId: 'all',
+                  activeDegreeMask: undefined,
+                }));
+              }}
+              className="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono text-white text-right focus:outline-none"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Layer 2: Tuning Subset / Sieve ("Scale / Key") */}
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="text-xs font-semibold text-slate-200 block">
+              2. Tuning Subset / Scale ({activeCount} of {resolvedDegrees.length} active)
+            </span>
+            <span className="text-[10px] text-slate-400">
+              Relative to the active fundamental on Scale Strip &amp; Auto-Play.
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {availableSubsets.map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() =>
+                  onChangeTuning((prev) => ({
+                    ...prev,
+                    subsetId: sub.id,
+                    activeDegreeMask: undefined,
+                  }))
+                }
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer ${
+                  subsetId === sub.id
+                    ? 'bg-amber-600/30 border-amber-500 text-amber-200'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-1 pt-1">
@@ -139,33 +163,39 @@ export const TuningSystemExplorer: React.FC<TuningSystemExplorerProps> = ({
         </div>
       </div>
 
-      {/* Layer 3: Underlying Harmony Structure */}
+      {/* Physical Key / MIDI Projection Mode */}
       <div className="border-t border-slate-800/80 pt-2.5 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="text-xs font-semibold text-slate-200 block">Harmony Structure</span>
+          <span className="text-xs font-semibold text-slate-200 block">Key / MIDI Projection</span>
           <span className="text-[10px] text-slate-400">
-            Voicing &amp; step geometry within the active scale subset
+            How 12-key Piano &amp; hardware MIDI keys project onto this Tuning System
           </span>
         </div>
         <div className="flex items-center gap-1">
           {(
             [
-              { id: 'secundal', label: 'Secundal (2nds)' },
-              { id: 'tertial', label: 'Tertial (3rds)' },
-              { id: 'quartal', label: 'Quartal (4ths)' },
+              { id: 'nearest-12', label: 'Nearest-12' },
+              { id: 'step-system', label: 'Step: System' },
+              { id: 'step-subset', label: 'Step: Subset' },
             ] as const
-          ).map((h) => (
+          ).map((pm) => (
             <button
-              key={h.id}
+              key={pm.id}
               type="button"
-              onClick={() => onChangeTuning((prev) => ({ ...prev, harmonyStructure: h.id }))}
+              onClick={() =>
+                onChangeTuning((prev) => ({
+                  ...prev,
+                  projectionMode: pm.id,
+                  midiStepMap: pm.id === 'step-system' && spec.kind === 'edo' && spec.divisions === 31 ? '31edo' : '12-key',
+                }))
+              }
               className={`px-2 py-1 rounded text-[10px] font-semibold border cursor-pointer ${
-                harmony === h.id
-                  ? 'bg-purple-600/30 border-purple-500 text-purple-200'
+                projMode === pm.id
+                  ? 'bg-sky-600/30 border-sky-500 text-sky-200'
                   : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
               }`}
             >
-              {h.label}
+              {pm.label}
             </button>
           ))}
         </div>

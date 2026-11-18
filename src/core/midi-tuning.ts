@@ -13,6 +13,16 @@ import {
   midiToFreq,
   resolveDuPeriodAddress,
 } from './axis';
+import {
+  PELOG_DEGREES,
+  ProjectionMode,
+  SLENDRO_DEGREES,
+  TuningSubsetId,
+  TuningSystemSpec,
+  findNearestDegreeInSystem,
+  resolveSystemSpec,
+  resolveTuningDegrees,
+} from './tuning-systems';
 
 export type PrimeFamilyLabel =
   | '12TET'
@@ -58,6 +68,11 @@ export type MidiTuningPresetId =
   | '31edo-meantone'
   | '31edo-septimal'
   | '31edo-chromatic'
+  | '24edo-maqam-rast'
+  | '53edo-pythagorean'
+  | 'gamelan-pelog'
+  | 'gamelan-slendro'
+  | 'bohlen-pierce'
   | 'custom';
 
 export interface MidiTuningConfig {
@@ -71,18 +86,18 @@ export interface MidiTuningConfig {
   pitchRootMidi: number;
   /** Phase alignment for polyphonic Rhythm Space MIDI voices ('sam-aligned' vs 'key-strike'). */
   rhythmPhaseMode: MidiPhaseMode;
-  /** Tuning system architecture beyond 12-tone semitone matrices. */
-  systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo';
-  /** Number of 3:2 fifths active in 'pythagorean-chain' mode (5 = Pentatonic, 7 = Heptatonic, 12 = Full). */
+  /** Generalized Layer 1 Tuning System spec (EDO, Ratio-Chain, or Explicit). */
+  systemSpec?: TuningSystemSpec;
+  /** Generalized Layer 2 Tuning Subset / Sieve ID. */
+  subsetId?: TuningSubsetId;
+  /** Layer 3 Absolute Projection mode for 12-key MIDI/Piano & Fretboards. */
+  projectionMode?: ProjectionMode;
+  /** Legacy/convenience fields kept synced for presets & demos. */
+  systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo' | 'custom-system';
   pythagoreanChainLength?: number;
-  /** Active subset in '31edo' mode. */
   edo31Subset?: 'chromatic' | 'meantone-7' | 'pentatonic-5' | 'septimal';
-  /** Optional per-degree activation override mask. */
   activeDegreeMask?: boolean[];
-  /** Hardware MIDI key mapping mode ('12-key' standard vs '31edo' step-per-key). */
   midiStepMap?: '12-key' | '31edo';
-  /** Underlying harmonic voicing/step structure for scale subsets. */
-  harmonyStructure?: 'secundal' | 'tertial' | 'quartal';
 }
 
 export interface IntervalTuningResolution {
@@ -126,7 +141,10 @@ export const MIDI_TUNING_PRESETS: Record<
     label: string;
     description: string;
     intervals: MidiIntervalTuningConfig;
-    systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo';
+    systemMode?: 'chromatic-12' | 'pythagorean-chain' | '31edo' | 'custom-system';
+    systemSpec?: TuningSystemSpec;
+    subsetId?: TuningSubsetId;
+    projectionMode?: ProjectionMode;
     pythagoreanChainLength?: number;
     edo31Subset?: 'chromatic' | 'meantone-7' | 'pentatonic-5' | 'septimal';
   }
@@ -235,8 +253,10 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   'pythagorean-pentatonic': {
     label: 'Pythagorean Pentatonic (5× 3:2)',
-    description: 'First 5 steps of the 3:2 chain (1/1, 9/8, 81/64, 3/2, 27/16) — avoiding minor 2nds and tritones.',
+    description: '12-step 3:2 chain sieved to its first 5 fifths (1/1, 9/8, 81/64, 3/2, 27/16) — avoiding minor 2nds and tritones.',
     systemMode: 'pythagorean-chain',
+    systemSpec: { kind: 'ratio-chain', generatorNum: 3, generatorDen: 2, chainLength: 12, periodRatio: 2.0 },
+    subsetId: 'pentatonic',
     pythagoreanChainLength: 5,
     intervals: {
       m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
@@ -245,8 +265,10 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   'pythagorean-heptatonic': {
     label: 'Pythagorean Heptatonic (7× 3:2)',
-    description: 'Extends the 3:2 chain to 7 steps, introducing the 729/512 tritone and two 90.2¢ minor 2nds.',
+    description: '12-step 3:2 chain sieved to 7 fifths, introducing the 729/512 tritone and two 90.2¢ minor 2nds.',
     systemMode: 'pythagorean-chain',
+    systemSpec: { kind: 'ratio-chain', generatorNum: 3, generatorDen: 2, chainLength: 12, periodRatio: 2.0 },
+    subsetId: 'heptatonic',
     pythagoreanChainLength: 7,
     intervals: {
       m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
@@ -255,8 +277,10 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   '31edo-meantone': {
     label: '31-EDO Meantone Diatonic',
-    description: '7-note quarter-comma meantone diatonic subset in 31-EDO with near-pure 5/4 thirds (387.1¢).',
+    description: '31-EDO lattice sieved to a 7-note quarter-comma meantone diatonic scale with near-pure 5/4 thirds (387.1¢).',
     systemMode: '31edo',
+    systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
+    subsetId: 'meantone',
     edo31Subset: 'meantone-7',
     intervals: {
       m2: 'Qui', M2: 'Tri', m3: 'Qui', M3: 'Qui', P4: 'Tri', TT: 'Qui',
@@ -265,8 +289,10 @@ export const MIDI_TUNING_PRESETS: Record<
   },
   '31edo-septimal': {
     label: '31-EDO Septimal (7-Limit)',
-    description: '31-EDO septimal subset approximating 7/6 (7\\31), 5/4 (10\\31), 3/2 (18\\31), and 7/4 (25\\31).',
+    description: '31-EDO lattice sieved to 7-limit intervals: ~7/6 (7\\31), ~5/4 (10\\31), ~3/2 (18\\31), ~7/4 (25\\31).',
     systemMode: '31edo',
+    systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
+    subsetId: 'septimal',
     edo31Subset: 'septimal',
     intervals: {
       m2: 'Qui', M2: 'Tri', m3: 'Sep', M3: 'Qui', P4: 'Tri', TT: 'Sep',
@@ -277,7 +303,70 @@ export const MIDI_TUNING_PRESETS: Record<
     label: '31-EDO Chromatic (31 Steps)',
     description: 'All 31 equal divisions of the octave (38.7¢ per step) for microtonal exploration.',
     systemMode: '31edo',
+    systemSpec: { kind: 'edo', divisions: 31, periodRatio: 2.0 },
+    subsetId: 'all',
+    projectionMode: 'step-system',
     edo31Subset: 'chromatic',
+    intervals: {
+      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
+      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
+    },
+  },
+  '24edo-maqam-rast': {
+    label: '24-EDO Maqam Rast',
+    description: 'Quarter-tone 24-EDO Arabic lattice sieved to Maqam Rast with neutral 3rds (350¢) and 7ths (1050¢).',
+    systemMode: 'custom-system',
+    systemSpec: { kind: 'edo', divisions: 24, periodRatio: 2.0 },
+    subsetId: 'rast',
+    projectionMode: 'step-subset',
+    intervals: {
+      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
+      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
+    },
+  },
+  '53edo-pythagorean': {
+    label: '53-EDO (Holderian Comma)',
+    description: '53 equal steps per octave (22.6¢ per comma) with near-exact 3:2 fifths and 5:4 thirds.',
+    systemMode: 'custom-system',
+    systemSpec: { kind: 'edo', divisions: 53, periodRatio: 2.0 },
+    subsetId: 'heptatonic',
+    projectionMode: 'nearest-12',
+    intervals: {
+      m2: 'Tri', M2: 'Tri', m3: 'Qui', M3: 'Qui', P4: 'Tri', TT: 'Qui',
+      P5: 'Tri', m6: 'Qui', M6: 'Qui', m7: 'Tri', M7: 'Qui',
+    },
+  },
+  'gamelan-pelog': {
+    label: 'Gamelan Pélog (7-Tone)',
+    description: 'Unequal 7-tone Javanese Pélog lattice with 5-tone Pathet Nem subset.',
+    systemMode: 'custom-system',
+    systemSpec: { kind: 'explicit', id: 'pelog', degrees: PELOG_DEGREES, periodRatio: 2.0 },
+    subsetId: 'pathet-nem',
+    projectionMode: 'step-subset',
+    intervals: {
+      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
+      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
+    },
+  },
+  'gamelan-slendro': {
+    label: 'Gamelan Sléndro (5-Tone)',
+    description: 'Near-equidistant 5-tone Javanese Sléndro lattice (~240¢ steps).',
+    systemMode: 'custom-system',
+    systemSpec: { kind: 'explicit', id: 'slendro', degrees: SLENDRO_DEGREES, periodRatio: 2.0 },
+    subsetId: 'all',
+    projectionMode: 'step-system',
+    intervals: {
+      m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
+      P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
+    },
+  },
+  'bohlen-pierce': {
+    label: 'Bohlen-Pierce (13-Step Tritave)',
+    description: 'Non-octave 3:1 Tritave divided into 13 equal steps (~146.3¢ per step), sieved to the 9-note Lambda scale.',
+    systemMode: 'custom-system',
+    systemSpec: { kind: 'edo', divisions: 13, periodRatio: 3.0 },
+    subsetId: 'heptatonic',
+    projectionMode: 'step-subset',
     intervals: {
       m2: '12TET', M2: '12TET', m3: '12TET', M3: '12TET', P4: '12TET', TT: '12TET',
       P5: '12TET', m6: '12TET', M6: '12TET', m7: '12TET', M7: '12TET',
@@ -295,10 +384,13 @@ export function applyTuningPreset(
     presetId,
     intervals: { ...preset.intervals },
     systemMode: preset.systemMode ?? 'chromatic-12',
+    systemSpec: preset.systemSpec,
+    subsetId: preset.subsetId ?? 'all',
+    projectionMode: preset.projectionMode ?? 'nearest-12',
     pythagoreanChainLength: preset.pythagoreanChainLength ?? prev.pythagoreanChainLength ?? 5,
     edo31Subset: preset.edo31Subset ?? prev.edo31Subset ?? 'meantone-7',
     activeDegreeMask: undefined,
-    midiStepMap: preset.systemMode === '31edo' && preset.edo31Subset === 'chromatic' ? '31edo' : '12-key',
+    midiStepMap: preset.projectionMode === 'step-system' && preset.systemMode === '31edo' ? '31edo' : '12-key',
   };
 }
 
@@ -314,6 +406,9 @@ export function createDefaultMidiTuningConfig(
     pitchRootMidi: DEFAULT_PITCH_ROOT_MIDI,
     rhythmPhaseMode: 'sam-aligned',
     systemMode: preset.systemMode ?? 'chromatic-12',
+    systemSpec: preset.systemSpec,
+    subsetId: preset.subsetId ?? 'all',
+    projectionMode: preset.projectionMode ?? 'nearest-12',
     pythagoreanChainLength: preset.pythagoreanChainLength ?? 5,
     edo31Subset: preset.edo31Subset ?? 'meantone-7',
     midiStepMap: '12-key',
@@ -470,15 +565,28 @@ export function midiToDWithTuning(
   const rootMidi = polarity === 'rhythm' ? config.rhythmRootMidi : config.pitchRootMidi;
   const delta = midi - rootMidi;
 
-  if (config.midiStepMap === '31edo') {
-    const octavesFromRoot = Math.floor(delta / 31);
-    const step = ((delta % 31) + 31) % 31;
-    const ratioValue = Math.pow(2, step / 31);
-    const fullMultiplier = Math.pow(2, delta / 31);
+  const projMode: ProjectionMode =
+    config.projectionMode ?? (config.midiStepMap === '31edo' ? 'step-system' : 'nearest-12');
+  const spec = resolveSystemSpec(config);
+  const periodRatio = spec.periodRatio ?? 2.0;
+
+  if (projMode === 'step-system' || projMode === 'step-subset' || config.midiStepMap === '31edo') {
+    const allDegrees = resolveTuningDegrees(config);
+    const pool =
+      projMode === 'step-subset'
+        ? allDegrees.filter((d) => d.active)
+        : allDegrees;
+    const list = pool.length > 0 ? pool : allDegrees;
+    const len = list.length;
+    const periodsFromRoot = Math.floor(delta / len);
+    const step = ((delta % len) + len) % len;
+    const deg = list[step];
+    const fullMultiplier = deg.ratioValue * Math.pow(periodRatio, periodsFromRoot);
     let rawD =
       polarity === 'rhythm'
         ? config.rhythmAnchorBand - Math.log2(fullMultiplier)
         : freqToD(midiToFreq(rootMidi, a4Hz) * fullMultiplier, tplHz);
+    rawD = Number.isFinite(rawD) ? Math.max(-12, Math.min(12, rawD)) : 0;
     let clampedToPolarity = false;
     if (polarity === 'rhythm' && rawD < TPL_POLARITY_EPSILON_D) {
       rawD = TPL_POLARITY_EPSILON_D;
@@ -495,11 +603,49 @@ export function midiToDWithTuning(
       polarity,
       clampedToPolarity,
       semitone: step,
-      octavesFromRoot,
-      ratioValue,
-      rational: null,
-      primeFamily: '12TET',
+      octavesFromRoot: periodsFromRoot,
+      ratioValue: deg.ratioValue,
+      rational: deg.rational,
+      primeFamily: deg.primeFamily ?? '12TET',
       centsFromEdo: 0,
+      address: resolveDuPeriodAddress(rawD),
+    };
+  }
+
+  // Nearest-12 projection for non-12 Tuning Systems (e.g., 31-EDO, 53-EDO, 24-EDO, Pelog, Bohlen-Pierce)
+  if (config.systemSpec && !(spec.kind === 'edo' && spec.divisions === 12)) {
+    const allDegrees = resolveTuningDegrees(config);
+    const octavesFromRoot = Math.floor(delta / 12);
+    const semitone = ((delta % 12) + 12) % 12;
+    const targetRatio = Math.pow(2, semitone / 12);
+    const nearest = findNearestDegreeInSystem(targetRatio, allDegrees);
+    const fullMultiplier = nearest.ratioValue * Math.pow(periodRatio, octavesFromRoot);
+    let rawD =
+      polarity === 'rhythm'
+        ? config.rhythmAnchorBand - Math.log2(fullMultiplier)
+        : freqToD(midiToFreq(rootMidi, a4Hz) * fullMultiplier, tplHz);
+    rawD = Number.isFinite(rawD) ? Math.max(-12, Math.min(12, rawD)) : 0;
+    let clampedToPolarity = false;
+    if (polarity === 'rhythm' && rawD < TPL_POLARITY_EPSILON_D) {
+      rawD = TPL_POLARITY_EPSILON_D;
+      clampedToPolarity = true;
+    } else if (polarity === 'pitch' && rawD > -TPL_POLARITY_EPSILON_D) {
+      rawD = -TPL_POLARITY_EPSILON_D;
+      clampedToPolarity = true;
+    }
+    return {
+      midi,
+      d: rawD,
+      freqHz: dToFreq(rawD, tplHz),
+      bpm: dToBpm(rawD, tplHz),
+      polarity,
+      clampedToPolarity,
+      semitone,
+      octavesFromRoot,
+      ratioValue: nearest.ratioValue,
+      rational: nearest.rational,
+      primeFamily: nearest.primeFamily ?? 'Tri',
+      centsFromEdo: Math.round((Math.log2(nearest.ratioValue) * 1200) - semitone * 100),
       address: resolveDuPeriodAddress(rawD),
     };
   }

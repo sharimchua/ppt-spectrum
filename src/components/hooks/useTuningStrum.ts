@@ -39,6 +39,8 @@ export interface UseTuningStrumResult {
   setSequencePattern: (pattern: SequencePattern) => void;
   sequenceTempoBpm: number;
   setSequenceTempoBpm: (bpm: number) => void;
+  useBorrowedTones: boolean;
+  setUseBorrowedTones: (borrowed: boolean) => void;
   toggleSequencer: () => void;
   stopSequencer: () => void;
 }
@@ -47,19 +49,9 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   const [isStrumMode, setIsStrumModeState] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSequencing, setIsSequencing] = useState(false);
-  const [sequencePattern, setSequencePattern] = useState<SequencePattern>(() => {
-    const h = midi.midiTuning.harmonyStructure;
-    return h === 'tertial' ? 'triads' : h === 'quartal' ? 'quartal' : 'ascend';
-  });
+  const [sequencePattern, setSequencePattern] = useState<SequencePattern>('ascend');
   const [sequenceTempoBpm, setSequenceTempoBpm] = useState(140);
-
-  // Sync sequencer pattern when Harmony Structure changes in the Tuning Window
-  useEffect(() => {
-    const h = midi.midiTuning.harmonyStructure;
-    if (h === 'tertial') setSequencePattern('triads');
-    else if (h === 'quartal') setSequencePattern('quartal');
-    else if (h === 'secundal') setSequencePattern('ascend');
-  }, [midi.midiTuning.harmonyStructure]);
+  const [useBorrowedTones, setUseBorrowedTones] = useState(false);
 
   const seqStartTimeRef = useRef<number>(0);
   const seqIntervalRef = useRef<number | null>(null);
@@ -73,8 +65,8 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   );
 
   const activeDegrees = useMemo(
-    () => allDegrees.filter((d) => d.active),
-    [allDegrees]
+    () => (useBorrowedTones ? allDegrees : allDegrees.filter((d) => d.active)),
+    [allDegrees, useBorrowedTones]
   );
 
   const releaseActiveVoice = useCallback(() => {
@@ -215,6 +207,8 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     setSequencePattern,
     sequenceTempoBpm,
     setSequenceTempoBpm,
+    useBorrowedTones,
+    setUseBorrowedTones,
     toggleSequencer,
     stopSequencer,
   };

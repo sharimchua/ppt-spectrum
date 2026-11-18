@@ -14,10 +14,9 @@ import {
   MidiTuningPresetId,
   PrimeFamilyLabel,
   applyTuningPreset,
-  getPolarityFromD,
   resolveSemitoneInterval,
 } from '../core/midi-tuning';
-import { PITCH_NAMES, dToBpm } from '../core/axis';
+import { dToBpm } from '../core/axis';
 import { TPL_FREQUENCY_HZ } from '../core/ppt-constants';
 import { TuningSystemExplorer } from './TuningSystemExplorer';
 
@@ -69,23 +68,12 @@ const FAMILY_BADGE_STYLES: Record<PrimeFamilyLabel, string> = {
   Undec: 'bg-rose-950/70 text-rose-300 border-rose-700/60',
 };
 
-function formatMidiNoteName(midi: number): string {
-  const note = PITCH_NAMES[((midi % 12) + 12) % 12];
-  const octave = Math.floor(midi / 12) - 1;
-  return `${note}${octave}`;
-}
-
 export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   midiTuning,
   onChangeTuning,
-  currentFundamentalD,
   tplFrequencyHz = TPL_FREQUENCY_HZ,
-  lastMapping,
-  heldMappings,
 }) => {
-  const polarity = getPolarityFromD(currentFundamentalD);
   const anchorBpm = dToBpm(midiTuning.rhythmAnchorBand, tplFrequencyHz);
-  const activeMappings = heldMappings.length > 0 ? heldMappings : lastMapping ? [lastMapping] : [];
 
   const handleSelectPreset = (presetId: Exclude<MidiTuningPresetId, 'custom'>) => {
     onChangeTuning((prev) => applyTuningPreset(prev, presetId));
@@ -106,59 +94,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Live TPL Polarity & PPT Lens Readout */}
-      <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3 space-y-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Active TPL Polarity
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-              polarity === 'rhythm'
-                ? 'bg-amber-950/60 text-amber-300 border-amber-700/60'
-                : 'bg-sky-950/60 text-sky-300 border-sky-700/60'
-            }`}
-          >
-            {polarity === 'rhythm' ? 'Rhythm Space (d ≥ 0)' : 'Pitch Space (d < 0)'}
-          </span>
-        </div>
-
-        {activeMappings.length > 0 ? (
-          <div className="space-y-1.5">
-            {activeMappings.map((m) => (
-              <div
-                key={m.midi}
-                className="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-900/90 border border-slate-800 rounded-lg px-2.5 py-1.5"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-semibold text-white">{formatMidiNoteName(m.midi)}</span>
-                  <span className="font-mono text-slate-300">{m.address.formatted}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] border ${FAMILY_BADGE_STYLES[m.primeFamily]}`}>
-                    {m.primeFamily}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 font-mono text-[11px] text-slate-300">
-                  <span>{m.rational ? `${m.rational.num}:${m.rational.den}` : m.primeFamily}</span>
-                  <span>
-                    {m.polarity === 'rhythm'
-                      ? `${m.bpm.toFixed(2)} BPM`
-                      : `${m.freqHz.toFixed(2)} Hz`}
-                  </span>
-                  <span className="text-slate-400">
-                    {m.centsFromEdo > 0 ? `+${m.centsFromEdo}¢` : m.centsFromEdo < 0 ? `${m.centsFromEdo}¢` : '±0¢'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-slate-400">
-            Play a MIDI key to inspect its DuMetric Solfège degree, Prime Family ratio, and tempo/pitch translation.
-          </p>
-        )}
-      </div>
-
-      {/* Tuning System Presets */}
+      {/* 1. Tuning System Presets */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-200">Tuning System</span>
@@ -288,8 +224,8 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         </div>
       </div>
 
-      {/* Alternate System Explorer (3:2 Chain / 31-EDO) OR 12-Tone Interval Matrix */}
-      {midiTuning.systemMode === 'pythagorean-chain' || midiTuning.systemMode === '31edo' ? (
+      {/* Layer 1 & 2: Generalized System + Subset Explorer OR 12-Tone Interval Matrix */}
+      {midiTuning.systemMode && midiTuning.systemMode !== 'chromatic-12' ? (
         <TuningSystemExplorer midiTuning={midiTuning} onChangeTuning={onChangeTuning} />
       ) : (
         <div className="space-y-1.5">
