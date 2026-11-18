@@ -252,6 +252,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onClose={onCloseSettings}
         scene={scene}
         onUpdateScene={onUpdateScene}
+        midiTuning={midi.midiTuning}
+        onChangeTuning={midi.setMidiTuning}
         onOpenInfoModal={onOpenInfoModal}
       />
 

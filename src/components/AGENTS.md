@@ -23,6 +23,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/capture/PitchCaptureTab.tsx` — Peak-attack armed pitch/timbre capture (24 harmonic or inharmonic partials) with `ShapeRulerPreview` and `RatioScrubber` snapping.
 - `src/components/InfoModal.tsx` — Comprehensive 4-tab interactive theory documentation and tutorial modal with scroll-spy navigation.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
+- `src/components/SettingsAudioSection.tsx` — Audio gain, small-speaker assist, auto-mute on blur, and Rhythm Phase Alignment (`Sam-Aligned` vs `Key-Strike`) controls inside `SettingsDrawer`.
 - `src/components/TraySheet.tsx` — Floating & minimisable desktop window / mobile bottom sheet housing the shape partial inspector.
 - `src/components/FloatingStudioWindow.tsx` — Reusable non-blocking draggable & minimisable desktop floating window paired with a mobile touch sheet (shared by Shapes, Envelopes, and Filters).
 - `src/components/shape-editor/ShapeEditor.tsx` — Modular shape inspector container and tab orchestrator.

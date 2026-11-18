@@ -9,7 +9,6 @@ import {
   MIDI_TUNING_PRESETS,
   MidiIntervalTuningConfig,
   MidiNoteMappingResult,
-  MidiPhaseMode,
   MidiTuningConfig,
   MidiTuningPresetId,
   PrimeFamilyLabel,
@@ -142,88 +141,6 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         </p>
       </div>
 
-      {/* Rhythm & Pitch Anchor Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="block space-y-1">
-          <span className="text-[11px] font-medium text-slate-300">
-            Rhythm Anchor Band (Do+{midiTuning.rhythmAnchorBand} ≈ {anchorBpm.toFixed(1)} BPM)
-          </span>
-          <select
-            value={midiTuning.rhythmAnchorBand}
-            onChange={(e) =>
-              onChangeTuning((prev) => ({ ...prev, rhythmAnchorBand: Number(e.target.value) }))
-            }
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
-          >
-            {[2, 3, 4, 5, 6].map((band) => (
-              <option key={band} value={band}>
-                Band +{band} (Do+{band} ≈ {dToBpm(band, tplFrequencyHz).toFixed(1)} BPM)
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block space-y-1">
-          <span className="text-[11px] font-medium text-slate-300">Root Key (Do)</span>
-          <select
-            value={midiTuning.rhythmRootMidi}
-            onChange={(e) => {
-              const root = Number(e.target.value);
-              onChangeTuning((prev) => ({
-                ...prev,
-                rhythmRootMidi: root,
-                pitchRootMidi: root,
-              }));
-            }}
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
-          >
-            {ROOT_OPTIONS.map((opt) => (
-              <option key={opt.midi} value={opt.midi}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {/* Rhythm Phase Alignment Mode */}
-      <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <span className="text-xs font-semibold text-slate-200 block">Rhythm Phase Alignment</span>
-          <span className="text-[11px] text-slate-400">
-            {midiTuning.rhythmPhaseMode === 'sam-aligned'
-              ? 'Voices join mid-cycle so periodic ratios lock at the Sam.'
-              : 'Each key strike restarts its own cycle from phase 0.'}
-          </span>
-        </div>
-        <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 shrink-0">
-          {(
-            [
-              { id: 'sam-aligned', label: 'Sam-Aligned' },
-              { id: 'key-strike', label: 'Key-Strike' },
-            ] as Array<{ id: MidiPhaseMode; label: string }>
-          ).map((opt) => {
-            const active = (midiTuning.rhythmPhaseMode ?? 'sam-aligned') === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() =>
-                  onChangeTuning((prev) => ({ ...prev, rhythmPhaseMode: opt.id }))
-                }
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
-                  active
-                    ? 'bg-red-600/25 text-white border border-red-500/60'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Layer 2 & Projection: Generalized System + Tuning Subset Explorer (always shown) */}
       <TuningSystemExplorer midiTuning={midiTuning} onChangeTuning={onChangeTuning} />
 
@@ -274,6 +191,60 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* 3. Absolute Projection: Rhythm Anchor Band & Root Key */}
+      <div className="space-y-2 rounded-xl bg-slate-950/70 border border-slate-800 p-3">
+        <div>
+          <span className="text-xs font-semibold text-slate-200 block">
+            3. Absolute Frequency &amp; Rhythm Projection
+          </span>
+          <span className="text-[10px] text-slate-400">
+            Anchors the relative 2-layer tuning structure to absolute pitch (Hz) and rhythm (BPM) space.
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-slate-300">
+              Rhythm Anchor Band (Do+{midiTuning.rhythmAnchorBand} ≈ {anchorBpm.toFixed(1)} BPM)
+            </span>
+            <select
+              value={midiTuning.rhythmAnchorBand}
+              onChange={(e) =>
+                onChangeTuning((prev) => ({ ...prev, rhythmAnchorBand: Number(e.target.value) }))
+              }
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {[2, 3, 4, 5, 6].map((band) => (
+                <option key={band} value={band}>
+                  Band +{band} (Do+{band} ≈ {dToBpm(band, tplFrequencyHz).toFixed(1)} BPM)
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-slate-300">Root Key (Do)</span>
+            <select
+              value={midiTuning.rhythmRootMidi}
+              onChange={(e) => {
+                const root = Number(e.target.value);
+                onChangeTuning((prev) => ({
+                  ...prev,
+                  rhythmRootMidi: root,
+                  pitchRootMidi: root,
+                }));
+              }}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {ROOT_OPTIONS.map((opt) => (
+                <option key={opt.midi} value={opt.midi}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
     </div>
   );
 };

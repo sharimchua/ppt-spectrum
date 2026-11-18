@@ -3,7 +3,6 @@ import {
   X,
   Sliders,
   Sparkles,
-  Volume2,
   Tv,
   Zap,
   BookOpen,
@@ -13,12 +12,16 @@ import {
   Compass,
 } from 'lucide-react';
 import { Scene, CosmeticsConfig } from '../core/types';
+import { MidiTuningConfig } from '../core/midi-tuning';
+import { SettingsAudioSection } from './SettingsAudioSection';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   scene: Scene;
   onUpdateScene: (updater: (prev: Scene) => Scene) => void;
+  midiTuning: MidiTuningConfig;
+  onChangeTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
   onOpenInfoModal?: () => void;
 }
 
@@ -27,6 +30,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onClose,
   scene,
   onUpdateScene,
+  midiTuning,
+  onChangeTuning,
   onOpenInfoModal,
 }) => {
   if (!isOpen) return null;
@@ -280,71 +285,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         </section>
 
         {/* SECTION 4: AUDIO & FOCUS MANAGEMENT */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-200 text-xs uppercase tracking-wider">
-            <Volume2 className="w-4 h-4 text-emerald-400" />
-            <span>Audio & Real-time Focus</span>
-          </div>
-
-          <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800/70 space-y-3">
-            {/* Master Gain */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-300">Master Volume:</span>
-                <span className="font-mono text-emerald-300">{(scene.audio.masterGain * 100).toFixed(0)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.02}
-                value={scene.audio.masterGain}
-                onChange={(e) => {
-                  const gain = parseFloat(e.target.value);
-                  onUpdateScene((prev) => ({
-                    ...prev,
-                    audio: { ...prev.audio, masterGain: gain },
-                  }));
-                }}
-                className="w-full h-1.5 bg-slate-800 rounded appearance-none cursor-pointer accent-emerald-500"
-              />
-            </div>
-
-            {/* Small Speaker Assist */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <div className="font-medium text-slate-200 text-[11px]">Small-Speaker Assist</div>
-                <div className="text-[9px] text-slate-400">Virtual bass harmonics reinforcement</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={scene.audio.speakerAssist}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  onUpdateScene((prev) => ({
-                    ...prev,
-                    audio: { ...prev.audio, speakerAssist: checked },
-                  }));
-                }}
-                className="w-4 h-4 accent-emerald-500 cursor-pointer"
-              />
-            </div>
-
-            {/* Real-time Focus Mode */}
-            <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-              <div>
-                <div className="font-medium text-slate-200 text-[11px]">Auto-Mute on Blur</div>
-                <div className="text-[9px] text-slate-400">Silences audio when tab is backgrounded</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={cosmetics.focusModeEnabled}
-                onChange={(e) => updateCosmetics({ focusModeEnabled: e.target.checked })}
-                className="w-4 h-4 accent-emerald-500 cursor-pointer"
-              />
-            </div>
-          </div>
-        </section>
+        <SettingsAudioSection
+          scene={scene}
+          cosmetics={cosmetics}
+          onUpdateScene={onUpdateScene}
+          onUpdateCosmetics={updateCosmetics}
+          midiTuning={midiTuning}
+          onChangeTuning={onChangeTuning}
+        />
 
         {/* SECTION 5: THEORY ANCHORS & CONCERT PITCH */}
         <section className="space-y-3">
