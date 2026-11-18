@@ -7,6 +7,7 @@ import React from 'react';
 import {
   GUITAR_TUNING_PRESETS,
   GuitarConfig,
+  GuitarLabelMode,
   GuitarPresetId,
   ISOMORPHIC_LAYOUT_PRESETS,
   InstrumentSurfaceMode,
@@ -180,6 +181,47 @@ export const InstrumentConfigMenu: React.FC<InstrumentConfigMenuProps> = ({
           </button>
         ))}
       </div>
+      <div className="flex items-center gap-1 border-l border-slate-800 pl-2">
+        <span className="text-[10px] text-slate-400">Labels:</span>
+        {(
+          [
+            { id: 'solfege', label: 'Solfège' },
+            { id: 'note', label: 'Note' },
+            { id: 'cents', label: 'Cents' },
+            { id: 'fret', label: 'Fret' },
+          ] as Array<{ id: GuitarLabelMode; label: string }>
+        ).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChangeGuitarConfig({ ...guitarConfig, labelMode: opt.id })}
+            className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold cursor-pointer ${
+              (guitarConfig.labelMode ?? 'solfege') === opt.id
+                ? 'bg-sky-600/30 border-sky-500 text-sky-200'
+                : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          onChangeGuitarConfig({
+            ...guitarConfig,
+            dimOutOfScale: !(guitarConfig.dimOutOfScale ?? true),
+          })
+        }
+        title="Dim frets outside the active Layer 2 Tuning Subset"
+        className={`px-2 py-0.5 rounded border text-[10px] font-semibold cursor-pointer ${
+          (guitarConfig.dimOutOfScale ?? true)
+            ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200'
+            : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        {(guitarConfig.dimOutOfScale ?? true) ? 'Dim Non-Subset' : 'Show All Frets'}
+      </button>
       <div className="flex flex-wrap items-center gap-1 border-l border-slate-800 pl-2">
         <span className="text-[10px] text-slate-400">Strings (High→Low):</span>
         {activeStrings.map((s, idx) => (

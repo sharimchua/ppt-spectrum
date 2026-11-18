@@ -81,7 +81,9 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [isoConfig, setIsoConfig] = useState<IsomorphicConfig>({
     tileShape: 'hex', layoutPreset: 'harmonic', tileSize: 'md', rows: 5, cols: 16,
   });
-  const [guitarConfig, setGuitarConfig] = useState<GuitarConfig>({ presetId: '6-std', fretCount: 12 });
+  const [guitarConfig, setGuitarConfig] = useState<GuitarConfig>({
+    presetId: '6-std', fretCount: 12, labelMode: 'solfege', dimOutOfScale: true,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
@@ -403,6 +405,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           isoTileShape={isoConfig.tileShape}
           isoTileSize={isoConfig.tileSize ?? 'md'}
           guitarStrings={guitarStrings}
+          guitarLabelMode={guitarConfig.labelMode}
+          guitarDimOutOfScale={guitarConfig.dimOutOfScale}
           activeSet={activeSet}
           isMidiHoldActive={isMidiHoldActive}
           onNoteOn={(id, d) => onVirtualNoteOn(id, 0.85, undefined, d)}

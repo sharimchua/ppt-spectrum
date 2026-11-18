@@ -6,6 +6,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import {
+  GuitarLabelMode,
   GuitarStringRow,
   InstrumentSurfaceMode,
   IsoTileShape,
@@ -21,6 +22,8 @@ export interface AlternateSurfacesProps {
   isoTileShape: IsoTileShape;
   isoTileSize?: IsoTileSize;
   guitarStrings: GuitarStringRow[];
+  guitarLabelMode?: GuitarLabelMode;
+  guitarDimOutOfScale?: boolean;
   activeSet: Set<number>;
   isMidiHoldActive: boolean;
   onNoteOn: (midiId: number, explicitD: number) => void;
@@ -34,9 +37,9 @@ const ISO_DIMENSIONS: Record<
   IsoTileSize,
   { hexW: number; hexH: number; hexOffset: number; hexOverlap: number; rectW: number; rectH: number; rectOffset: number }
 > = {
-  sm: { hexW: 36, hexH: 40, hexOffset: 19, hexOverlap: -7, rectW: 42, rectH: 32, rectOffset: 14 },
-  md: { hexW: 46, hexH: 50, hexOffset: 24, hexOverlap: -8, rectW: 54, rectH: 38, rectOffset: 18 },
-  lg: { hexW: 58, hexH: 64, hexOffset: 30, hexOverlap: -11, rectW: 68, rectH: 46, rectOffset: 22 },
+  sm: { hexW: 36, hexH: 40, hexOffset: 19, hexOverlap: -8, rectW: 42, rectH: 32, rectOffset: 14 },
+  md: { hexW: 46, hexH: 50, hexOffset: 24, hexOverlap: -10, rectW: 54, rectH: 38, rectOffset: 18 },
+  lg: { hexW: 58, hexH: 64, hexOffset: 30, hexOverlap: -14, rectW: 68, rectH: 46, rectOffset: 22 },
 };
 
 export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
@@ -46,6 +49,8 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
   isoTileShape,
   isoTileSize = 'md',
   guitarStrings,
+  guitarLabelMode = 'solfege',
+  guitarDimOutOfScale = true,
   activeSet,
   isMidiHoldActive,
   onNoteOn,
@@ -139,54 +144,56 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
     const isHex = isoTileShape === 'hex';
     const dims = ISO_DIMENSIONS[isoTileSize];
     return (
-      <div className={`flex flex-col items-center overflow-x-auto pb-1 ${isHex ? 'pt-1' : 'gap-1'}`}>
-        {isoGrid.map((row, rIdx) => (
-          <div
-            key={`iso-row-${rIdx}`}
-            className={`flex items-center ${isHex ? 'gap-0.5' : 'gap-1'}`}
-            style={{
-              paddingLeft: rIdx % 2 === 1 ? `${isHex ? dims.hexOffset : dims.rectOffset}px` : '0px',
-              marginTop: isHex && rIdx > 0 ? `${dims.hexOverlap}px` : undefined,
-            }}
-          >
-            {row.map((pad) => {
-              const isActive = activeSet.has(pad.midiId);
-              return (
-                <button
-                  key={pad.id}
-                  type="button"
-                  onPointerDown={(e) => handleDown(pad, e)}
-                  onPointerEnter={() => handleEnter(pad)}
-                  onPointerUp={() => handleUpOrLeave(pad)}
-                  onPointerLeave={() => handleUpOrLeave(pad)}
-                  className={`${
-                    isHex ? '' : 'rounded-md border'
-                  } flex flex-col items-center justify-center transition cursor-pointer shrink-0 ${
-                    isActive
-                      ? 'brightness-125 ring-2 ring-white'
-                      : pad.inScale
-                      ? 'opacity-100 hover:brightness-110'
-                      : 'opacity-35 hover:opacity-75'
-                  }`}
-                  style={{
-                    width: `${isHex ? dims.hexW : dims.rectW}px`,
-                    height: `${isHex ? dims.hexH : dims.rectH}px`,
-                    ...(isHex ? { clipPath: HEX_CLIP_PATH } : {}),
-                    backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}33`,
-                    borderColor: pad.isRoot ? '#fbbf24' : `${pad.colorHex}75`,
-                  }}
-                >
-                  <span className={`${isoTileSize === 'sm' ? 'text-[9px]' : 'text-[10px]'} font-bold text-white leading-tight`}>
-                    {pad.label}
-                  </span>
-                  <span className={`${isoTileSize === 'sm' ? 'text-[7px]' : 'text-[8px]'} font-mono text-slate-200 leading-tight`}>
-                    {pad.subLabel}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+      <div className="w-full overflow-x-auto pb-1">
+        <div className={`w-fit mx-auto flex flex-col items-start ${isHex ? 'pt-1' : 'gap-1'}`}>
+          {isoGrid.map((row, rIdx) => (
+            <div
+              key={`iso-row-${rIdx}`}
+              className={`flex items-center ${isHex ? 'gap-0.5' : 'gap-1'}`}
+              style={{
+                paddingLeft: rIdx % 2 === 1 ? `${isHex ? dims.hexOffset : dims.rectOffset}px` : '0px',
+                marginTop: isHex && rIdx > 0 ? `${dims.hexOverlap}px` : undefined,
+              }}
+            >
+              {row.map((pad) => {
+                const isActive = activeSet.has(pad.midiId);
+                return (
+                  <button
+                    key={pad.id}
+                    type="button"
+                    onPointerDown={(e) => handleDown(pad, e)}
+                    onPointerEnter={() => handleEnter(pad)}
+                    onPointerUp={() => handleUpOrLeave(pad)}
+                    onPointerLeave={() => handleUpOrLeave(pad)}
+                    className={`${
+                      isHex ? '' : 'rounded-md border'
+                    } flex flex-col items-center justify-center transition cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'brightness-125 ring-2 ring-white'
+                        : pad.inScale
+                        ? 'opacity-100 hover:brightness-110'
+                        : 'opacity-35 hover:opacity-75'
+                    }`}
+                    style={{
+                      width: `${isHex ? dims.hexW : dims.rectW}px`,
+                      height: `${isHex ? dims.hexH : dims.rectH}px`,
+                      ...(isHex ? { clipPath: HEX_CLIP_PATH } : {}),
+                      backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}33`,
+                      borderColor: pad.isRoot ? '#fbbf24' : `${pad.colorHex}75`,
+                    }}
+                  >
+                    <span className={`${isoTileSize === 'sm' ? 'text-[9px]' : 'text-[10px]'} font-bold text-white leading-tight`}>
+                      {pad.label}
+                    </span>
+                    <span className={`${isoTileSize === 'sm' ? 'text-[7px]' : 'text-[8px]'} font-mono text-slate-200 leading-tight`}>
+                      {pad.subLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -194,6 +201,8 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
   return (
     <GuitarFretboardSurface
       guitarStrings={guitarStrings}
+      labelMode={guitarLabelMode}
+      dimOutOfScale={guitarDimOutOfScale}
       activeSet={activeSet}
       onDown={handleDown}
       onEnter={handleEnter}

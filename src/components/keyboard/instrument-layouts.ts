@@ -50,10 +50,14 @@ export interface GuitarStringSpec {
   openMidi: number;
 }
 
+export type GuitarLabelMode = 'solfege' | 'note' | 'cents' | 'fret';
+
 export interface GuitarConfig {
   presetId: GuitarPresetId | 'custom';
   fretCount: 12 | 15 | 18;
   customStrings?: GuitarStringSpec[];
+  labelMode?: GuitarLabelMode;
+  dimOutOfScale?: boolean;
 }
 
 export const ISOMORPHIC_LAYOUT_PRESETS: Record<
@@ -156,6 +160,8 @@ export interface SurfacePad {
   midiId: number;
   label: string;
   subLabel: string;
+  noteLabel?: string;
+  centsLabel?: string;
   d: number;
   colorHex: string;
   inScale: boolean;
@@ -320,6 +326,8 @@ export function buildGuitarFretboard(
           midiId,
           label: f === 0 ? str.name : deg.label,
           subLabel: deg.label,
+          noteLabel: NOTE_NAMES[((str.openMidi + f) % 12 + 12) % 12],
+          centsLabel: `${Math.round(normCents)}¢`,
           d: mapping.d,
           colorHex: solfegeColorForCents(normCents),
           inScale: deg.active,
@@ -338,6 +346,8 @@ export function buildGuitarFretboard(
           midiId: 4000 + stringIndex * 32 + f,
           label: f === 0 ? str.name : `${f}`,
           subLabel: mapping.address.syllable,
+          noteLabel: NOTE_NAMES[((midi % 12) + 12) % 12],
+          centsLabel: `${Math.round(normCents)}¢`,
           d: mapping.d,
           colorHex: solfegeColorForCents(normCents),
           inScale,

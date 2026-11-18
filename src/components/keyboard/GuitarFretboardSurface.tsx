@@ -5,10 +5,12 @@
  */
 
 import React from 'react';
-import { GuitarStringRow, SurfacePad } from './instrument-layouts';
+import { GuitarLabelMode, GuitarStringRow, SurfacePad } from './instrument-layouts';
 
 export interface GuitarFretboardSurfaceProps {
   guitarStrings: GuitarStringRow[];
+  labelMode?: GuitarLabelMode;
+  dimOutOfScale?: boolean;
   activeSet: Set<number>;
   onDown: (pad: SurfacePad, e: React.PointerEvent) => void;
   onEnter: (pad: SurfacePad) => void;
@@ -17,8 +19,24 @@ export interface GuitarFretboardSurfaceProps {
 
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21]);
 
+function resolveFretLabel(pad: SurfacePad, fIdx: number, labelMode: GuitarLabelMode): string {
+  switch (labelMode) {
+    case 'note':
+      return pad.noteLabel ?? pad.subLabel;
+    case 'cents':
+      return pad.centsLabel ?? pad.subLabel;
+    case 'fret':
+      return `${fIdx}`;
+    case 'solfege':
+    default:
+      return pad.subLabel;
+  }
+}
+
 export const GuitarFretboardSurface: React.FC<GuitarFretboardSurfaceProps> = ({
   guitarStrings,
+  labelMode = 'solfege',
+  dimOutOfScale = true,
   activeSet,
   onDown,
   onEnter,
@@ -141,8 +159,9 @@ export const GuitarFretboardSurface: React.FC<GuitarFretboardSurfaceProps> = ({
           return row.frets.map((pad, fIdx) => {
             const x = xForFret(fIdx);
             const isActive = activeSet.has(pad.midiId);
-            const radius = isActive ? 10.5 : pad.inScale ? 9.5 : 7;
-            const textLabel = fIdx === 0 && !isActive ? (pad.inScale ? pad.subLabel : '0') : pad.subLabel;
+            const isDimmedOut = dimOutOfScale && !pad.inScale && !isActive;
+            const radius = isActive ? 10.5 : pad.inScale ? 9.5 : isDimmedOut ? 4.5 : 7.5;
+            const textLabel = resolveFretLabel(pad, fIdx, labelMode);
 
             return (
               <g
@@ -153,7 +172,9 @@ export const GuitarFretboardSurface: React.FC<GuitarFretboardSurfaceProps> = ({
                 onPointerUp={() => onUpOrLeave(pad)}
                 onPointerLeave={() => onUpOrLeave(pad)}
               >
-                <title>{`String ${row.stringName} · Fret ${fIdx} (${pad.subLabel})`}</title>
+                <title>{`String ${row.stringName} · Fret ${fIdx} (${pad.noteLabel ?? ''} · ${pad.subLabel} · ${pad.centsLabel ?? ''})`}</title>
+                {/* Larger invisible hit target for easy clicking on dimmed notes */}
+                <circle cx={x} cy={y} r={11} fill="transparent" />
                 {isActive && (
                   <circle
                     cx={x}
@@ -180,20 +201,23 @@ export const GuitarFretboardSurface: React.FC<GuitarFretboardSurfaceProps> = ({
                       : '#334155'
                   }
                   strokeWidth={isActive ? 1.8 : pad.isRoot && pad.inScale ? 1.6 : 1}
-                  opacity={isActive ? 1 : pad.inScale ? 0.95 : 0.45}
+                  opacity={isActive ? 1 : pad.inScale ? 0.95 : isDimmedOut ? 0.22 : 0.65}
+                  className={isDimmedOut ? 'group-hover:opacity-75 transition-opacity' : undefined}
                 />
-                <text
-                  x={x}
-                  y={y + 3}
-                  fill={isActive ? '#020617' : pad.inScale ? '#f8fafc' : '#94a3b8'}
-                  fontSize={textLabel.length > 2 ? 7 : 8.5}
-                  fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-                  fontWeight={isActive || pad.inScale ? '700' : '500'}
-                  textAnchor="middle"
-                  opacity={isActive || pad.inScale ? 1 : 0.6}
-                >
-                  {textLabel}
-                </text>
+                {(!isDimmedOut || isActive) && (
+                  <text
+                    x={x}
+                    y={y + 3}
+                    fill={isActive ? '#020617' : pad.inScale ? '#f8fafc' : '#94a3b8'}
+                    fontSize={textLabel.length > 3 ? 6.2 : textLabel.length > 2 ? 7 : 8.5}
+                    fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+                    fontWeight={isActive || pad.inScale ? '700' : '500'}
+                    textAnchor="middle"
+                    opacity={isActive || pad.inScale ? 1 : 0.75}
+                  >
+                    {textLabel}
+                  </text>
+                )}
               </g>
             );
           });
