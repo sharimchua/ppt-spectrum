@@ -147,18 +147,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
         : [],
     [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig]
   );
-  const effectiveIsoConfig = useMemo(
-    () => computeResponsiveIsoConfig(isoConfig, availableWidth),
-    [isoConfig, availableWidth]
-  );
-
-  const isoGrid = useMemo(
-    () =>
-      surfaceMode === 'isomorphic'
-        ? buildIsomorphicGrid(effectiveIsoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
-        : [],
-    [surfaceMode, effectiveIsoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
-  );
+  const isoGrid = useMemo(() => {
+    if (surfaceMode !== 'isomorphic') return [];
+    const responsive = computeResponsiveIsoConfig(isoConfig, availableWidth);
+    return buildIsomorphicGrid(responsive, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz);
+  }, [surfaceMode, isoConfig, availableWidth, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]);
   const guitarStrings = useMemo(
     () =>
       surfaceMode === 'guitar'
