@@ -10,6 +10,7 @@ import {
   Eraser, Keyboard as MidiIcon, Minus, Plus, Sliders, Sparkles, X,
 } from 'lucide-react';
 import { MIDI_TUNING_PRESETS, resolveRootAnchorD } from '../core/midi-tuning';
+import { resolveSystemSpec } from '../core/tuning-systems';
 import { PITCH_NAMES, dToBpm, dToFreq, resolveDuPeriodAddress } from '../core/axis';
 import {
   KEYBOARD_RANGE_PRESETS,
@@ -156,8 +157,10 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   const activeSet = useMemo(() => {
     const autoDs = tuningStrum?.isSequencing ? heldMappings.map((m) => m.d) : [];
-    return mergeAutoPlayActiveIds(activeMidiNumbers, autoDs, keys, isoGrid, guitarStrings);
-  }, [activeMidiNumbers, tuningStrum?.isSequencing, heldMappings, keys, isoGrid, guitarStrings]);
+    const rootD = resolveRootAnchorD(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz);
+    const pRatio = resolveSystemSpec(midiTuning).periodRatio ?? 2.0;
+    return mergeAutoPlayActiveIds(activeMidiNumbers, autoDs, keys, isoGrid, guitarStrings, currentFundamentalD, rootD, pRatio);
+  }, [activeMidiNumbers, tuningStrum?.isSequencing, heldMappings, keys, isoGrid, guitarStrings, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]);
 
   const { bands: intervalBands, rowCount: intervalRowCount } = useMemo(
     () => (showIntervals ? buildIntervalBands(keys, activeSet, isRhythm) : { bands: [], rowCount: 0 }),

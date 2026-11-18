@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createDefaultMidiTuningConfig } from '../../core/midi-tuning';
+import { createDefaultMidiTuningConfig, resolveRootAnchorD } from '../../core/midi-tuning';
 import {
   buildScaleStripPads,
   buildIsomorphicGrid,
   buildGuitarFretboard,
+  mergeAutoPlayActiveIds,
 } from '../keyboard/instrument-layouts';
 
 describe('Alternate Instrument Surfaces', () => {
@@ -75,5 +76,16 @@ describe('Alternate Instrument Surfaces', () => {
     expect(custom.length).toBe(3);
     expect(custom[0].stringName).toBe('C4');
     expect(custom[0].frets.length).toBe(19);
+  });
+
+  it('highlights Auto-Play notes on Iso & Guitar even when placementD differs from Root Anchor', () => {
+    const cfg = createDefaultMidiTuningConfig('5-limit');
+    const placementD = -2.5; // shifted from G#4 (-4.0)
+    const rootD = resolveRootAnchorD(cfg, placementD, 440, 25.8);
+    const iso = buildIsomorphicGrid({ tileShape: 'hex', layoutPreset: 'harmonic', rows: 5, cols: 10 }, cfg, placementD, 440, 25.8);
+    const guitar = buildGuitarFretboard({ presetId: '6-std', fretCount: 12 }, cfg, placementD, 440, 25.8);
+    const heldDoD = placementD; // Auto-Play playing Do (ratio 1:1)
+    const active = mergeAutoPlayActiveIds([], [heldDoD], [], iso, guitar, placementD, rootD, 2.0);
+    expect(active.size).toBeGreaterThan(0);
   });
 });

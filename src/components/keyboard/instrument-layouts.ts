@@ -298,14 +298,38 @@ export function mergeAutoPlayActiveIds(
   heldDs: number[],
   keys: Array<{ midi: number; mapping: { d: number } }>,
   isoGrid: SurfacePad[][],
-  guitarStrings: GuitarStringRow[]
+  guitarStrings: GuitarStringRow[],
+  placementD: number = 0,
+  rootAnchorD: number = 0,
+  periodRatio: number = 2.0
 ): Set<number> {
   const set = new Set(baseIds);
   if (heldDs.length === 0) return set;
-  const matchesD = (d: number) => heldDs.some((hd) => Math.abs(d - hd) < 0.015);
-  for (const k of keys) if (matchesD(k.mapping.d)) set.add(k.midi);
-  for (const row of isoGrid) for (const p of row) if (!p.outOfRange && matchesD(p.d)) set.add(p.midiId);
-  for (const row of guitarStrings) for (const p of row.frets) if (matchesD(p.d)) set.add(p.midiId);
+
+  const periodOct = Math.max(0.1, Math.log2(periodRatio));
+  const autoRels = heldDs.map((hd) => placementD - hd);
+  const matchesExact = (itemD: number) => {
+    const itemRel = rootAnchorD - itemD;
+    return autoRels.some((ar) => Math.abs(itemRel - ar) < 0.018);
+  };
+  const matchesMod = (itemD: number) => {
+    const itemRel = rootAnchorD - itemD;
+    return autoRels.some((ar) => {
+      const diff = Math.abs((((itemRel - ar) % periodOct) + periodOct) % periodOct);
+      return Math.min(diff, periodOct - diff) < 0.018;
+    });
+  };
+
+  let matchedAny = false;
+  for (const k of keys) if (matchesExact(k.mapping.d)) { set.add(k.midi); matchedAny = true; }
+  for (const row of isoGrid) for (const p of row) if (!p.outOfRange && matchesExact(p.d)) { set.add(p.midiId); matchedAny = true; }
+  for (const row of guitarStrings) for (const p of row.frets) if (matchesExact(p.d)) { set.add(p.midiId); matchedAny = true; }
+
+  if (!matchedAny) {
+    for (const k of keys) if (matchesMod(k.mapping.d)) set.add(k.midi);
+    for (const row of isoGrid) for (const p of row) if (!p.outOfRange && matchesMod(p.d)) set.add(p.midiId);
+    for (const row of guitarStrings) for (const p of row.frets) if (matchesMod(p.d)) set.add(p.midiId);
+  }
   return set;
 }
 
