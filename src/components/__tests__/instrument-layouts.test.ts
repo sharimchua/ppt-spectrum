@@ -41,5 +41,24 @@ describe('Alternate Instrument Surfaces', () => {
     const bass4 = buildGuitarFretboard({ presetId: '4-bass', fretCount: 15 }, cfg, -3.0, 440, 25.8);
     expect(bass4.length).toBe(4);
     expect(bass4[0].frets.length).toBe(16);
+
+    const custom = buildGuitarFretboard(
+      {
+        presetId: 'custom',
+        fretCount: 18,
+        customStrings: [
+          { name: 'C4', openMidi: 60 },
+          { name: 'G3', openMidi: 55 },
+          { name: 'C3', openMidi: 48 },
+        ],
+      },
+      cfg,
+      -3.0,
+      440,
+      25.8
+    );
+    expect(custom.length).toBe(3);
+    expect(custom[0].stringName).toBe('C4');
+    expect(custom[0].frets.length).toBe(19);
   });
 });

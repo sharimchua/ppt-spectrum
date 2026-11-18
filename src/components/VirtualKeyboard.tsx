@@ -33,6 +33,7 @@ import {
   buildGuitarFretboard,
   buildIsomorphicGrid,
   buildScaleStripPads,
+  computeResponsiveIsoConfig,
 } from './keyboard/instrument-layouts';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTuningStrumResult } from './hooks/useTuningStrum';
@@ -78,7 +79,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState<boolean>(false);
   const [scaleConfig, setScaleConfig] = useState<ScaleStripConfig>({ octaves: 2, showInactive: true });
   const [isoConfig, setIsoConfig] = useState<IsomorphicConfig>({
-    tileShape: 'hex', layoutPreset: 'harmonic', rows: 4, cols: 8,
+    tileShape: 'hex', layoutPreset: 'harmonic', tileSize: 'md', rows: 5, cols: 16,
   });
   const [guitarConfig, setGuitarConfig] = useState<GuitarConfig>({ presetId: '6-std', fretCount: 12 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,12 +147,17 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
         : [],
     [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig]
   );
+  const effectiveIsoConfig = useMemo(
+    () => computeResponsiveIsoConfig(isoConfig, availableWidth),
+    [isoConfig, availableWidth]
+  );
+
   const isoGrid = useMemo(
     () =>
       surfaceMode === 'isomorphic'
-        ? buildIsomorphicGrid(isoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+        ? buildIsomorphicGrid(effectiveIsoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
         : [],
-    [surfaceMode, isoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+    [surfaceMode, effectiveIsoConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
   );
   const guitarStrings = useMemo(
     () =>
@@ -402,6 +408,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           stripPads={stripPads}
           isoGrid={isoGrid}
           isoTileShape={isoConfig.tileShape}
+          isoTileSize={isoConfig.tileSize ?? 'md'}
           guitarStrings={guitarStrings}
           activeSet={activeSet}
           isMidiHoldActive={isMidiHoldActive}

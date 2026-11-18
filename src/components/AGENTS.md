@@ -46,6 +46,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/keyboard/keyboard-layout.ts` — Pure key geometry, Solfège colouring, and interval distance band builders for `VirtualKeyboard`.
 - `src/components/keyboard/instrument-layouts.ts` — Pure layout builders for Scale-Degree Strip, 2D Isomorphic Lattice, and 6-string Guitar Fretboard driven by `MidiTuningConfig`.
 - `src/components/keyboard/AlternateSurfaces.tsx` — Interactive renderer for Scale-Degree Strip, Isomorphic Lattice, and Guitar Fretboard surfaces inside `VirtualKeyboard`.
+- `src/components/keyboard/GuitarFretboardSurface.tsx` — SVG Guitar/Bass/Ukulele fretboard renderer with nut, fret wires, inlay markers, graduated string gauges, and Solfège scale/active nodes.
 - `src/components/keyboard/PianoKeybed.tsx` — Standard 12-key Solfège piano keybed with stacked interval distance bands.
 - `src/components/keyboard/PianoToolbarControls.tsx` — Piano-only range, Fit/Fixed, and Interval Bands toolbar controls.
 - `src/components/keyboard/PlayPanelStrumBar.tsx` — Inline Strum & Stepped Scale Sequencer bar docked inside `VirtualKeyboard`.

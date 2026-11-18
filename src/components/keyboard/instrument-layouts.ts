@@ -23,11 +23,13 @@ export interface ScaleStripConfig {
 }
 
 export type IsoTileShape = 'rect' | 'hex';
+export type IsoTileSize = 'sm' | 'md' | 'lg';
 export type IsoLayoutPresetId = 'harmonic' | 'wicki-hayden' | 'fourths';
 
 export interface IsomorphicConfig {
   tileShape: IsoTileShape;
   layoutPreset: IsoLayoutPresetId;
+  tileSize?: IsoTileSize;
   rows: number;
   cols: number;
 }
@@ -37,13 +39,21 @@ export type GuitarPresetId =
   | '6-fourths'
   | '6-drop-d'
   | '6-dadgad'
+  | '6-open-g'
+  | '6-open-d'
   | '7-std'
   | '4-bass'
   | '4-uke';
 
+export interface GuitarStringSpec {
+  name: string;
+  openMidi: number;
+}
+
 export interface GuitarConfig {
-  presetId: GuitarPresetId;
-  fretCount: 12 | 15;
+  presetId: GuitarPresetId | 'custom';
+  fretCount: 12 | 15 | 18;
+  customStrings?: GuitarStringSpec[];
 }
 
 export const ISOMORPHIC_LAYOUT_PRESETS: Record<
@@ -87,6 +97,20 @@ export const GUITAR_TUNING_PRESETS: Record<
       { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'D2', openMidi: 38 },
     ],
   },
+  '6-open-g': {
+    label: '6-String Open G',
+    strings: [
+      { name: 'D4', openMidi: 62 }, { name: 'B3', openMidi: 59 }, { name: 'G3', openMidi: 55 },
+      { name: 'D3', openMidi: 50 }, { name: 'G2', openMidi: 43 }, { name: 'D2', openMidi: 38 },
+    ],
+  },
+  '6-open-d': {
+    label: '6-String Open D',
+    strings: [
+      { name: 'D4', openMidi: 62 }, { name: 'A3', openMidi: 57 }, { name: 'F#3', openMidi: 54 },
+      { name: 'D3', openMidi: 50 }, { name: 'A2', openMidi: 45 }, { name: 'D2', openMidi: 38 },
+    ],
+  },
   '7-std': {
     label: '7-String Standard',
     strings: [
@@ -110,6 +134,22 @@ export const GUITAR_TUNING_PRESETS: Record<
     ],
   },
 };
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
+
+export function midiToNoteLabel(midi: number): string {
+  const pc = ((midi % 12) + 12) % 12;
+  const oct = Math.floor(midi / 12) - 1;
+  return `${NOTE_NAMES[pc]}${oct}`;
+}
+
+export function resolveGuitarStrings(guitarConfig: GuitarConfig): GuitarStringSpec[] {
+  if (guitarConfig.presetId === 'custom' && guitarConfig.customStrings?.length) {
+    return guitarConfig.customStrings;
+  }
+  const presetKey = guitarConfig.presetId === 'custom' ? '6-std' : guitarConfig.presetId;
+  return GUITAR_TUNING_PRESETS[presetKey]?.strings ?? GUITAR_TUNING_PRESETS['6-std'].strings;
+}
 
 export interface SurfacePad {
   id: string;
@@ -179,6 +219,21 @@ export function buildScaleStripPads(
   return pads;
 }
 
+export function computeResponsiveIsoConfig(
+  isoConfig: IsomorphicConfig,
+  availableWidth: number
+): IsomorphicConfig {
+  const size = isoConfig.tileSize ?? 'md';
+  const isHex = isoConfig.tileShape === 'hex';
+  const stepX = isHex
+    ? (size === 'sm' ? 38 : size === 'md' ? 48 : 60)
+    : (size === 'sm' ? 46 : size === 'md' ? 58 : 72);
+  const indent = size === 'sm' ? 20 : size === 'md' ? 25 : 31;
+  const cols = Math.max(8, Math.floor((availableWidth - indent - 24) / stepX));
+  const rows = size === 'sm' ? 6 : size === 'md' ? 5 : 4;
+  return { ...isoConfig, rows, cols };
+}
+
 export function buildIsomorphicGrid(
   isoConfig: IsomorphicConfig,
   midiTuning: MidiTuningConfig,
@@ -237,7 +292,7 @@ export function buildGuitarFretboard(
   const allDegrees = resolveTuningDegrees(midiTuning);
   const activeDegrees = allDegrees.filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
-  const strings = GUITAR_TUNING_PRESETS[guitarConfig.presetId]?.strings ?? GUITAR_TUNING_PRESETS['6-std'].strings;
+  const strings = resolveGuitarStrings(guitarConfig);
   const projMode = midiTuning.projectionMode ?? 'nearest-12';
   const spec = resolveSystemSpec(midiTuning);
   const periodRatio = spec.periodRatio ?? 2.0;
