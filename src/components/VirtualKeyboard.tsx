@@ -391,7 +391,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       {tuningStrum?.isStrumMode && (
         <PlayPanelStrumBar
           midiTuning={midiTuning}
-          onChangeTuning={midi.setMidiTuning}
           tuningStrum={tuningStrum}
         />
       )}

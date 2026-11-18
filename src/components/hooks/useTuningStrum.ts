@@ -74,8 +74,11 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
 
   const seqStartTimeRef = useRef<number>(0);
   const seqIntervalRef = useRef<number | null>(null);
+  const gateTimerRef = useRef<number | null>(null);
   const activeVoiceMidiRef = useRef<number | null>(null);
   const playTargetRef = useRef<(target: SequencerTarget, all: TuningDegree[]) => void>(() => {});
+  const releaseVoiceRef = useRef<() => void>(() => {});
+  const stopSequencerRef = useRef<() => void>(() => {});
   const placementD = scene.placements[0]?.d ?? -3.0;
 
   const systemSpec = useMemo(
@@ -94,13 +97,21 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     [allDegrees, useBorrowedTones]
   );
 
+  const clearGateTimer = useCallback(() => {
+    if (gateTimerRef.current !== null) {
+      window.clearTimeout(gateTimerRef.current);
+      gateTimerRef.current = null;
+    }
+  }, []);
+
   const releaseActiveVoice = useCallback(() => {
+    clearGateTimer();
     if (activeVoiceMidiRef.current !== null) {
       midi.virtualNoteOff(activeVoiceMidiRef.current);
       activeVoiceMidiRef.current = null;
     }
     setActiveSystemIndex(null);
-  }, [midi]);
+  }, [clearGateTimer, midi]);
 
   const playTarget = useCallback(
     (target: SequencerTarget, all: TuningDegree[]) => {
@@ -206,6 +217,8 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
   }, [isSequencing, isStrumMode, stopSequencer]);
 
   playTargetRef.current = playTarget;
+  releaseVoiceRef.current = releaseActiveVoice;
+  stopSequencerRef.current = stopSequencer;
 
   useEffect(() => {
     if (!isSequencing || activeDegrees.length === 0 || allDegrees.length === 0) return;
@@ -219,6 +232,7 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
       periodSpan,
     });
     const stepMs = Math.max(80, Math.round(60000 / Math.max(30, sequenceTempoBpm)));
+    const gateMs = Math.max(40, Math.round(stepMs * 0.78));
     let lastStepPos = -1;
 
     const tick = () => {
@@ -231,17 +245,23 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
       );
       if (stepPosition !== lastStepPos && target) {
         lastStepPos = stepPosition;
+        clearGateTimer();
         playTargetRef.current(target, allDegrees);
+        gateTimerRef.current = window.setTimeout(() => {
+          gateTimerRef.current = null;
+          releaseVoiceRef.current();
+        }, gateMs);
       }
       if (done) {
-        stopSequencer();
+        stopSequencerRef.current();
       }
     };
 
     tick();
-    const intervalId = window.setInterval(tick, Math.min(40, Math.floor(stepMs / 3)));
+    const intervalId = window.setInterval(tick, Math.min(30, Math.floor(stepMs / 3)));
     seqIntervalRef.current = intervalId;
     return () => {
+      clearGateTimer();
       window.clearInterval(intervalId);
       if (seqIntervalRef.current === intervalId) {
         seqIntervalRef.current = null;
@@ -256,7 +276,7 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     boundaryRule,
     periodSpan,
     sequenceTempoBpm,
-    stopSequencer,
+    clearGateTimer,
   ]);
 
   return {

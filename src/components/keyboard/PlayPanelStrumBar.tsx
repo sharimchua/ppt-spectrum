@@ -7,11 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Minus, Play, Plus, Square } from 'lucide-react';
 import { MidiTuningConfig } from '../../core/midi-tuning';
-import {
-  getAvailableSubsetsForSystem,
-  resolveSubsetId,
-  resolveSystemSpec,
-} from '../../core/tuning-systems';
+import { resolveSystemSpec } from '../../core/tuning-systems';
 import {
   BOUNDARY_RULES,
   BoundaryRule,
@@ -22,7 +18,6 @@ import { UseTuningStrumResult } from '../hooks/useTuningStrum';
 
 export interface PlayPanelStrumBarProps {
   midiTuning: MidiTuningConfig;
-  onChangeTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
   tuningStrum: UseTuningStrumResult;
 }
 
@@ -30,7 +25,6 @@ const clampBpm = (bpm: number): number => Math.max(30, Math.min(360, Math.round(
 
 export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
   midiTuning,
-  onChangeTuning,
   tuningStrum,
 }) => {
   const {
@@ -57,8 +51,6 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
   } = tuningStrum;
 
   const spec = resolveSystemSpec(midiTuning);
-  const subsetId = resolveSubsetId(midiTuning);
-  const availableSubsets = getAvailableSubsetsForSystem(spec);
   const periodUnitLabel = (spec.periodRatio ?? 2) === 3 ? 'Tritave' : 'Oct';
 
   const [bpmDraft, setBpmDraft] = useState(String(sequenceTempoBpm));
@@ -103,31 +95,6 @@ export const PlayPanelStrumBar: React.FC<PlayPanelStrumBarProps> = ({
           <span className="text-[10px] font-semibold text-rose-300">
             Auto-Play ({activeDegrees.length} tones · relative to root)
           </span>
-
-          {availableSubsets.length > 1 && (
-            <div className="flex flex-wrap items-center gap-1">
-              {availableSubsets.map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() =>
-                    onChangeTuning((prev) => ({
-                      ...prev,
-                      subsetId: sub.id,
-                      activeDegreeMask: undefined,
-                    }))
-                  }
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border cursor-pointer ${
-                    subsetId === sub.id
-                      ? 'bg-amber-600/30 border-amber-500 text-amber-200'
-                      : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
