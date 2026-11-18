@@ -72,8 +72,6 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   onChangeTuning,
   tplFrequencyHz = TPL_FREQUENCY_HZ,
 }) => {
-  const anchorBpm = dToBpm(midiTuning.rhythmAnchorBand, tplFrequencyHz);
-
   const handleSelectPreset = (presetId: Exclude<MidiTuningPresetId, 'custom'>) => {
     onChangeTuning((prev) => applyTuningPreset(prev, presetId));
   };
@@ -204,9 +202,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <label className="block space-y-1">
-            <span className="text-[11px] font-medium text-slate-300">
-              Rhythm Anchor Band (Do+{midiTuning.rhythmAnchorBand} ≈ {anchorBpm.toFixed(1)} BPM)
-            </span>
+            <span className="text-[11px] font-medium text-slate-300">Rhythm Anchor Band</span>
             <select
               value={midiTuning.rhythmAnchorBand}
               onChange={(e) =>

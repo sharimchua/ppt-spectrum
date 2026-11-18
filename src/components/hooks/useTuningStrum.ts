@@ -7,12 +7,16 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Scene } from '../../core/types';
 import {
   TuningDegree,
+  resolveSystemSpec,
   resolveTuningDegrees,
   tuningDegreeToRelativeMapping,
 } from '../../core/tuning-systems';
 import {
-  SequencePattern,
-  buildSequenceIndices,
+  BoundaryRule,
+  SequencePatternId,
+  SequencerStep,
+  SequencerTarget,
+  buildSequenceTargets,
   evaluateSequenceStep,
 } from '../../core/scale-sequencer';
 import { UseMidiResult } from './useMidi';
@@ -31,12 +35,19 @@ export interface UseTuningStrumResult {
   allDegrees: TuningDegree[];
   activeDegrees: TuningDegree[];
   activeIndex: number;
+  activeSystemIndex: number | null;
   strumToIndex: (index: number) => void;
   strumStep: (deltaSteps: number) => void;
   toggleDegreeActive: (degreeIndex: number) => void;
   isSequencing: boolean;
-  sequencePattern: SequencePattern;
-  setSequencePattern: (pattern: SequencePattern) => void;
+  sequencePattern: SequencePatternId;
+  setSequencePattern: (pattern: SequencePatternId) => void;
+  boundaryRule: BoundaryRule;
+  setBoundaryRule: (rule: BoundaryRule) => void;
+  periodSpan: number;
+  setPeriodSpan: (span: number) => void;
+  customSteps: SequencerStep[];
+  setCustomSteps: (steps: SequencerStep[] | ((prev: SequencerStep[]) => SequencerStep[])) => void;
   sequenceTempoBpm: number;
   setSequenceTempoBpm: (bpm: number) => void;
   useBorrowedTones: boolean;
@@ -48,16 +59,30 @@ export interface UseTuningStrumResult {
 export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTuningStrumResult {
   const [isStrumMode, setIsStrumModeState] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeSystemIndex, setActiveSystemIndex] = useState<number | null>(null);
   const [isSequencing, setIsSequencing] = useState(false);
-  const [sequencePattern, setSequencePattern] = useState<SequencePattern>('ascend');
+  const [sequencePattern, setSequencePattern] = useState<SequencePatternId>('step-up');
+  const [boundaryRule, setBoundaryRule] = useState<BoundaryRule>('wrap');
+  const [periodSpan, setPeriodSpan] = useState(1);
+  const [customSteps, setCustomSteps] = useState<SequencerStep[]>([
+    { scaleDelta: 2, chromaticDelta: 0 },
+    { scaleDelta: -1, chromaticDelta: 0 },
+    { scaleDelta: 1, chromaticDelta: 0 },
+  ]);
   const [sequenceTempoBpm, setSequenceTempoBpm] = useState(140);
   const [useBorrowedTones, setUseBorrowedTones] = useState(false);
 
   const seqStartTimeRef = useRef<number>(0);
   const seqIntervalRef = useRef<number | null>(null);
   const activeVoiceMidiRef = useRef<number | null>(null);
-  const playDegreeRef = useRef<(index: number, list: TuningDegree[]) => void>(() => {});
+  const playTargetRef = useRef<(target: SequencerTarget, all: TuningDegree[]) => void>(() => {});
   const placementD = scene.placements[0]?.d ?? -3.0;
+
+  const systemSpec = useMemo(
+    () => resolveSystemSpec(midi.midiTuning),
+    [midi.midiTuning]
+  );
+  const periodRatio = systemSpec.periodRatio ?? 2.0;
 
   const allDegrees = useMemo(
     () => resolveTuningDegrees(midi.midiTuning),
@@ -74,29 +99,46 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
       midi.virtualNoteOff(activeVoiceMidiRef.current);
       activeVoiceMidiRef.current = null;
     }
+    setActiveSystemIndex(null);
   }, [midi]);
 
-  const playDegreeAtIndex = useCallback(
-    (index: number, list: TuningDegree[]) => {
-      if (list.length === 0) return;
-      const clamped = Math.max(0, Math.min(list.length - 1, index));
-      const deg = list[clamped];
-      const nextMidiId = SCALE_STRIP_MIDI_BASE + deg.index;
+  const playTarget = useCallback(
+    (target: SequencerTarget, all: TuningDegree[]) => {
+      const deg = all[target.systemDegreeIndex];
+      if (!deg) return;
+      const nextMidiId = SCALE_STRIP_MIDI_BASE + deg.index + target.periodOffset * 100;
       const mapping = tuningDegreeToRelativeMapping(
         deg,
-        0,
+        target.periodOffset,
         nextMidiId,
         placementD,
-        scene.anchors.tplFrequencyHz
+        scene.anchors.tplFrequencyHz,
+        periodRatio
       );
       if (activeVoiceMidiRef.current !== null && activeVoiceMidiRef.current !== nextMidiId) {
         midi.virtualNoteOff(activeVoiceMidiRef.current);
       }
       activeVoiceMidiRef.current = nextMidiId;
       midi.virtualNoteOn(nextMidiId, 0.85, undefined, mapping.d);
-      setActiveIndex(clamped);
+      setActiveSystemIndex(deg.index);
+      if (target.activeIndex >= 0) {
+        setActiveIndex(target.activeIndex);
+      }
     },
-    [midi, placementD, scene.anchors.tplFrequencyHz]
+    [midi, periodRatio, placementD, scene.anchors.tplFrequencyHz]
+  );
+
+  const playDegreeAtIndex = useCallback(
+    (index: number, list: TuningDegree[]) => {
+      if (list.length === 0) return;
+      const clamped = Math.max(0, Math.min(list.length - 1, index));
+      const deg = list[clamped];
+      playTarget(
+        { activeIndex: clamped, systemDegreeIndex: deg.index, periodOffset: 0 },
+        allDegrees
+      );
+    },
+    [allDegrees, playTarget]
   );
 
   const setIsStrumMode = useCallback(
@@ -163,21 +205,36 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     }
   }, [isSequencing, isStrumMode, stopSequencer]);
 
-  playDegreeRef.current = playDegreeAtIndex;
+  playTargetRef.current = playTarget;
 
   useEffect(() => {
-    if (!isSequencing || activeDegrees.length === 0) return;
+    if (!isSequencing || activeDegrees.length === 0 || allDegrees.length === 0) return;
 
-    const indices = buildSequenceIndices(activeDegrees.length, sequencePattern);
+    const targets = buildSequenceTargets({
+      activeDegreeIndices: activeDegrees.map((d) => d.index),
+      systemSize: allDegrees.length,
+      patternId: sequencePattern,
+      customSteps,
+      boundaryRule,
+      periodSpan,
+    });
     const stepMs = Math.max(80, Math.round(60000 / Math.max(30, sequenceTempoBpm)));
     let lastStepPos = -1;
 
     const tick = () => {
       const elapsed = performance.now() - seqStartTimeRef.current;
-      const { stepPosition, degreeIndex } = evaluateSequenceStep(elapsed, stepMs, indices);
-      if (stepPosition !== lastStepPos && degreeIndex >= 0) {
+      const { stepPosition, target, done } = evaluateSequenceStep(
+        elapsed,
+        stepMs,
+        targets,
+        boundaryRule
+      );
+      if (stepPosition !== lastStepPos && target) {
         lastStepPos = stepPosition;
-        playDegreeRef.current(degreeIndex, activeDegrees);
+        playTargetRef.current(target, allDegrees);
+      }
+      if (done) {
+        stopSequencer();
       }
     };
 
@@ -190,7 +247,17 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
         seqIntervalRef.current = null;
       }
     };
-  }, [isSequencing, activeDegrees, sequencePattern, sequenceTempoBpm]);
+  }, [
+    isSequencing,
+    activeDegrees,
+    allDegrees,
+    sequencePattern,
+    customSteps,
+    boundaryRule,
+    periodSpan,
+    sequenceTempoBpm,
+    stopSequencer,
+  ]);
 
   return {
     isStrumMode,
@@ -199,12 +266,19 @@ export function useTuningStrum({ scene, midi }: UseTuningStrumOptions): UseTunin
     allDegrees,
     activeDegrees,
     activeIndex,
+    activeSystemIndex,
     strumToIndex,
     strumStep,
     toggleDegreeActive,
     isSequencing,
     sequencePattern,
     setSequencePattern,
+    boundaryRule,
+    setBoundaryRule,
+    periodSpan,
+    setPeriodSpan,
+    customSteps,
+    setCustomSteps,
     sequenceTempoBpm,
     setSequenceTempoBpm,
     useBorrowedTones,

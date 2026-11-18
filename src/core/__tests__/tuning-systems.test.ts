@@ -8,7 +8,7 @@ import {
   tuningDegreeToMapping,
   tuningDegreeToRelativeMapping,
 } from '../tuning-systems';
-import { buildSequenceIndices, evaluateSequenceStep } from '../scale-sequencer';
+import { buildSequenceTargets, evaluateSequenceStep } from '../scale-sequencer';
 
 describe('Alternate Tuning Systems & Scale Sequencer', () => {
   it('computes exact octave-reduced 3:2 fifth chain ratios', () => {
@@ -98,15 +98,66 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(edo31Nearest.ratioValue).toBeCloseTo(Math.pow(2, 10 / 31), 5);
   });
 
-  it('supports relative tonic mapping and quartal sequencing', () => {
+  it('supports relative tonic mapping and dual-coordinate algorithmic sequencing', () => {
     const pent = buildPythagoreanChainDegrees(5).filter((d) => d.active);
     const rel = tuningDegreeToRelativeMapping(pent[1], 0, 100, -2.5);
     expect(rel.d).toBeCloseTo(-2.5 - Math.log2(pent[1].ratioValue), 5);
 
-    expect(buildSequenceIndices(7, 'quartal').slice(0, 3)).toEqual([0, 3, 6]);
-    expect(buildSequenceIndices(5, 'ascend')).toEqual([0, 1, 2, 3, 4]);
-    expect(buildSequenceIndices(5, 'descend')).toEqual([4, 3, 2, 1, 0]);
-    expect(buildSequenceIndices(5, 'fifths-chain')).toEqual([0, 3, 1, 4, 2]);
-    expect(evaluateSequenceStep(500, 250, [0, 1, 2, 3, 4])).toEqual({ stepPosition: 2, degreeIndex: 2 });
+    const pentIndices = [0, 1, 2, 3, 4];
+    expect(
+      buildSequenceTargets({
+        activeDegreeIndices: pentIndices,
+        systemSize: 5,
+        patternId: 'step-up',
+        boundaryRule: 'wrap',
+      }).map((t) => t.systemDegreeIndex)
+    ).toEqual([0, 1, 2, 3, 4]);
+
+    // Bounce (Up/Down) reaches the octave tonic and returns cleanly
+    expect(
+      buildSequenceTargets({
+        activeDegreeIndices: pentIndices,
+        systemSize: 5,
+        patternId: 'step-up',
+        boundaryRule: 'bounce',
+      }).map((t) => [t.systemDegreeIndex, t.periodOffset])
+    ).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+      [0, 1],
+      [4, 0],
+      [3, 0],
+      [2, 0],
+      [1, 0],
+    ]);
+
+    // Chromatic/Lattice approach steps 1 Layer-1 unit below each Layer-2 subset degree
+    const diatonic12 = [0, 2, 4, 5, 7, 9, 11];
+    const approach = buildSequenceTargets({
+      activeDegreeIndices: diatonic12,
+      systemSize: 12,
+      patternId: 'chromatic-approach',
+      boundaryRule: 'wrap',
+    });
+    expect(approach.slice(0, 4)).toEqual([
+      { activeIndex: 6, systemDegreeIndex: 11, periodOffset: -1 },
+      { activeIndex: 0, systemDegreeIndex: 0, periodOffset: 0 },
+      { activeIndex: -1, systemDegreeIndex: 1, periodOffset: 0 },
+      { activeIndex: 1, systemDegreeIndex: 2, periodOffset: 0 },
+    ]);
+
+    expect(evaluateSequenceStep(500, 250, [0, 1, 2, 3, 4], 'wrap')).toEqual({
+      stepPosition: 2,
+      target: 2,
+      done: false,
+    });
+    expect(evaluateSequenceStep(1500, 250, [0, 1, 2], 'once')).toEqual({
+      stepPosition: 2,
+      target: 2,
+      done: true,
+    });
   });
 });

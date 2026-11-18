@@ -18,7 +18,7 @@ The `src/core` domain contains all pure TypeScript data structures, mathematical
 - `src/core/axis.ts` — DuPeriod coordinate $d$, frequency, period, BPM conversions, and Solfège degree addressing.
 - `src/core/midi-tuning.ts` — Polarity-aware MIDI tuning and Prime Family interval mapping (`Du`, `Tri`, `Qui`, `Sep`, `Undec`) across Pitch Space and Rhythm Space.
 - `src/core/tuning-systems.ts` — Alternate tuning system degree generators (`pythagorean-chain`, `31edo`) and unified degree-to-DuPeriod mapping.
-- `src/core/scale-sequencer.ts` — Pure stepped scale sequencer patterns (`ascend`, `descend`, `pendulum`, `triads`, `fifths-chain`) and deterministic step timing.
+- `src/core/scale-sequencer.ts` — Pure dual-coordinate (Layer 2 subset + Layer 1 lattice) algorithmic sequencer with standard boundary rules (`wrap`, `bounce`, `mirror`, `once`) and deterministic step timing.
 - `src/core/rational.ts` — Exact rational arithmetic, GCD/LCM, continued-fraction rationalisation, and 11-limit prime factorisation.
 - `src/core/ratio-suggestions.ts` — DuMetric octave conversions (`ratioToOctaves`, `octavesToRatio`) and nearby rational ratio snap suggestions.
 - `src/core/shape.ts` — Partial positioning, BandFilter raised-cosine application, and prime spectral profile calculation.
