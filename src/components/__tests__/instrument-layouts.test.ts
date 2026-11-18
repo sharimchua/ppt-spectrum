@@ -29,6 +29,21 @@ describe('Alternate Instrument Surfaces', () => {
     expect(grid.length).toBe(4);
     expect(grid[0].length).toBe(8);
     expect(grid[0][0].label).toContain('\\31');
+    // Centre tile should be Root (0\31 with DuPeriod register)
+    const centerRowIdx = grid.length - 1 - Math.floor(4 / 2);
+    const centerPad = grid[centerRowIdx][Math.floor(8 / 2)];
+    expect(centerPad.isRoot).toBe(true);
+    expect(centerPad.label).toMatch(/^0\\31[+-]\d+$/);
+
+    // Wide 12-TET grid caps keys beyond the DuMetric 8-octave range
+    const wideGrid = buildIsomorphicGrid(
+      { tileShape: 'hex', layoutPreset: 'harmonic', rows: 6, cols: 26 },
+      createDefaultMidiTuningConfig('5-limit'),
+      -3.0,
+      440,
+      25.8
+    );
+    expect(wideGrid.some((row) => row.some((p) => p.outOfRange))).toBe(true);
   });
 
   it('builds configurable Guitar / Bass / Ukulele Fretboard', () => {

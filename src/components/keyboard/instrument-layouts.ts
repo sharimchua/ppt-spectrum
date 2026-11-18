@@ -166,6 +166,7 @@ export interface SurfacePad {
   colorHex: string;
   inScale: boolean;
   isRoot: boolean;
+  outOfRange?: boolean;
 }
 
 export interface GuitarStringRow {
@@ -252,7 +253,9 @@ export function buildIsomorphicGrid(
   const xStep = is31 ? preset.x31 : preset.x12;
   const yStep = is31 ? preset.y31 : preset.y12;
   const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
-  const baseMidi = rootMidi - xStep;
+  const centerCol = Math.floor(isoConfig.cols / 2);
+  const centerRow = Math.floor(isoConfig.rows / 2);
+  const baseMidi = rootMidi - centerCol * xStep - centerRow * yStep;
 
   const activeDegrees = resolveTuningDegrees(midiTuning).filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);
@@ -264,27 +267,46 @@ export function buildIsomorphicGrid(
     for (let c = 0; c < isoConfig.cols; c++) {
       const midi = baseMidi + c * xStep + r * yStep;
       const mapping = midiToDWithTuning(midi, effectiveConfig, currentFundamentalD, tuningA4Hz, tplHz);
+      const outOfRange = mapping.clampedToPolarity || Math.abs(mapping.d) > 8.0;
       const stepDelta = midi - rootMidi;
       const cents = is31 ? (stepDelta * 1200) / 31 : stepDelta * 100;
       const normCents = ((cents % 1200) + 1200) % 1200;
-      const inScale = isCentsInScale(cents, activeCentsMod, is31 ? 16 : 22);
-      const isRoot = Math.min(normCents, 1200 - normCents) < 15;
-      const label = is31 ? `${((stepDelta % 31) + 31) % 31}\\31` : mapping.address.syllable;
+      const inScale = !outOfRange && isCentsInScale(cents, activeCentsMod, is31 ? 16 : 22);
+      const isRoot = !outOfRange && Math.min(normCents, 1200 - normCents) < 15;
+      const bandTag = mapping.address.band >= 0 ? `+${mapping.address.band}` : `${mapping.address.band}`;
+      const label = is31 ? `${((stepDelta % 31) + 31) % 31}\\31${bandTag}` : mapping.address.formatted;
 
       rowPads.push({
         id: `iso-${r}-${c}`,
         midiId: 3000 + r * isoConfig.cols + c,
-        label,
-        subLabel: `${Math.round(normCents)}¢`,
+        label: outOfRange ? '' : label,
+        subLabel: outOfRange ? '' : `${Math.round(normCents)}¢`,
         d: mapping.d,
         colorHex: solfegeColorForCents(normCents),
         inScale,
         isRoot,
+        outOfRange,
       });
     }
     grid.push(rowPads);
   }
   return grid;
+}
+
+export function mergeAutoPlayActiveIds(
+  baseIds: number[],
+  heldDs: number[],
+  keys: Array<{ midi: number; mapping: { d: number } }>,
+  isoGrid: SurfacePad[][],
+  guitarStrings: GuitarStringRow[]
+): Set<number> {
+  const set = new Set(baseIds);
+  if (heldDs.length === 0) return set;
+  const matchesD = (d: number) => heldDs.some((hd) => Math.abs(d - hd) < 0.015);
+  for (const k of keys) if (matchesD(k.mapping.d)) set.add(k.midi);
+  for (const row of isoGrid) for (const p of row) if (!p.outOfRange && matchesD(p.d)) set.add(p.midiId);
+  for (const row of guitarStrings) for (const p of row.frets) if (matchesD(p.d)) set.add(p.midiId);
+  return set;
 }
 
 export function buildGuitarFretboard(

@@ -156,30 +156,41 @@ export const AlternateSurfaces: React.FC<AlternateSurfacesProps> = ({
               }}
             >
               {row.map((pad) => {
-                const isActive = activeSet.has(pad.midiId);
+                const isActive = !pad.outOfRange && activeSet.has(pad.midiId);
                 return (
                   <button
                     key={pad.id}
                     type="button"
-                    onPointerDown={(e) => handleDown(pad, e)}
-                    onPointerEnter={() => handleEnter(pad)}
-                    onPointerUp={() => handleUpOrLeave(pad)}
-                    onPointerLeave={() => handleUpOrLeave(pad)}
+                    disabled={pad.outOfRange}
+                    onPointerDown={(e) => { if (!pad.outOfRange) handleDown(pad, e); }}
+                    onPointerEnter={() => { if (!pad.outOfRange) handleEnter(pad); }}
+                    onPointerUp={() => { if (!pad.outOfRange) handleUpOrLeave(pad); }}
+                    onPointerLeave={() => { if (!pad.outOfRange) handleUpOrLeave(pad); }}
                     className={`${
                       isHex ? '' : 'rounded-md border'
-                    } flex flex-col items-center justify-center transition cursor-pointer shrink-0 ${
-                      isActive
-                        ? 'brightness-125 ring-2 ring-white'
+                    } flex flex-col items-center justify-center transition shrink-0 ${
+                      pad.outOfRange
+                        ? 'opacity-10 pointer-events-none'
+                        : isActive
+                        ? 'brightness-125 ring-2 ring-white cursor-pointer'
                         : pad.inScale
-                        ? 'opacity-100 hover:brightness-110'
-                        : 'opacity-35 hover:opacity-75'
+                        ? 'opacity-100 hover:brightness-110 cursor-pointer'
+                        : 'opacity-35 hover:opacity-75 cursor-pointer'
                     }`}
                     style={{
                       width: `${isHex ? dims.hexW : dims.rectW}px`,
                       height: `${isHex ? dims.hexH : dims.rectH}px`,
                       ...(isHex ? { clipPath: HEX_CLIP_PATH } : {}),
-                      backgroundColor: isActive ? pad.colorHex : `${pad.colorHex}33`,
-                      borderColor: pad.isRoot ? '#fbbf24' : `${pad.colorHex}75`,
+                      backgroundColor: pad.outOfRange
+                        ? '#0f172a'
+                        : isActive
+                        ? pad.colorHex
+                        : `${pad.colorHex}33`,
+                      borderColor: pad.outOfRange
+                        ? '#1e293b'
+                        : pad.isRoot
+                        ? '#fbbf24'
+                        : `${pad.colorHex}75`,
                     }}
                   >
                     <span className={`${isoTileSize === 'sm' ? 'text-[9px]' : 'text-[10px]'} font-bold text-white leading-tight`}>

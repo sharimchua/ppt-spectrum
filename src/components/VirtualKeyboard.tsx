@@ -34,6 +34,7 @@ import {
   buildIsomorphicGrid,
   buildScaleStripPads,
   computeResponsiveIsoConfig,
+  mergeAutoPlayActiveIds,
 } from './keyboard/instrument-layouts';
 import { UseMidiResult } from './hooks/useMidi';
 import { UseTuningStrumResult } from './hooks/useTuningStrum';
@@ -66,7 +67,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   onToggleStrumMode,
 }) => {
   const {
-    isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers,
+    isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers, heldMappings,
     midiState, toggleVirtualNote: onToggleLatchNote,
     virtualNoteOn: onVirtualNoteOn, virtualNoteOff: onVirtualNoteOff,
     retargetHeldPads,
@@ -131,7 +132,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   }, [isOpen, activeMidiNumbers, rangePresetId, octaveOffset]);
 
   const isRhythm = currentFundamentalD >= 0;
-  const activeSet = useMemo(() => new Set(activeMidiNumbers), [activeMidiNumbers]);
 
   const keys = useMemo(
     () => buildVirtualKeys(startMidi, endMidi, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz),
@@ -140,29 +140,28 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   const whiteKeys = useMemo(() => keys.filter((k) => !k.isBlack), [keys]);
   const blackKeys = useMemo(() => keys.filter((k) => k.isBlack), [keys]);
-  const { bands: intervalBands, rowCount: intervalRowCount } = useMemo(
-    () => (showIntervals ? buildIntervalBands(keys, activeSet, isRhythm) : { bands: [], rowCount: 0 }),
-    [showIntervals, keys, activeSet, isRhythm]
-  );
 
   const stripPads = useMemo(
-    () =>
-      surfaceMode === 'scale-strip'
-        ? buildScaleStripPads(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig)
-        : [],
+    () => (surfaceMode === 'scale-strip' ? buildScaleStripPads(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig) : []),
     [surfaceMode, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz, scaleConfig]
   );
   const isoGrid = useMemo(() => {
     if (surfaceMode !== 'isomorphic') return [];
-    const responsive = computeResponsiveIsoConfig(isoConfig, availableWidth);
-    return buildIsomorphicGrid(responsive, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz);
+    return buildIsomorphicGrid(computeResponsiveIsoConfig(isoConfig, availableWidth), midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz);
   }, [surfaceMode, isoConfig, availableWidth, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]);
   const guitarStrings = useMemo(
-    () =>
-      surfaceMode === 'guitar'
-        ? buildGuitarFretboard(guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
-        : [],
+    () => (surfaceMode === 'guitar' ? buildGuitarFretboard(guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz) : []),
     [surfaceMode, guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
+  );
+
+  const activeSet = useMemo(() => {
+    const autoDs = tuningStrum?.isSequencing ? heldMappings.map((m) => m.d) : [];
+    return mergeAutoPlayActiveIds(activeMidiNumbers, autoDs, keys, isoGrid, guitarStrings);
+  }, [activeMidiNumbers, tuningStrum?.isSequencing, heldMappings, keys, isoGrid, guitarStrings]);
+
+  const { bands: intervalBands, rowCount: intervalRowCount } = useMemo(
+    () => (showIntervals ? buildIntervalBands(keys, activeSet, isRhythm) : { bands: [], rowCount: 0 }),
+    [showIntervals, keys, activeSet, isRhythm]
   );
 
   useEffect(() => {
