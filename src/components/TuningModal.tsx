@@ -16,7 +16,9 @@ export interface TuningModalProps {
   midiTuning: MidiTuningConfig;
   onChangeTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
   currentFundamentalD: number;
+  tuningA4Hz?: number;
   tplFrequencyHz?: number;
+  onSetFundamentalD?: (d: number) => void;
   lastMapping: MidiNoteMappingResult | null;
   heldMappings: MidiNoteMappingResult[];
 }
@@ -27,7 +29,9 @@ export const TuningModal: React.FC<TuningModalProps> = ({
   midiTuning,
   onChangeTuning,
   currentFundamentalD,
+  tuningA4Hz,
   tplFrequencyHz,
+  onSetFundamentalD,
   lastMapping,
   heldMappings,
 }) => {
@@ -51,7 +55,9 @@ export const TuningModal: React.FC<TuningModalProps> = ({
           midiTuning={midiTuning}
           onChangeTuning={onChangeTuning}
           currentFundamentalD={currentFundamentalD}
+          tuningA4Hz={tuningA4Hz}
           tplFrequencyHz={tplFrequencyHz}
+          onSetFundamentalD={onSetFundamentalD}
           lastMapping={lastMapping}
           heldMappings={heldMappings}
         />

@@ -367,7 +367,7 @@ export const App: React.FC = () => {
         </div>
       </SpectrumViewport>
 
-      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} tuningStrum={tuningStrum} onToggleStrumMode={handleToggleStrumMode} />
+      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} onSetFundamentalD={handleManualPlacementD} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} tuningStrum={tuningStrum} onToggleStrumMode={handleToggleStrumMode} />
 
       <AppModals
         isCaptureOpen={isCaptureOpen}

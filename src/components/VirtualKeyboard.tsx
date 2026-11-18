@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eraser, Keyboard as MidiIcon, Minus, Plus, Sliders, Sparkles, X,
 } from 'lucide-react';
-import { MIDI_TUNING_PRESETS } from '../core/midi-tuning';
+import { MIDI_TUNING_PRESETS, resolveRootAnchorD } from '../core/midi-tuning';
 import { PITCH_NAMES, dToBpm, dToFreq, resolveDuPeriodAddress } from '../core/axis';
 import {
   KEYBOARD_RANGE_PRESETS,
@@ -43,6 +43,7 @@ export interface VirtualKeyboardProps {
   currentFundamentalD: number;
   tuningA4Hz: number;
   tplFrequencyHz: number;
+  onSetFundamentalD?: (d: number) => void;
   autoShowIntervals?: boolean;
   tuningStrum?: UseTuningStrumResult;
   onToggleStrumMode?: () => void;
@@ -59,6 +60,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   currentFundamentalD,
   tuningA4Hz,
   tplFrequencyHz,
+  onSetFundamentalD,
   autoShowIntervals = false,
   tuningStrum,
   onToggleStrumMode,
@@ -305,6 +307,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <span>Hold</span>
             <kbd className="hidden sm:inline text-[9px] px-1 bg-black/30 rounded text-slate-300">H</kbd>
           </button>
+          {onSetFundamentalD && (
+            <button type="button" onClick={() => onSetFundamentalD(resolveRootAnchorD(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz))} className="px-2 py-1 rounded-lg border border-amber-500/50 bg-amber-950/35 hover:bg-amber-900/50 text-[11px] font-semibold text-amber-200 transition cursor-pointer shrink-0" title="Snap Base Frequency to the configured Root Key / Anchor (Do)">
+              Base = Do
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -378,40 +385,22 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       {/* Inline Instrument Layout Config Sub-Menu */}
       {surfaceMode !== 'piano' && isLayoutMenuOpen && (
         <InstrumentConfigMenu
-          mode={surfaceMode}
-          scaleConfig={scaleConfig}
-          onChangeScaleConfig={setScaleConfig}
-          isoConfig={isoConfig}
-          onChangeIsoConfig={setIsoConfig}
-          guitarConfig={guitarConfig}
-          onChangeGuitarConfig={setGuitarConfig}
+          mode={surfaceMode} scaleConfig={scaleConfig} onChangeScaleConfig={setScaleConfig}
+          isoConfig={isoConfig} onChangeIsoConfig={setIsoConfig}
+          guitarConfig={guitarConfig} onChangeGuitarConfig={setGuitarConfig}
         />
       )}
 
-      {/* Inline Strum & Scale Walk Bar (when Auto is toggled on) */}
-      {tuningStrum?.isStrumMode && (
-        <PlayPanelStrumBar
-          midiTuning={midiTuning}
-          tuningStrum={tuningStrum}
-        />
-      )}
+      {tuningStrum?.isStrumMode && <PlayPanelStrumBar midiTuning={midiTuning} tuningStrum={tuningStrum} />}
 
-      {/* Scrollable Keybed / Alternate Surface */}
       {surfaceMode !== 'piano' ? (
         <AlternateSurfaces
-          mode={surfaceMode}
-          stripPads={stripPads}
-          isoGrid={isoGrid}
-          isoTileShape={isoConfig.tileShape}
-          isoTileSize={isoConfig.tileSize ?? 'md'}
-          guitarStrings={guitarStrings}
-          guitarLabelMode={guitarConfig.labelMode}
-          guitarDimOutOfScale={guitarConfig.dimOutOfScale}
-          activeSet={activeSet}
-          isMidiHoldActive={isMidiHoldActive}
+          mode={surfaceMode} stripPads={stripPads} isoGrid={isoGrid}
+          isoTileShape={isoConfig.tileShape} isoTileSize={isoConfig.tileSize ?? 'md'}
+          guitarStrings={guitarStrings} guitarLabelMode={guitarConfig.labelMode} guitarDimOutOfScale={guitarConfig.dimOutOfScale}
+          activeSet={activeSet} isMidiHoldActive={isMidiHoldActive}
           onNoteOn={(id, d) => onVirtualNoteOn(id, 0.85, undefined, d)}
-          onNoteOff={onVirtualNoteOff}
-          onToggleLatch={(id, d) => onToggleLatchNote(id, 0.85, d)}
+          onNoteOff={onVirtualNoteOff} onToggleLatch={(id, d) => onToggleLatchNote(id, 0.85, d)}
         />
       ) : (
         <PianoKeybed

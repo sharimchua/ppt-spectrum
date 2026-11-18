@@ -14,6 +14,7 @@ import {
   PrimeFamilyLabel,
   ROOT_KEY_ANCHORS,
   applyTuningPreset,
+  resolveRootAnchorD,
   resolveRootFrequencyHz,
   resolveSemitoneInterval,
 } from '../core/midi-tuning';
@@ -25,7 +26,9 @@ export interface MidiTuningPanelProps {
   midiTuning: MidiTuningConfig;
   onChangeTuning: (updater: MidiTuningConfig | ((prev: MidiTuningConfig) => MidiTuningConfig)) => void;
   currentFundamentalD: number;
+  tuningA4Hz?: number;
   tplFrequencyHz?: number;
+  onSetFundamentalD?: (d: number) => void;
   lastMapping: MidiNoteMappingResult | null;
   heldMappings: MidiNoteMappingResult[];
 }
@@ -65,9 +68,12 @@ const FAMILY_BADGE_STYLES: Record<PrimeFamilyLabel, string> = {
 export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   midiTuning,
   onChangeTuning,
+  currentFundamentalD,
+  tuningA4Hz = 440,
   tplFrequencyHz = TPL_FREQUENCY_HZ,
+  onSetFundamentalD,
 }) => {
-  const resolvedAnchorHz = resolveRootFrequencyHz(midiTuning);
+  const resolvedAnchorHz = resolveRootFrequencyHz(midiTuning, tuningA4Hz);
   const [hzDraft, setHzDraft] = useState(resolvedAnchorHz.toFixed(2));
   useEffect(() => {
     setHzDraft(resolvedAnchorHz.toFixed(2));
@@ -212,13 +218,33 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
 
       {/* 3. Absolute Projection: Rhythm Anchor Band & Root Key */}
       <div className="space-y-2 rounded-xl bg-slate-950/70 border border-slate-800 p-3">
-        <div>
-          <span className="text-xs font-semibold text-slate-200 block">
-            3. Absolute Frequency &amp; Rhythm Projection
-          </span>
-          <span className="text-[10px] text-slate-400">
-            Anchors the relative 2-layer tuning structure to absolute pitch (Hz) and rhythm (BPM) space.
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="text-xs font-semibold text-slate-200 block">
+              3. Absolute Frequency &amp; Rhythm Projection
+            </span>
+            <span className="text-[10px] text-slate-400">
+              Anchors the relative 2-layer tuning structure to absolute pitch (Hz) and rhythm (BPM) space.
+            </span>
+          </div>
+          {onSetFundamentalD && (
+            <button
+              type="button"
+              onClick={() =>
+                onSetFundamentalD(
+                  resolveRootAnchorD(midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz)
+                )
+              }
+              title={
+                currentFundamentalD >= 0
+                  ? `Set base frequency to Rhythm Anchor Band +${midiTuning.rhythmAnchorBand}`
+                  : `Set base frequency to ${resolvedAnchorHz.toFixed(2)} Hz`
+              }
+              className="px-2.5 py-1 rounded-lg bg-amber-600/25 hover:bg-amber-600/40 border border-amber-500/70 text-[11px] font-semibold text-amber-200 transition cursor-pointer shrink-0"
+            >
+              Set Base = Do ({currentFundamentalD >= 0 ? `Band +${midiTuning.rhythmAnchorBand}` : `${resolvedAnchorHz.toFixed(1)} Hz`})
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <label className="block space-y-1">

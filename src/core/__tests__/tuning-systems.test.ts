@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createDefaultMidiTuningConfig, midiToDWithTuning } from '../midi-tuning';
+import { createDefaultMidiTuningConfig, midiToDWithTuning, resolveRootAnchorD } from '../midi-tuning';
 import {
   pythagoreanFifthStep,
   buildPythagoreanChainDegrees,
@@ -106,6 +106,8 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     };
     const verdiC4 = midiToDWithTuning(60, verdiCfg, -3.0);
     expect(verdiC4.freqHz).toBeCloseTo(256, 3);
+    expect(resolveRootAnchorD(verdiCfg, -3.0)).toBeCloseTo(verdiC4.d, 5);
+    expect(resolveRootAnchorD(verdiCfg, 2.0)).toBe(verdiCfg.rhythmAnchorBand);
   });
 
   it('supports relative tonic mapping and dual-coordinate algorithmic sequencing', () => {

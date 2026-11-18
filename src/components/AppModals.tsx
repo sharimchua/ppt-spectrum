@@ -358,7 +358,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
         midiTuning={midi.midiTuning}
         onChangeTuning={midi.setMidiTuning}
         currentFundamentalD={scene.placements[0]?.d ?? 2.0}
+        tuningA4Hz={scene.anchors.tuningA4Hz}
         tplFrequencyHz={scene.anchors.tplFrequencyHz}
+        onSetFundamentalD={onUpdatePlacementD}
         lastMapping={midi.lastMapping}
         heldMappings={midi.heldMappings}
       />

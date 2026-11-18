@@ -547,6 +547,23 @@ export function resolveRootFrequencyHz(config: MidiTuningConfig, a4Hz: number = 
   return midiToFreq(config.pitchRootMidi, a4Hz);
 }
 
+/**
+ * Resolves the DuPeriod coordinate `d` corresponding to the configured Root Key / Anchor (Do)
+ * in the current polarity (Rhythm Space -> `rhythmAnchorBand`, Pitch Space -> `resolveRootFrequencyHz`).
+ */
+export function resolveRootAnchorD(
+  config: MidiTuningConfig,
+  currentFundamentalD: number,
+  a4Hz: number = 440,
+  tplHz: number = TPL_FREQUENCY_HZ
+): number {
+  if (currentFundamentalD >= 0) {
+    return Math.max(TPL_POLARITY_EPSILON_D, Math.min(7, config.rhythmAnchorBand));
+  }
+  const rawD = freqToD(resolveRootFrequencyHz(config, a4Hz), tplHz);
+  return Math.max(-7, Math.min(-TPL_POLARITY_EPSILON_D, rawD));
+}
+
 export function midiToDWithTuning(
   midi: number,
   config: MidiTuningConfig,
