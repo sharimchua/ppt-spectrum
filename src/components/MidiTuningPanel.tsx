@@ -161,7 +161,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
         <p className="text-[11px] text-slate-400 bg-slate-950/60 border border-slate-800/80 rounded-lg px-2.5 py-2 leading-relaxed">
           {midiTuning.presetId === 'custom'
             ? 'Mixed / Custom: Combine rational Prime Family intervals with irrational Du, DuTri, or 12-TET steps per chromatic degree relative to Do.'
-            : MIDI_TUNING_PRESETS[midiTuning.presetId].description}
+            : (MIDI_TUNING_PRESETS[midiTuning.presetId]?.description ?? '')}
         </p>
       </div>
 

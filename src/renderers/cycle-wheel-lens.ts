@@ -42,6 +42,7 @@ export class CycleWheelLensRenderer implements RegisteredLensRenderer {
     const centerX = width / 2;
     const centerY = topPad + availH / 2;
     const maxR = Math.min(centerX - 16, availH / 2) * 0.88;
+    if (maxR <= 5) return;
 
     const primaryPlacement = scene.placements[0];
     if (!primaryPlacement) return;

@@ -188,7 +188,6 @@ export const InstrumentConfigMenu: React.FC<InstrumentConfigMenuProps> = ({
             { id: 'solfege', label: 'Solfège' },
             { id: 'note', label: 'Note' },
             { id: 'cents', label: 'Cents' },
-            { id: 'fret', label: 'Fret' },
           ] as Array<{ id: GuitarLabelMode; label: string }>
         ).map((opt) => (
           <button

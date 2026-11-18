@@ -19,14 +19,12 @@ export interface GuitarFretboardSurfaceProps {
 
 const MARKER_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21]);
 
-function resolveFretLabel(pad: SurfacePad, fIdx: number, labelMode: GuitarLabelMode): string {
+function resolveFretLabel(pad: SurfacePad, labelMode: GuitarLabelMode): string {
   switch (labelMode) {
     case 'note':
       return pad.noteLabel ?? pad.subLabel;
     case 'cents':
       return pad.centsLabel ?? pad.subLabel;
-    case 'fret':
-      return `${fIdx}`;
     case 'solfege':
     default:
       return pad.subLabel;
@@ -161,7 +159,7 @@ export const GuitarFretboardSurface: React.FC<GuitarFretboardSurfaceProps> = ({
             const isActive = activeSet.has(pad.midiId);
             const isDimmedOut = dimOutOfScale && !pad.inScale && !isActive;
             const radius = isActive ? 10.5 : pad.inScale ? 9.5 : isDimmedOut ? 4.5 : 7.5;
-            const textLabel = resolveFretLabel(pad, fIdx, labelMode);
+            const textLabel = resolveFretLabel(pad, labelMode);
 
             return (
               <g

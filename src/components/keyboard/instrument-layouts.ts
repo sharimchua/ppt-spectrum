@@ -50,7 +50,7 @@ export interface GuitarStringSpec {
   openMidi: number;
 }
 
-export type GuitarLabelMode = 'solfege' | 'note' | 'cents' | 'fret';
+export type GuitarLabelMode = 'solfege' | 'note' | 'cents';
 
 export interface GuitarConfig {
   presetId: GuitarPresetId | 'custom';

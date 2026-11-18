@@ -134,6 +134,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useKeyboardShortcuts.ts` — Global capture-phase keyboard shortcuts.
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 - `useMidi.ts` — Web MIDI input lifecycle, polyphonic voice dispatch, scene frequency updates, and ruler ghost note syncing.
+- `midi-retarget.ts` — Pure re-targeting helpers for held/latched MIDI & virtual surface notes on polarity or tuning changes.
 - `useEnvelopes.ts` — Dedicated Envelopes sheet visibility, Pitch/Rhythm envelope parameter updates, and Envelope library CRUD.
 - `useLibraryBundles.ts` — Library bundle presets, `?bundle=` deeplink decoding, and non-destructive JSON/slug import/export.
 - `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.

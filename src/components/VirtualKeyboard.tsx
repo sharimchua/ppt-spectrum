@@ -69,6 +69,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     isKeyboardOpen: isOpen, closeKeyboard: onClose, midiTuning, activeMidiNumbers,
     midiState, toggleVirtualNote: onToggleLatchNote,
     virtualNoteOn: onVirtualNoteOn, virtualNoteOff: onVirtualNoteOff,
+    retargetHeldPads,
     isMidiHoldActive, toggleMidiHold, clearAllNotes: onClearAllNotes,
     openTuningModal: onOpenTuningModal, openMidiModal: onOpenMidiModal,
   } = midi;
@@ -103,11 +104,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       if (el.clientWidth > 0) setAvailableWidth(el.clientWidth);
     };
     measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
     window.addEventListener('resize', measure);
     return () => {
-      ro.disconnect();
+      ro?.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, [isOpen]);
@@ -164,6 +165,15 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     [surfaceMode, guitarConfig, midiTuning, currentFundamentalD, tuningA4Hz, tplFrequencyHz]
   );
 
+  useEffect(() => {
+    if (!isOpen || surfaceMode === 'piano' || activeMidiNumbers.length === 0) return;
+    const dByMidi = new Map<number, number>();
+    for (const p of stripPads) dByMidi.set(p.midiId, p.d);
+    for (const row of isoGrid) for (const p of row) dByMidi.set(p.midiId, p.d);
+    for (const row of guitarStrings) for (const p of row.frets) dByMidi.set(p.midiId, p.d);
+    retargetHeldPads(dByMidi);
+  }, [isOpen, surfaceMode, stripPads, isoGrid, guitarStrings, activeMidiNumbers.length, retargetHeldPads]);
+
   const keyCenterMap = useMemo(() => {
     const map = new Map<number, number>();
     const totalWhite = Math.max(1, whiteKeys.length);
@@ -199,7 +209,9 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           : `${dToFreq(currentFundamentalD, tplFrequencyHz).toFixed(0)}Hz`
       }`
     : formatMidiShort(rootMidi);
-  const presetLabel = midiTuning.presetId === 'custom' ? 'Mixed / Custom' : MIDI_TUNING_PRESETS[midiTuning.presetId].label;
+  const presetLabel = midiTuning.presetId === 'custom'
+    ? 'Mixed / Custom'
+    : (MIDI_TUNING_PRESETS[midiTuning.presetId]?.label ?? 'Custom');
 
   const handleKeyPointerDown = (k: VirtualKeyItem, e: React.PointerEvent) => {
     e.preventDefault();
@@ -212,7 +224,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="shrink-0 bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-md px-2 sm:px-4 py-1.5 sm:py-2 select-none z-20"
+      className="shrink-0 max-h-[48vh] overflow-y-auto sm:max-h-none sm:overflow-visible bg-slate-950/95 border-t border-slate-800/90 backdrop-blur-md px-2 sm:px-4 py-1.5 sm:py-2 select-none z-20"
     >
       {/* Single-row responsive Control Strip (horizontally scrollable on narrow mobile) */}
       <div className="flex items-center justify-between gap-1.5 mb-1.5 overflow-x-auto">

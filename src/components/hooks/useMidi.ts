@@ -15,6 +15,7 @@ import { AudioEngine } from '../../audio/audio-engine';
 import { midiManagerInstance, MidiDeviceState } from '../../audio/midi-manager';
 import { RenderCoordinator, HeldMidiNote } from '../../renderers/render-coordinator';
 import { loadMidiTuningConfig, saveMidiTuningConfig } from './midi-storage';
+import { HeldStackEntry, resolveRetargetedEntry } from './midi-retarget';
 
 export type NoteInputSource = 'midi' | 'virtual';
 
@@ -48,19 +49,12 @@ export interface UseMidiResult {
   virtualNoteOn: (midi: number, velocity?: number, explicitPolarityD?: number, explicitNoteD?: number) => void;
   virtualNoteOff: (midi: number) => void;
   toggleVirtualNote: (midi: number, velocity?: number, explicitNoteD?: number) => void;
+  retargetHeldPads: (dByMidi: Map<number, number>) => void;
   transposeLatchedNotes: (semitones: number) => boolean;
   isMidiHoldActive: boolean;
   toggleMidiHold: () => void;
   clearAllNotes: () => void;
   flipPolarity: () => void;
-}
-
-interface HeldStackEntry {
-  midi: number;
-  d: number;
-  velocity: number;
-  mapping: MidiNoteMappingResult;
-  explicitNoteD?: number;
 }
 
 export function useMidi({
@@ -213,49 +207,23 @@ export function useMidi({
       const stack = heldStackRef.current;
       if (stack.length === 0) return;
       const sc = sceneRef.current;
-      const nextStack: HeldStackEntry[] = [];
-      for (const item of stack) {
-        let nextD: number;
-        let nextMapping: MidiNoteMappingResult;
-        if (item.explicitNoteD !== undefined || item.midi >= 1000) {
-          const targetIsRhythm = polarityD >= 0;
-          const currentlyRhythm = item.d >= 0;
-          const shifted =
-            targetIsRhythm === currentlyRhythm
-              ? item.d
-              : item.d >= 0
-              ? Math.max(-7.0, item.d - 8)
-              : Math.min(7.0, item.d + 8);
-          nextD = targetIsRhythm ? Math.max(0.01, shifted) : Math.min(-0.01, shifted);
-          nextMapping = {
-            ...item.mapping,
-            d: nextD,
-            polarity: targetIsRhythm ? 'rhythm' : 'pitch',
-          };
-        } else {
-          nextMapping = midiToDWithTuning(
-            item.midi,
-            tuningCfg,
-            polarityD,
-            sc.anchors.tuningA4Hz,
-            sc.anchors.tplFrequencyHz
-          );
-          nextD = nextMapping.d;
-        }
+      const nextStack = stack.map((item) => {
+        const updated = resolveRetargetedEntry(
+          item,
+          polarityD,
+          tuningCfg,
+          sc.anchors.tuningA4Hz,
+          sc.anchors.tplFrequencyHz
+        );
         void audioEngine.midiNoteOn(
-          item.midi,
-          item.velocity,
-          nextD,
+          updated.midi,
+          updated.velocity,
+          updated.d,
           undefined,
           tuningCfg.rhythmPhaseMode
         );
-        nextStack.push({
-          ...item,
-          d: nextD,
-          mapping: nextMapping,
-          ...(item.explicitNoteD !== undefined ? { explicitNoteD: nextD } : {}),
-        });
-      }
+        return updated;
+      });
       heldStackRef.current = nextStack;
       const top = nextStack[nextStack.length - 1];
       if (top) {
@@ -280,6 +248,29 @@ export function useMidi({
       onUpdatePlacementDRef.current(flippedD);
     }
   }, [retargetHeldNotesToPolarityD, sceneRef]);
+
+  const retargetHeldPads = useCallback(
+    (dByMidi: Map<number, number>) => {
+      const stack = heldStackRef.current;
+      if (stack.length === 0 || dByMidi.size === 0) return;
+      let changed = false;
+      const nextStack = stack.map((item) => {
+        const nextD = dByMidi.get(item.midi);
+        if (nextD === undefined || Math.abs(nextD - item.d) < 1e-6) {
+          return item;
+        }
+        changed = true;
+        void audioEngine.midiNoteOn(item.midi, item.velocity, nextD, undefined, midiTuningRef.current.rhythmPhaseMode);
+        return { ...item, d: nextD, explicitNoteD: nextD, mapping: { ...item.mapping, d: nextD } };
+      });
+      if (!changed) return;
+      heldStackRef.current = nextStack;
+      const top = nextStack[nextStack.length - 1];
+      if (top) setLastMapping(top.mapping);
+      syncGhostsToCoordinator();
+    },
+    [audioEngine, syncGhostsToCoordinator]
+  );
 
   // Live re-resolve held/latched notes whenever tuning config changes
   useEffect(() => {
@@ -421,9 +412,7 @@ export function useMidi({
       const toReleaseMidi = [...sostenutoMidiRef.current].filter((m) => !physicalMidiDownRef.current.has(m));
       sostenutoMidiRef.current.clear();
       for (const m of toReleaseMidi) dispatchNoteOff(m, 'midi');
-      const toReleaseVirtual = [...sourcesByMidiRef.current.entries()]
-        .filter(([, srcs]) => srcs.has('virtual'))
-        .map(([m]) => m);
+      const toReleaseVirtual = [...sourcesByMidiRef.current.entries()].filter(([, s]) => s.has('virtual')).map(([m]) => m);
       for (const m of toReleaseVirtual) dispatchNoteOff(m, 'virtual');
     }
   }, [dispatchNoteOff]);
@@ -444,7 +433,7 @@ export function useMidi({
     isKeyboardOpen, openKeyboard, closeKeyboard, toggleKeyboard,
     requestMidiAccess, selectMidiInput, midiTuning, setMidiTuning,
     lastMapping, heldMappings, activeMidiNumbers, latchedMidiNumbers,
-    virtualNoteOn, virtualNoteOff, toggleVirtualNote, transposeLatchedNotes,
+    virtualNoteOn, virtualNoteOff, toggleVirtualNote, retargetHeldPads, transposeLatchedNotes,
     isMidiHoldActive, toggleMidiHold, clearAllNotes, flipPolarity,
   };
 }
