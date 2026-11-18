@@ -60,6 +60,7 @@ export type MidiTuningPresetId =
   | '12tet'
   | 'dutri'
   | 'ppt-native'
+  | '3-limit'
   | '5-limit'
   | 'pythagorean'
   | '7-limit'
@@ -198,6 +199,14 @@ export const MIDI_TUNING_PRESETS: Record<
       M6: 'Qui',
       m7: 'Sep',
       M7: 'Qui',
+    },
+  },
+  '3-limit': {
+    label: '3-Limit Just (Tri)',
+    description: 'Traditional balanced 12-tone Pythagorean tuning (-5 to +6 fifths around Do: 4:3, 3:2, 81:64, 256:243).',
+    intervals: {
+      m2: 'Tri', M2: 'Tri', m3: 'Tri', M3: 'Tri', P4: 'Tri', TT: 'Tri',
+      P5: 'Tri', m6: 'Tri', M6: 'Tri', m7: 'Tri', M7: 'Tri',
     },
   },
   '5-limit': {

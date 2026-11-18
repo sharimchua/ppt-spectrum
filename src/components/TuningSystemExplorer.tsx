@@ -54,7 +54,7 @@ export const TuningSystemExplorer: React.FC<TuningSystemExplorerProps> = ({
         </div>
 
         {spec.kind === 'ratio-chain' && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] text-slate-400">Chain:</span>
             {[12, 19, 31, 53].map((len) => (
               <button
@@ -76,6 +76,24 @@ export const TuningSystemExplorer: React.FC<TuningSystemExplorerProps> = ({
                 {len}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() =>
+                onChangeTuning((prev) => ({
+                  ...prev,
+                  systemSpec: { ...spec, centered: !spec.centered },
+                  activeDegreeMask: undefined,
+                }))
+              }
+              title="Toggle between Upward-only (0..N-1) and Centred (-k..+k around Do)"
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border cursor-pointer ${
+                spec.centered
+                  ? 'bg-amber-600/30 border-amber-500 text-amber-200'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {spec.centered ? 'Centred' : 'Upward'}
+            </button>
           </div>
         )}
 

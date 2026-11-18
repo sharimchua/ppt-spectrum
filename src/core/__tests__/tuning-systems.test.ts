@@ -3,6 +3,7 @@ import { createDefaultMidiTuningConfig, midiToDWithTuning, resolveRootAnchorD } 
 import {
   pythagoreanFifthStep,
   buildPythagoreanChainDegrees,
+  buildRatioChainDegrees,
   build31EdoDegrees,
   resolveTuningDegrees,
   tuningDegreeToMapping,
@@ -108,6 +109,16 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(verdiC4.freqHz).toBeCloseTo(256, 3);
     expect(resolveRootAnchorD(verdiCfg, -3.0)).toBeCloseTo(verdiC4.d, 5);
     expect(resolveRootAnchorD(verdiCfg, 2.0)).toBe(verdiCfg.rhythmAnchorBand);
+
+    // 3-Limit Just (Tri) uses traditional balanced 12-tone Pythagorean ratios (4:3, 256:243)
+    const tri3 = resolveTuningDegrees(createDefaultMidiTuningConfig('3-limit'));
+    expect(tri3.length).toBe(12);
+    expect(tri3[1].subLabel).toBe('256:243');
+    expect(tri3[5].subLabel).toBe('4:3');
+
+    // Centred 3:2 ratio-chain includes 4/3 and Ionian Heptatonic subset
+    const centered7 = buildRatioChainDegrees(12, 3, 2, 2.0, 'heptatonic', undefined, true).filter((d) => d.active);
+    expect(centered7.map((d) => d.label)).toEqual(['1/1', '9/8', '81/64', '4/3', '3/2', '27/16', '243/128']);
   });
 
   it('supports relative tonic mapping and dual-coordinate algorithmic sequencing', () => {

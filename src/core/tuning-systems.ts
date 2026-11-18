@@ -51,6 +51,7 @@ export type TuningSystemSpec =
       generatorNum: number;
       generatorDen: number;
       chainLength: number;
+      centered?: boolean;
       periodRatio?: number;
       id?: string;
     }
@@ -83,10 +84,11 @@ export function pythagoreanFifthStep(
   generatorDen: number = 2,
   periodRatio: number = 2.0
 ): { num: number; den: number; ratioValue: number; chainStep: number } {
-  let num = Math.pow(generatorNum, k);
-  let den = Math.pow(generatorDen, k);
+  const absK = Math.abs(k);
+  let num = k >= 0 ? Math.pow(generatorNum, absK) : Math.pow(generatorDen, absK);
+  let den = k >= 0 ? Math.pow(generatorDen, absK) : Math.pow(generatorNum, absK);
   // Keep integers exact when periodRatio === 2 and values are within safe integer range
-  if (periodRatio === 2.0 && k <= 30) {
+  if (periodRatio === 2.0 && absK <= 30) {
     while (num / den >= 2) den *= 2;
     while (num / den < 1) num *= 2;
     const reduced = reduceRational(num, den);
@@ -107,11 +109,13 @@ export function buildRatioChainDegrees(
   generatorDen: number = 2,
   periodRatio: number = 2.0,
   subsetId: TuningSubsetId = 'all',
-  activeMask?: boolean[]
+  activeMask?: boolean[],
+  centered: boolean = false
 ): TuningDegree[] {
   const clampedLen = Math.max(2, Math.min(53, Math.round(chainLength)));
-  const rawSteps = Array.from({ length: clampedLen }, (_, k) =>
-    pythagoreanFifthStep(k, generatorNum, generatorDen, periodRatio)
+  const startK = centered ? -Math.floor((clampedLen - 1) / 2) : 0;
+  const rawSteps = Array.from({ length: clampedLen }, (_, i) =>
+    pythagoreanFifthStep(startK + i, generatorNum, generatorDen, periodRatio)
   );
   rawSteps.sort((a, b) => a.ratioValue - b.ratioValue);
 
@@ -119,20 +123,27 @@ export function buildRatioChainDegrees(
 
   return rawSteps.map((step, index) => {
     const cents = Math.round(Math.log2(step.ratioValue) * 12000) / 10;
-    const defaultActive = step.chainStep < subsetCount;
+    const defaultActive = centered
+      ? subsetId === 'pentatonic'
+        ? step.chainStep >= 0 && step.chainStep <= 4
+        : subsetId === 'heptatonic'
+        ? step.chainStep >= -1 && step.chainStep <= 5
+        : true
+      : step.chainStep < subsetCount;
     const active = activeMask && activeMask.length === clampedLen ? Boolean(activeMask[index]) : defaultActive;
 
     let highlightRole: DegreeHighlightRole | undefined;
     if (step.chainStep === 0) highlightRole = 'root';
-    else if (step.chainStep < 5) highlightRole = 'consonant';
-    else if (step.chainStep === 6) highlightRole = 'tritone';
-    else if (step.chainStep === 5 || step.chainStep === 7) highlightRole = 'semitone';
+    else if (Math.abs(step.chainStep) < 5) highlightRole = 'consonant';
+    else if (Math.abs(step.chainStep) === 6) highlightRole = 'tritone';
+    else if (Math.abs(step.chainStep) === 5 || Math.abs(step.chainStep) === 7) highlightRole = 'semitone';
 
-    const useExact = periodRatio === 2.0 && step.chainStep <= 16;
+    const useExact = periodRatio === 2.0 && Math.abs(step.chainStep) <= 16;
+    const kLabel = step.chainStep > 0 ? `+${step.chainStep}` : `${step.chainStep}`;
     return {
       index,
       label: useExact ? `${step.num}/${step.den}` : `${Math.round(cents)}¢`,
-      subLabel: step.chainStep === 0 ? 'Root' : `+${step.chainStep}×${generatorNum}:${generatorDen}`,
+      subLabel: step.chainStep === 0 ? 'Root' : `${kLabel}×${generatorNum}:${generatorDen}`,
       chainStep: step.chainStep,
       ratioValue: step.ratioValue,
       rational: useExact ? { num: step.num, den: step.den } : null,
@@ -421,7 +432,8 @@ export function resolveTuningDegrees(config: MidiTuningConfig): TuningDegree[] {
       spec.generatorDen,
       spec.periodRatio ?? 2.0,
       subsetId,
-      config.activeDegreeMask
+      config.activeDegreeMask,
+      spec.centered ?? false
     );
   }
   if (spec.kind === 'edo') {
