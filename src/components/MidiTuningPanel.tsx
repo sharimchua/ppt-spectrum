@@ -4,7 +4,7 @@
  * allowing consistent Prime Family interval mappings across Pitch Space and Rhythm Space.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MIDI_TUNING_PRESETS,
   MidiIntervalTuningConfig,
@@ -12,7 +12,9 @@ import {
   MidiTuningConfig,
   MidiTuningPresetId,
   PrimeFamilyLabel,
+  ROOT_KEY_ANCHORS,
   applyTuningPreset,
+  resolveRootFrequencyHz,
   resolveSemitoneInterval,
 } from '../core/midi-tuning';
 import { dToBpm } from '../core/axis';
@@ -50,13 +52,6 @@ const INTERVAL_ROWS: IntervalRowDef[] = [
   { key: 'M7', semitone: 11, solfege: 'Ti', label: 'Major 7th', options: ['12TET', 'DuTri', 'Tri', 'Qui'] },
 ];
 
-const ROOT_OPTIONS: Array<{ midi: number; label: string }> = [
-  { midi: 68, label: 'G♯4 (MIDI 68 — TPL Mirror)' },
-  { midi: 62, label: 'D4 (MIDI 62 — PPT D)' },
-  { midi: 60, label: 'C4 (MIDI 60 — Middle C)' },
-  { midi: 69, label: 'A4 (MIDI 69 — A440)' },
-];
-
 const FAMILY_BADGE_STYLES: Record<PrimeFamilyLabel, string> = {
   '12TET': 'bg-slate-800 text-slate-200 border-slate-600',
   Du: 'bg-sky-950/70 text-sky-300 border-sky-700/60',
@@ -72,6 +67,31 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
   onChangeTuning,
   tplFrequencyHz = TPL_FREQUENCY_HZ,
 }) => {
+  const resolvedAnchorHz = resolveRootFrequencyHz(midiTuning);
+  const [hzDraft, setHzDraft] = useState(resolvedAnchorHz.toFixed(2));
+  useEffect(() => {
+    setHzDraft(resolvedAnchorHz.toFixed(2));
+  }, [resolvedAnchorHz]);
+
+  const activeAnchorId =
+    midiTuning.rootAnchorId ??
+    (midiTuning.rootFrequencyHz !== undefined
+      ? 'custom-hz'
+      : `midi-${midiTuning.pitchRootMidi}`);
+
+  const commitHzDraft = () => {
+    const parsed = Number(hzDraft);
+    if (Number.isFinite(parsed) && parsed >= 20 && parsed <= 4000) {
+      onChangeTuning((prev) => ({
+        ...prev,
+        rootAnchorId: 'custom-hz',
+        rootFrequencyHz: parsed,
+      }));
+    } else {
+      setHzDraft(resolvedAnchorHz.toFixed(2));
+    }
+  };
+
   const handleSelectPreset = (presetId: Exclude<MidiTuningPresetId, 'custom'>) => {
     onChangeTuning((prev) => applyTuningPreset(prev, presetId));
   };
@@ -200,7 +220,7 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
             Anchors the relative 2-layer tuning structure to absolute pitch (Hz) and rhythm (BPM) space.
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <label className="block space-y-1">
             <span className="text-[11px] font-medium text-slate-300">Rhythm Anchor Band</span>
             <select
@@ -219,25 +239,65 @@ export const MidiTuningPanel: React.FC<MidiTuningPanelProps> = ({
           </label>
 
           <label className="block space-y-1">
-            <span className="text-[11px] font-medium text-slate-300">Root Key (Do)</span>
+            <span className="text-[11px] font-medium text-slate-300">Root Key / Anchor (Do)</span>
             <select
-              value={midiTuning.rhythmRootMidi}
+              value={activeAnchorId}
               onChange={(e) => {
-                const root = Number(e.target.value);
+                const id = e.target.value;
+                if (id === 'custom-hz') {
+                  onChangeTuning((prev) => ({
+                    ...prev,
+                    rootAnchorId: 'custom-hz',
+                    rootFrequencyHz: prev.rootFrequencyHz ?? resolvedAnchorHz,
+                  }));
+                  return;
+                }
+                const found = ROOT_KEY_ANCHORS.find((a) => a.id === id);
+                if (!found) return;
                 onChangeTuning((prev) => ({
                   ...prev,
-                  rhythmRootMidi: root,
-                  pitchRootMidi: root,
+                  rhythmRootMidi: found.midi,
+                  pitchRootMidi: found.midi,
+                  rootAnchorId: found.id,
+                  rootFrequencyHz: found.freqHz,
                 }));
               }}
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
             >
-              {ROOT_OPTIONS.map((opt) => (
-                <option key={opt.midi} value={opt.midi}>
-                  {opt.label}
-                </option>
-              ))}
+              <optgroup label="12-TET Pitches (C4–B4)">
+                {ROOT_KEY_ANCHORS.filter((a) => a.group === '12tet').map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="World & Historical Anchors">
+                {ROOT_KEY_ANCHORS.filter((a) => a.group === 'world').map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+              <option value="custom-hz">Custom Frequency (Hz)</option>
             </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-slate-300">Anchor Pitch (Hz)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={hzDraft}
+              onChange={(e) => setHzDraft(e.target.value.replace(/[^0-9.]/g, ''))}
+              onBlur={commitHzDraft}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  commitHzDraft();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:outline-none"
+            />
           </label>
         </div>
       </div>

@@ -96,6 +96,16 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     // Nearest-12 projection maps 12-key M3 (4 semitones) onto 10\31 in 31-EDO
     const edo31Nearest = midiToDWithTuning(72, createDefaultMidiTuningConfig('31edo'), -3.0);
     expect(edo31Nearest.ratioValue).toBeCloseTo(Math.pow(2, 10 / 31), 5);
+
+    // Explicit world/historical root frequency anchor overrides A440 MIDI->Hz
+    const verdiCfg = {
+      ...createDefaultMidiTuningConfig('12tet'),
+      pitchRootMidi: 60,
+      rootAnchorId: 'verdi-256',
+      rootFrequencyHz: 256,
+    };
+    const verdiC4 = midiToDWithTuning(60, verdiCfg, -3.0);
+    expect(verdiC4.freqHz).toBeCloseTo(256, 3);
   });
 
   it('supports relative tonic mapping and dual-coordinate algorithmic sequencing', () => {

@@ -80,6 +80,10 @@ export interface MidiTuningConfig {
   rhythmRootMidi: number;
   /** MIDI note number acting as Do in Pitch Space for Just/DuTri tunings (default 68 = G#4). */
   pitchRootMidi: number;
+  /** Optional anchor preset ID (e.g. 'tpl-mirror', 'verdi-256', 'baroque-415'). */
+  rootAnchorId?: string;
+  /** Optional explicit absolute frequency (Hz) for the root key (overrides A440 12-TET MIDI->Hz). */
+  rootFrequencyHz?: number;
   /** Phase alignment for polyphonic Rhythm Space MIDI voices ('sam-aligned' vs 'key-strike'). */
   rhythmPhaseMode: MidiPhaseMode;
   /** Generalized Layer 1 Tuning System spec (EDO, Ratio-Chain, or Explicit). */
@@ -495,6 +499,54 @@ export function isAllEqualTemperament(intervals: MidiIntervalTuningConfig): bool
  * Maps an incoming MIDI note number to a DuPeriod coordinate d using the active
  * tuning config while preserving TPL polarity based on `currentFundamentalD`.
  */
+export interface RootKeyAnchor {
+  id: string;
+  group: '12tet' | 'world';
+  label: string;
+  midi: number;
+  /** Explicit Hz override when non-A440; undefined means standard 12-TET relative to `tuningA4Hz`. */
+  freqHz?: number;
+}
+
+export const ROOT_KEY_ANCHORS: RootKeyAnchor[] = [
+  // 12-TET Chromatic Pitches (C4 - B4)
+  { id: 'midi-60', group: '12tet', label: 'C4 (MIDI 60 — Middle C)', midi: 60 },
+  { id: 'midi-61', group: '12tet', label: 'C♯4 / D♭4 (MIDI 61)', midi: 61 },
+  { id: 'midi-62', group: '12tet', label: 'D4 (MIDI 62 — PPT D)', midi: 62 },
+  { id: 'midi-63', group: '12tet', label: 'D♯4 / E♭4 (MIDI 63)', midi: 63 },
+  { id: 'midi-64', group: '12tet', label: 'E4 (MIDI 64)', midi: 64 },
+  { id: 'midi-65', group: '12tet', label: 'F4 (MIDI 65)', midi: 65 },
+  { id: 'midi-66', group: '12tet', label: 'F♯4 / G♭4 (MIDI 66)', midi: 66 },
+  { id: 'midi-67', group: '12tet', label: 'G4 (MIDI 67)', midi: 67 },
+  { id: 'midi-68', group: '12tet', label: 'G♯4 / A♭4 (MIDI 68 — TPL Mirror)', midi: 68 },
+  { id: 'midi-69', group: '12tet', label: 'A4 (MIDI 69 — A440 Concert)', midi: 69 },
+  { id: 'midi-70', group: '12tet', label: 'A♯4 / B♭4 (MIDI 70)', midi: 70 },
+  { id: 'midi-71', group: '12tet', label: 'B4 (MIDI 71)', midi: 71 },
+
+  // World Music & Historical Absolute Anchors
+  { id: 'tpl-mirror', group: 'world', label: 'TPL Mirror (2⁴ × 25.8 Hz = 412.8 Hz)', midi: 68, freqHz: 412.8 },
+  { id: 'verdi-256', group: 'world', label: 'Verdi / Scientific Pitch (C4 = 256 Hz)', midi: 60, freqHz: 256 },
+  { id: 'concert-432', group: 'world', label: '432 Hz Tuning (A4 = 432 Hz)', midi: 69, freqHz: 432 },
+  { id: 'baroque-415', group: 'world', label: 'Baroque Pitch (A4 = 415 Hz)', midi: 69, freqHz: 415 },
+  { id: 'classical-430', group: 'world', label: 'Classical / Viennese (A4 = 430 Hz)', midi: 69, freqHz: 430 },
+  { id: 'hindustani-cs4', group: 'world', label: 'Hindustani Vocal / Bansuri (Sa = C♯4 · 277.2 Hz)', midi: 61, freqHz: 277.18 },
+  { id: 'hindustani-a3', group: 'world', label: 'Hindustani Female Vocal (Sa = A3 · 220 Hz)', midi: 57, freqHz: 220 },
+  { id: 'makam-kiz-ney', group: 'world', label: 'Turkish Makam — Kız Ney (Re = D4 · 293.7 Hz)', midi: 62, freqHz: 293.66 },
+  { id: 'makam-mansur', group: 'world', label: 'Turkish Makam — Mansur Ney (La = A3 · 220 Hz)', midi: 57, freqHz: 220 },
+  { id: 'gamelan-tumbuk5', group: 'world', label: 'Javanese Gamelan — Tumbuk 5 (G4 · 392 Hz)', midi: 67, freqHz: 392 },
+  { id: 'gamelan-tumbuk6', group: 'world', label: 'Javanese Gamelan — Tumbuk 6 (A4 · 440 Hz)', midi: 69, freqHz: 440 },
+  { id: 'gamelan-barang', group: 'world', label: 'Javanese Sléndro — Barang (≈ 272 Hz)', midi: 61, freqHz: 272 },
+  { id: 'gagaku-ichikotsu', group: 'world', label: 'Japanese Gagaku — Ichikotsu (D4 · 293.7 Hz)', midi: 62, freqHz: 293.66 },
+  { id: 'gagaku-hyojo', group: 'world', label: 'Japanese Gagaku — Hyōjō (E4 · 329.6 Hz)', midi: 64, freqHz: 329.63 },
+];
+
+export function resolveRootFrequencyHz(config: MidiTuningConfig, a4Hz: number = 440): number {
+  if (config.rootFrequencyHz !== undefined && Number.isFinite(config.rootFrequencyHz) && config.rootFrequencyHz > 0) {
+    return config.rootFrequencyHz;
+  }
+  return midiToFreq(config.pitchRootMidi, a4Hz);
+}
+
 export function midiToDWithTuning(
   midi: number,
   config: MidiTuningConfig,
@@ -523,10 +575,11 @@ export function midiToDWithTuning(
     const step = ((delta % len) + len) % len;
     const deg = list[step];
     const fullMultiplier = deg.ratioValue * Math.pow(periodRatio, periodsFromRoot);
+    const rootFreqHz = resolveRootFrequencyHz(config, a4Hz);
     let rawD =
       polarity === 'rhythm'
         ? config.rhythmAnchorBand - Math.log2(fullMultiplier)
-        : freqToD(midiToFreq(rootMidi, a4Hz) * fullMultiplier, tplHz);
+        : freqToD(rootFreqHz * fullMultiplier, tplHz);
     rawD = Number.isFinite(rawD) ? Math.max(-12, Math.min(12, rawD)) : 0;
     let clampedToPolarity = false;
     if (polarity === 'rhythm' && rawD < TPL_POLARITY_EPSILON_D) {
@@ -561,10 +614,11 @@ export function midiToDWithTuning(
     const targetRatio = Math.pow(2, semitone / 12);
     const nearest = findNearestDegreeInSystem(targetRatio, allDegrees);
     const fullMultiplier = nearest.ratioValue * Math.pow(periodRatio, octavesFromRoot);
+    const rootFreqHz = resolveRootFrequencyHz(config, a4Hz);
     let rawD =
       polarity === 'rhythm'
         ? config.rhythmAnchorBand - Math.log2(fullMultiplier)
-        : freqToD(midiToFreq(rootMidi, a4Hz) * fullMultiplier, tplHz);
+        : freqToD(rootFreqHz * fullMultiplier, tplHz);
     rawD = Number.isFinite(rawD) ? Math.max(-12, Math.min(12, rawD)) : 0;
     let clampedToPolarity = false;
     if (polarity === 'rhythm' && rawD < TPL_POLARITY_EPSILON_D) {
@@ -603,11 +657,11 @@ export function midiToDWithTuning(
     // Higher MIDI notes increase frequency (move right toward TPL, decreasing positive d)
     rawD = config.rhythmAnchorBand - Math.log2(fullMultiplier);
   } else {
-    // Pitch Space: if pure 12-TET, match standard A440 concert pitch formula exactly
-    if (isAllEqualTemperament(config.intervals)) {
+    // Pitch Space: if pure 12-TET without an explicit anchor Hz override, match standard A440 concert pitch formula
+    if (isAllEqualTemperament(config.intervals) && config.rootFrequencyHz === undefined) {
       rawD = freqToD(midiToFreq(midi, a4Hz), tplHz);
     } else {
-      const rootFreq = midiToFreq(rootMidi, a4Hz);
+      const rootFreq = resolveRootFrequencyHz(config, a4Hz);
       const targetFreq = rootFreq * fullMultiplier;
       rawD = freqToD(targetFreq, tplHz);
     }
