@@ -282,7 +282,7 @@ export const App: React.FC = () => {
   const teachingDemo = useTeachingDemo({
     handleSelectPreset, setBookmarks, handleUpdatePlacementD, updateScene,
     layout, setLayout, scene, toggleFilter, isOscillating, toggleOscillating, resetRoundTrip,
-    isPlaying, handleTogglePlay, setIsInfoOpen, midi,
+    isPlaying, handleTogglePlay, setIsInfoOpen, midi, tuningStrum,
   });
   notifyUserTookControlRef.current = teachingDemo.notifyUserTookControl;
   const demoSpotlight = useDemoSpotlight({
@@ -367,7 +367,7 @@ export const App: React.FC = () => {
         </div>
       </SpectrumViewport>
 
-      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} onSetFundamentalD={handleManualPlacementD} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} tuningStrum={tuningStrum} onToggleStrumMode={handleToggleStrumMode} />
+      <VirtualKeyboard midi={midi} currentFundamentalD={scene.placements[0]?.d ?? 2.0} tuningA4Hz={scene.anchors.tuningA4Hz} tplFrequencyHz={scene.anchors.tplFrequencyHz} onSetFundamentalD={handleManualPlacementD} autoShowIntervals={Boolean(teachingDemo.activeDemo?.keyboardConfig?.showIntervals)} demoSurfaceMode={teachingDemo.activeDemo?.keyboardConfig?.surfaceMode} tuningStrum={tuningStrum} onToggleStrumMode={handleToggleStrumMode} />
 
       <AppModals
         isCaptureOpen={isCaptureOpen}

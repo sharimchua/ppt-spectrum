@@ -23,6 +23,14 @@ Interactive teaching instrument for **Prime Period Theory (PPT)** demonstrating 
   - Reductive rhythm sieve methodology: subtractively carve out syncopated beat patterns from dense polyrhythmic grids.
   - Full-spectrum operation: discrete onset gating in rhythm space, click-free amplitude modulation and acoustic formant shaping in pitch space.
   - Dedicated mobile bottom sheet and desktop drawer (`FiltersSheet`), radial menu segment, and HUD controls (`Shift+F`).
+- **Generalized 2-Layer Tuning Systems & World/Microtonal Lattices**:
+  - **Layer 1 (Tuning System Lattice)**: Supports Prime Family matrices (`12-TET`, `DuTri Closure`, `PPT Native`, `3-Limit Just (Tri)`, `5-Limit Just (Qui)`, `7-Limit Septimal (Sep)`), N-step ratio chains (`Pythagorean 3:2 Chain` with Upward `0..N−1` or Centred `−k..+k` modes across 12, 19, 31, or 53 steps), Equal Divisions (`24-EDO Quarter-Tone`, `31-EDO Meantone/Septimal`, `53-EDO Holderian`), explicit world lattices (`Javanese Gamelan Pélog 7-Tone` and `Sléndro 5-Tone`), and non-octave periods (`Bohlen-Pierce 13-Step 3:1 Tritave`).
+  - **Layer 2 (Tuning Subset / Scale Sieve)**: Sieve any tuning system into musical subsets (`Pentatonic`, `Blues`, `Whole-Tone`, `Heptatonic / Diatonic`, `Octatonic`, `Nonatonic`, `31-EDO Meantone & Septimal`, `24-EDO Maqam Rast / Bayati / Hijaz`, `Pélog Pathet Nem & Barang`) or toggle individual degrees.
+  - **Layer 3 (Physical Key / MIDI Projection & World Anchors)**: Project 12-key keyboards and fretboards via `Nearest-12`, `Step: System`, or `Step: Subset`, and anchor `Do` in Pitch and Rhythm Space to standard 12-TET pitches or historical/world frequencies (`TPL Mirror 412.8 Hz`, `Verdi C4 = 256 Hz`, `Baroque A415`, `432 Hz`, `Hindustani Sa`, `Turkish Ney`, `Javanese Tumbuk`, `Japanese Gagaku`).
+- **Multi-Surface Instrument Panel & Algorithmic Scale Sequencer**:
+  - **4 Playable Surfaces (`K`)**: Switch seamlessly between **12-Key Solfège Piano** (with stacked Harmonic-Geometry interval ratio bands), **Scale-Degree Strip** (relative to the active fundamental), **2D Isomorphic Lattice** (Hexagons or Squares across `Harmonic 3:2 × 5:4`, `Wicki-Hayden`, or `All-Fourths` layouts), and an interactive **SVG Guitar / Bass / Ukulele Fretboard** (9 tuning presets, custom per-string tuning, scale subset dimming, and Solfège / Note / Cents readouts).
+  - **Dual-Coordinate Auto-Play Sequencer**: Built-in algorithmic scale arpeggiator (`Up`, `Down`, `Thirds`, `Fourths`, `Pendulum`, `Chromatic Approach`, and `Custom Steps` combining Layer 2 scale steps with Layer 1 chromatic offsets) with `Wrap`, `Bounce`, `Mirror`, and `Once` boundary rules, Tap Tempo, and canvas Strum Mode.
+  - **Polarity-Aware Polyphony (`Tab` & `Hold H`)**: Latch chords in Pitch Space or polyrhythmic tempo streams in Rhythm Space (`Sam-Aligned` vs `Key-Strike` phase) and flip across the 25.8 Hz TPL horizon with a single keystroke.
 - **Interactive Shape Partial Inspector & Synthesiser**:
   - Dedicated bottom tray sheet (`TraySheet`) to inspect, add, mute, or remove individual partials.
   - Mobile-first category filtering (`ShapePicker`), action toolbar (`ShapeActionsMenu`), and collapsible accordion Voice Anchor cards.
@@ -43,8 +51,8 @@ Interactive teaching instrument for **Prime Period Theory (PPT)** demonstrating 
   - TPL tuning anchors ($25.8\text{ Hz}$) and concert reference pitch ($440\text{ Hz}$).
 - **Progressive Web App (PWA) & Offline Readiness**:
   - Offline-first Service Worker (`sw.js`) and Web App Manifest (`manifest.webmanifest`) allowing standalone offline operation on desktop and mobile.
-- **Theory Primer & Walkthrough**:
-  - Integrated 4-step modal walkthrough (`InfoModal`) covering the Continuum, the Limen, Periodic Shapes, and PPT Lens navigation.
+- **Interactive Guide & Musical Thought Experiments (`?`)**:
+  - Integrated 5-section interactive tutorial (`InfoModal`) with embedded playable diagrams and 25+ one-click live studio demos covering: (1) *Start Here & Demos*, (2) *How It Works — 7 Thought Experiments*, (3) *Under the Hood — Sound Design, Sieves & Sampling*, (4) *Tuning Systems & Playable Surfaces*, and (5) *Controls, Shortcuts & Learning Portal*.
 
 ## Project Structure & Architecture
 

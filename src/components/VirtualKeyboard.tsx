@@ -47,6 +47,7 @@ export interface VirtualKeyboardProps {
   tplFrequencyHz: number;
   onSetFundamentalD?: (d: number) => void;
   autoShowIntervals?: boolean;
+  demoSurfaceMode?: InstrumentSurfaceMode;
   tuningStrum?: UseTuningStrumResult;
   onToggleStrumMode?: () => void;
 }
@@ -64,6 +65,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   tplFrequencyHz,
   onSetFundamentalD,
   autoShowIntervals = false,
+  demoSurfaceMode,
   tuningStrum,
   onToggleStrumMode,
 }) => {
@@ -94,9 +96,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
 
-  useEffect(() => {
-    if (autoShowIntervals) setShowIntervals(true);
-  }, [autoShowIntervals]);
+  useEffect(() => { if (autoShowIntervals) setShowIntervals(true); }, [autoShowIntervals]);
+  useEffect(() => { if (demoSurfaceMode) setSurfaceMode(demoSurfaceMode); }, [demoSurfaceMode]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -246,14 +247,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
           {/* Surface Mode Switcher: Piano | Scale | Iso | Guitar */}
           <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 shrink-0">
-            {(
-              [
-                { id: 'piano', label: 'Piano' },
-                { id: 'scale-strip', label: 'Scale' },
-                { id: 'isomorphic', label: 'Iso' },
-                { id: 'guitar', label: 'Guitar' },
-              ] as const
-            ).map((m) => (
+            {([
+              { id: 'piano', label: 'Piano' },
+              { id: 'scale-strip', label: 'Scale' },
+              { id: 'isomorphic', label: 'Iso' },
+              { id: 'guitar', label: 'Guitar' },
+            ] as const).map((m) => (
               <button
                 key={m.id}
                 type="button"

@@ -113,12 +113,11 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
           st.releaseAge = 0;
           st.rhythmTurnsElapsed = 0;
         }
-        for (const v of this.voiceStates.values()) {
-          v.active = false;
+        for (const [vk, v] of this.voiceStates.entries()) {
+          if (!vk.startsWith('midi_')) {
+            v.active = false;
+          }
         }
-        this.midiVoices.clear();
-        this.midiSamEpochTime = null;
-        this.sustainPedalDown = false;
       } else if (type === 'MIDI_NOTE_ON') {
         const { midiNote, targetD, velocity, phaseMode } = payload || {};
         if (midiNote !== undefined) {
@@ -470,6 +469,27 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             f0: this.tplHz * Math.pow(2, -currentD),
             smoothedD: currentD,
             noteAge: 0,
+            isAuditioning: false,
+          };
+        }
+        continue;
+      }
+
+      // Silence primary shape drone while polyphonic MIDI voices are actively held
+      let hasActiveMidiVoice = false;
+      for (const mv of this.midiVoices.values()) {
+        if (!mv.isReleased || mv.currentAmp > 0.001) {
+          hasActiveMidiVoice = true;
+          break;
+        }
+      }
+      if (shape.isPrimary && hasActiveMidiVoice) {
+        if (sendTelemetry) {
+          phaseTelemetry[shapeId] = {
+            masterPhase: this.masterPhases.get(shapeId) || 0.0,
+            f0: this.tplHz * Math.pow(2, -currentD),
+            smoothedD: currentD,
+            noteAge: nState.noteAge,
             isAuditioning: false,
           };
         }
@@ -857,20 +877,27 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       const primaryShape = this.shapes[0];
       if (!primaryShape.mute && primaryShape.gain > 0.0001) {
         const adsr = primaryShape.adsr;
+        const isDecayingMidiShape = Boolean(adsr && adsr.sustain <= 0.25);
+        const midiAutoStrikePeriod = isDecayingMidiShape
+          ? Math.max(1.2, adsr.attack + adsr.decay * 1.35 + 0.4)
+          : 1e9;
         let totalAmpSum = 0;
         for (let pIdx = 0; pIdx < primaryShape.partials.length; pIdx++) {
           totalAmpSum += primaryShape.partials[pIdx].amp;
         }
-        const shapeHeadroom = totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0;
+        const activeVoiceCount = Math.max(1, this.midiVoices.size);
+        const polyVoiceHeadroom = activeVoiceCount > 1 ? 1.0 / Math.sqrt(activeVoiceCount) : 1.0;
+        const shapeHeadroom = (totalAmpSum > 1.2 ? 1.2 / Math.sqrt(totalAmpSum * 1.2) : 1.0) * polyVoiceHeadroom;
         const sampleDt = 1.0 / sampleRate;
 
-        const carrierSpec = primaryShape.carrier;
+        const carrierSpec = primaryShape.carrierSpec || null;
 
         for (const [midiNote, mv] of this.midiVoices.entries()) {
-          const f0 = this.tplHz * Math.pow(2, -mv.targetD);
-          let mvPhase = mv.masterPhase;
+          const rawTargetD = Number.isFinite(mv.targetD) ? Math.max(-10, Math.min(10, mv.targetD)) : 0;
+          const f0 = this.tplHz * Math.pow(2, -rawTargetD);
+          let mvPhase = Number.isFinite(mv.masterPhase) ? mv.masterPhase : 0.0;
           let finished = false;
-          const startAmp = mv.attackStartAmp || 0.0;
+          let startAmp = Number.isFinite(mv.attackStartAmp) ? mv.attackStartAmp : 0.0;
           if (!mv.gateSmooths) mv.gateSmooths = [];
 
           for (let s = 0; s < numSamples; s++) {
@@ -879,7 +906,14 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
             mvPhase += f0 * sampleDt;
             if (mvPhase > 9369360) mvPhase -= 9369360;
             mv.noteAge += sampleDt;
-            if (mv.isReleased) mv.releaseAge += sampleDt;
+            if (mv.isReleased) {
+              mv.releaseAge += sampleDt;
+            } else if (this.isPlaying && f0 > 25.8 && isDecayingMidiShape && mv.noteAge >= midiAutoStrikePeriod) {
+              // Auto-restrike percussive shapes (Piano, Plucked String, Bell) while held during continuous playback
+              startAmp = mv.currentAmp || 0.0;
+              mv.attackStartAmp = startAmp;
+              mv.noteAge = 0.0;
+            }
 
             let sampleValL = 0;
             let sampleValR = 0;
@@ -1091,11 +1125,13 @@ class SpectrumSynthProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Transparent soft-knee saturation prevents harsh digital DAC hard-clipping
-    // and eliminates clicking from multi-partial constructive interference
+    // Transparent soft-knee saturation prevents harsh digital DAC hard-clipping,
+    // eliminates clicking from multi-partial constructive interference, and guards against NaN/Infinity poisoning
     for (let s = 0; s < numSamples; s++) {
-      channelLeft[s] = Math.tanh(channelLeft[s]);
-      channelRight[s] = Math.tanh(channelRight[s]);
+      const l = channelLeft[s];
+      const r = channelRight[s];
+      channelLeft[s] = Number.isFinite(l) ? Math.tanh(l) : 0;
+      channelRight[s] = Number.isFinite(r) ? Math.tanh(r) : 0;
     }
 
     // Post telemetry to main thread approximately every 20-30ms (~12-16 quantums of 128 samples)

@@ -1,18 +1,20 @@
 /**
- * Section 3: Tuning Systems Beyond 12 Tones
- * Interactive guide to Pythagorean 3:2 chains (Pentatonic vs Heptatonic),
- * 31-EDO microtonality, and Tuning-driven Strum & Alternate Surfaces.
+ * Section 4: Tuning Systems & Playable Surfaces
+ * Interactive guide to Pythagorean 3:2 chains (Pentatonic vs Heptatonic, Upward vs Centred),
+ * 31-EDO microtonality, World/Non-Octave lattices, and Playable Instrument Surfaces.
  * Australian English spelling maintained.
  */
 
 import React, { useMemo, useState } from 'react';
-import { Music, Play, Sparkles, GitBranch, Grid3X3 } from 'lucide-react';
-import { buildPythagoreanChainDegrees } from '../../core/tuning-systems';
+import { Music, Play, GitBranch, Grid3X3 } from 'lucide-react';
+import { buildRatioChainDegrees, TuningSubsetId } from '../../core/tuning-systems';
 import {
+  ContextualDemoAction,
   CustomTutorialDemoOverride,
   TutorialDemoId,
   TutorialSectionId,
 } from './tutorial-demos';
+import { InstrumentSurfacesGuideCard } from './InstrumentSurfacesGuideCard';
 
 export interface TuningSystemsSectionProps {
   onPlayDemo?: (
@@ -20,6 +22,7 @@ export interface TuningSystemsSectionProps {
     fromSection?: TutorialSectionId,
     customOverride?: CustomTutorialDemoOverride
   ) => void;
+  onRegisterContextualDemo?: (action: ContextualDemoAction) => void;
 }
 
 const EDO31_COMPARISONS = [
@@ -49,9 +52,28 @@ const EDO31_COMPARISONS = [
   },
 ];
 
-export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPlayDemo }) => {
+export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({
+  onPlayDemo,
+  onRegisterContextualDemo,
+}) => {
   const [chainLength, setChainLength] = useState<number>(5);
-  const chainDegrees = useMemo(() => buildPythagoreanChainDegrees(chainLength), [chainLength]);
+  const [centered, setCentered] = useState<boolean>(false);
+
+  const subsetId: TuningSubsetId =
+    chainLength <= 5 ? 'pentatonic' : chainLength <= 7 ? 'heptatonic' : 'all';
+
+  const chainDegrees = useMemo(() => {
+    if (centered) {
+      return buildRatioChainDegrees(12, 3, 2, 2.0, subsetId, undefined, true);
+    }
+    const mask = Array.from({ length: 12 }, (_, i) => i < chainLength);
+    const raw = buildRatioChainDegrees(12, 3, 2, 2.0, 'all', undefined, false);
+    return raw.map((d) => ({
+      ...d,
+      active: d.chainStep !== undefined ? d.chainStep < chainLength : mask[d.index],
+    }));
+  }, [chainLength, centered, subsetId]);
+
   const activeCount = chainDegrees.filter((d) => d.active).length;
 
   return (
@@ -62,21 +84,24 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
         </span>
         <div>
           <h3 className="text-sm font-bold text-stone-100">
-            3. Tuning Systems Beyond 12 Tones
+            4. Tuning Systems &amp; Playable Surfaces
           </h3>
           <p className="text-[11px] text-stone-400">
-            Shapes supply timbre &amp; overtones; Tuning defines the pitch &amp; rhythm lattice.
+            Shapes supply timbre &amp; overtones; Tuning defines the pitch &amp; rhythm lattice across Piano, Scale Strip, Isomorphic &amp; Guitar surfaces.
           </p>
         </div>
       </div>
 
       {/* Card 1: Pentatonic vs Heptatonic via 3:2 Chain */}
-      <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 space-y-3">
+      <div
+        data-demo-card="tuning-3-2-chain"
+        className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 space-y-3"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-emerald-400" />
             <h4 className="text-xs font-bold text-stone-100">
-              Pentatonic vs Heptatonic: The 3:2 Fifths Chain
+              Pentatonic vs Heptatonic: The 3:2 Fifths Chain (Upward vs Centred)
             </h4>
           </div>
           {onPlayDemo && (
@@ -85,8 +110,8 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
               onClick={() => onPlayDemo('pythagorean-pentatonic-demo', 'tuning')}
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 transition cursor-pointer"
             >
-              <Play className="w-3 h-3" />
-              Try Live: 5 vs 7 Fifths
+              <Play className="w-3 h-3 fill-current" />
+              <span>Try Live: 5 vs 7 Fifths</span>
             </button>
           )}
         </div>
@@ -97,7 +122,10 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
           Stopping at <strong>5 fifths</strong> yields the <strong>Pentatonic</strong> scale—deliberately
           avoiding minor 2nds and tritones. Extending to <strong>7 fifths</strong> (Heptatonic)
           introduces the two <code className="text-amber-300">90.2¢</code> semitones and the{' '}
-          <code className="text-rose-300">729/512</code> tritone.
+          <code className="text-rose-300">729/512</code> tritone. Toggle <strong>Centred</strong> to balance
+          the chain around <code className="text-stone-100">Do</code> (<code className="text-emerald-300">−1×3:2 = 4/3 Fa</code>{' '}
+          through <code className="text-emerald-300">+5×3:2</code>), matching traditional{' '}
+          <strong>3-Limit Just (Tri)</strong> Ionian tuning!
         </p>
 
         {/* Interactive 3:2 Chain Slider & Degree Strip */}
@@ -107,7 +135,7 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
               Active Chain Steps: <span className="text-emerald-300 font-mono">{activeCount}</span>{' '}
               ({chainLength === 5 ? 'Pentatonic' : chainLength === 7 ? 'Heptatonic' : chainLength === 12 ? '12-Tone Pythagorean' : 'Custom'})
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {[5, 7, 12].map((len) => (
                 <button
                   key={len}
@@ -122,6 +150,18 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
                   {len === 5 ? '5 (Pentatonic)' : len === 7 ? '7 (Heptatonic)' : '12 (Full)'}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setCentered((v) => !v)}
+                title="Toggle between Upward-only (0..N-1) and Centred (-k..+k around Do, including 4/3 Fa)"
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer ${
+                  centered
+                    ? 'bg-amber-600/30 border-amber-500 text-amber-200'
+                    : 'bg-stone-900 border-stone-700 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                {centered ? 'Centred (−k..+k)' : 'Upward (0..N−1)'}
+              </button>
             </div>
           </div>
 
@@ -158,12 +198,15 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
       </div>
 
       {/* Card 2: 31-EDO & Microtonality */}
-      <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 space-y-3">
+      <div
+        data-demo-card="tuning-31edo"
+        className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 space-y-3"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Grid3X3 className="w-4 h-4 text-amber-400" />
             <h4 className="text-xs font-bold text-stone-100">
-              31-EDO: Microtonal Meantone &amp; 7-Limit Harmony
+              31-EDO, Quarter-Tone Maqam, Gamelan &amp; Bohlen-Pierce Lattices
             </h4>
           </div>
           <div className="flex items-center gap-1.5">
@@ -174,16 +217,16 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
                   onClick={() => onPlayDemo('31edo-meantone-demo', 'tuning')}
                   className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 px-2.5 py-1 text-[11px] font-semibold text-amber-300 transition cursor-pointer"
                 >
-                  <Play className="w-3 h-3" />
-                  Try 31-EDO Meantone
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Try 31-EDO Meantone</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => onPlayDemo('31edo-septimal-demo', 'tuning')}
                   className="inline-flex items-center gap-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 px-2.5 py-1 text-[11px] font-semibold text-purple-300 transition cursor-pointer"
                 >
-                  <Play className="w-3 h-3" />
-                  Try 7-Limit
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Try 7-Limit</span>
                 </button>
               </>
             )}
@@ -194,7 +237,10 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
           Dividing the octave into <strong>31 equal steps</strong> (<code className="text-amber-300">38.7¢</code> each)
           hits pure <code className="text-amber-300">5/4</code> major thirds and{' '}
           <code className="text-purple-300">7/4</code> harmonic sevenths far more accurately than 12-TET,
-          while preserving familiar diatonic and meantone chord shapes.
+          while preserving familiar diatonic and meantone chord shapes. In the <strong>Tuning Studio (<kbd className="font-mono text-amber-300">Shift+T</kbd>)</strong>,
+          you can also explore <strong>24-EDO Quarter-Tone Maqam</strong> (Rast, Bayati, Hijaz),{' '}
+          <strong>53-EDO Holderian</strong>, <strong>Javanese Gamelan Pélog &amp; Sléndro</strong>, and the non-octave{' '}
+          <strong>Bohlen-Pierce (13-Step 3:1 Tritave)</strong>.
         </p>
 
         <div className="overflow-x-auto rounded-lg border border-stone-800">
@@ -221,23 +267,11 @@ export const TuningSystemsSection: React.FC<TuningSystemsSectionProps> = ({ onPl
         </div>
       </div>
 
-      {/* Card 3: Strum Mode & Alternate Surfaces */}
-      <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-rose-400" />
-          <h4 className="text-xs font-bold text-stone-100">
-            Playable Surfaces: Strum Mode, Scale Strip, Isomorphic &amp; Guitar
-          </h4>
-        </div>
-        <p className="text-xs text-stone-300 leading-relaxed">
-          Enable <strong>Strum</strong> in the top toolbar to drag, scroll, or auto-walk through
-          the active Tuning&apos;s degrees with full instrument overtones—in Pitch Space or Rhythm Space.
-          Open the <strong>Virtual Keyboard</strong> (<kbd className="px-1 py-0.5 rounded bg-stone-800 text-[10px]">K</kbd>)
-          to switch between <strong>Piano</strong>, <strong>Scale Strip</strong> (active degrees only),{' '}
-          <strong>Isomorphic Lattice</strong> (<code className="text-emerald-300">3:2</code> fifths ×{' '}
-          <code className="text-amber-300">5:4</code> thirds), and a <strong>6-String Guitar Fretboard</strong>.
-        </p>
-      </div>
+      {/* Card 3: Interactive Playable Surfaces & Auto-Play Explorer */}
+      <InstrumentSurfacesGuideCard
+        onPlayDemo={onPlayDemo}
+        onRegisterContextualDemo={onRegisterContextualDemo}
+      />
     </div>
   );
 };

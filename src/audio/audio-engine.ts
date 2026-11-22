@@ -615,7 +615,7 @@ export class AudioEngine {
     }
 
     const ok = await this.unlock();
-    if (!ok || !this.hasSynthNode()) return;
+    if (!ok || !this.hasSynthNode() || !this.activeMidiNotes.has(midiNote)) return;
     this.applyMasterGain();
     this.syncSceneToWorklet();
 

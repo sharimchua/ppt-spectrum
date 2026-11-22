@@ -54,6 +54,11 @@ describe('Alternate Tuning Systems & Scale Sequencer', () => {
     expect(pitchMap.polarity).toBe('pitch');
     expect(pitchMap.d).toBeLessThan(0);
 
+    // Custom rootFrequencyHz (e.g. Verdi 256 Hz) is honoured by tuningDegreeToMapping
+    const verdiCfg = { ...cfg, rootFrequencyHz: 256 };
+    const verdiRootMap = tuningDegreeToMapping(active[0], 0, 100, verdiCfg, -3.0);
+    expect(verdiRootMap.freqHz).toBeCloseTo(256, 3);
+
     const rhythmMap = tuningDegreeToMapping(active[3], 0, 100, cfg, 3.0);
     expect(rhythmMap.polarity).toBe('rhythm');
     expect(rhythmMap.d).toBeGreaterThan(0);

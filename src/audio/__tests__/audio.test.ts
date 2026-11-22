@@ -33,6 +33,8 @@ describe('Audio Synthesiser Worklet Source', () => {
     expect(SPECTRUM_WORKLET_CODE).toContain('const sig = (toneSample + eventSample) * mv.velocity');
     expect(SPECTRUM_WORKLET_CODE).toContain('midiPhases: midiTelemetry');
     expect(SPECTRUM_WORKLET_CODE).toContain("phaseMode === 'sam-aligned'");
+    expect(SPECTRUM_WORKLET_CODE).toContain('const carrierSpec = primaryShape.carrierSpec || null;');
+    expect(SPECTRUM_WORKLET_CODE).toContain('if (shape.isPrimary && hasActiveMidiVoice)');
   });
 });
 

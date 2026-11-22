@@ -21,7 +21,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/capture/rhythm-preview.ts` — Lightweight looping Web Audio preview scheduler for auditioning captured rhythm shapes.
 - `src/components/capture/RhythmCaptureTab.tsx` — Mic-first rhythm recorder with silence trimming, Cycle Wheel preview, and shape simplification modes.
 - `src/components/capture/PitchCaptureTab.tsx` — Peak-attack armed pitch/timbre capture (24 harmonic or inharmonic partials) with `ShapeRulerPreview` and `RatioScrubber` snapping.
-- `src/components/InfoModal.tsx` — Comprehensive 4-tab interactive theory documentation and tutorial modal with scroll-spy navigation.
+- `src/components/InfoModal.tsx` — Comprehensive 5-section interactive theory documentation and tutorial modal with scroll-spy navigation.
 - `src/components/SettingsDrawer.tsx` — Settings drawer controlling WebGL performance profiles (Max Effects, Balanced, Eco Mode), optical cosmetics, audio focus, and external pedagogy links.
 - `src/components/SettingsAudioSection.tsx` — Audio gain, small-speaker assist, auto-mute on blur, and Rhythm Phase Alignment (`Sam-Aligned` vs `Key-Strike`) controls inside `SettingsDrawer`.
 - `src/components/TraySheet.tsx` — Floating & minimisable desktop window / mobile bottom sheet housing the shape partial inspector.
@@ -62,8 +62,9 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `timbre-sweep-demos.ts` — Guided Sine, Sawtooth, Clarinet, Bell, and Custom Overtone Mix timbre sweep demo configurations.
 - `coupling-demos.ts` — Guided Cross-Limen coupling demo configurations (Fractal Self, Neutral Kit/Static, Cross-Shape Clarinet).
 - `keyboard-cadence-demos.ts` — Guided Solfège Keyboard tuning (5-Limit vs 12-TET) and Supercycle tempo cadence demo configurations.
-- `tuning-demos.ts` — Guided Tuning Systems demos (Pythagorean 3:2 Pentatonic vs Heptatonic, 31-EDO Meantone, 31-EDO Septimal).
-- `TuningSystemsSection.tsx` — Interactive Tuning Systems guide section with 3:2 chain slider, 31-EDO comparison table, and playable surface overview.
+- `tuning-demos.ts` — Guided Tuning Systems & Playable Surfaces demos (Pythagorean 3:2 Pentatonic vs Heptatonic, 31-EDO Meantone & Septimal, Scale Strip + Auto-Play, Isomorphic Lattice, Guitar Fretboard).
+- `TuningSystemsSection.tsx` — Interactive Section 4 Tuning Systems & Playable Surfaces guide with Upward/Centred 3:2 chain explorer, 31-EDO comparison table, and `<InstrumentSurfacesGuideCard />`.
+- `InstrumentSurfacesGuideCard.tsx` — Interactive 4-tab playable surfaces and 3-layer tuning architecture explorer (Scale Strip & Auto-Play, Isomorphic Lattice, Guitar Fretboard, World & Non-Octave Projections) with live demo launchers.
 - `OverviewSection.tsx` — Everyday-language welcome card with Amplitude Across Time, the Bicycle-Spoke thought experiment, 'Who is PPT Spectrum for?' persona tiles, terminology primer, 'What is a Shape?' card, interactive `<LensPreviewGrid />`, and quick interaction tips.
 - `WhatIsAShapeCard.tsx` — Overview card defining Shape, Voice Anchor, and partial, with three one-click listening examples.
 - `LensPreviewGrid.tsx` — Interactive 8-card visual lens grid with SVG thumbnails, click-to-flip cards, and progressive scroll-depth auto-flip.
@@ -135,14 +136,18 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `useFullscreen.ts` — Document fullscreen state tracking and toggle.
 - `useMidi.ts` — Web MIDI input lifecycle, polyphonic voice dispatch, scene frequency updates, and ruler ghost note syncing.
 - `midi-retarget.ts` — Pure re-targeting helpers for held/latched MIDI & virtual surface notes on polarity or tuning changes.
+- `midi-storage.ts` — LocalStorage persistence and sanitisation for `MidiTuningConfig`.
+- `useTuningStrum.ts` — Tuning-driven Strum / Scale-Step canvas mode, degree activation toggles, and automated stepped scale sequencing across any Tuning System.
 - `useEnvelopes.ts` — Dedicated Envelopes sheet visibility, Pitch/Rhythm envelope parameter updates, and Envelope library CRUD.
 - `useLibraryBundles.ts` — Library bundle presets, `?bundle=` deeplink decoding, and non-destructive JSON/slug import/export.
-- `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting 3:2 Hemiola shape, TPL bookmarks, Teaching Trio layout, and sweep oscillation.
+- `useTeachingDemo.ts` — Educational walkthrough demo orchestrator setting shapes, TPL bookmarks, layouts, sweep oscillation, and keyboard surface/Auto-Play presets.
 - `useDemoSpotlight.ts` — Automated Cycle-2 bandpass spotlight cues and one-tap contextual actions (voice isolation and tuning A/B comparison) for guided demos.
 
 ### Tests (`src/components/__tests__/`)
 
 - `adsr-curve-geometry.test.ts` — SVG ADSR curve geometry, bezier path strings, segment width clamping, and damping threshold visibility.
+- `instrument-layouts.test.ts` — Scale-Degree Strip, 2D Isomorphic Lattice, Guitar/Bass/Ukulele Fretboard builders, non-octave Bohlen-Pierce period scaling, and Auto-Play active ID matching.
+- `keyboard-layout.test.ts` — Virtual piano key geometry, Solfège colouring, range auto-expansion, and stacked interval distance band calculation.
 
 ## Maintainability & Architecture Guidelines
 

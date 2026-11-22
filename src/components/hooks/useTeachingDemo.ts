@@ -13,6 +13,7 @@ import { PRESET_FILTERS } from '../../core/filter-presets';
 import { createDefaultMidiTuningConfig } from '../../core/midi-tuning';
 import { BookmarkSettings } from '../bookmarks-storage';
 import { UseMidiResult } from './useMidi';
+import { UseTuningStrumResult } from './useTuningStrum';
 import {
   TutorialDemoId,
   TutorialDemoConfig,
@@ -37,6 +38,7 @@ export interface UseTeachingDemoOptions {
   handleTogglePlay: () => void;
   setIsInfoOpen: (open: boolean) => void;
   midi: UseMidiResult;
+  tuningStrum?: UseTuningStrumResult;
 }
 
 export interface UseTeachingDemoResult {
@@ -74,6 +76,7 @@ export function useTeachingDemo({
   handleTogglePlay,
   setIsInfoOpen,
   midi,
+  tuningStrum,
 }: UseTeachingDemoOptions): UseTeachingDemoResult {
   const [activeDemo, setActiveDemo] = useState<TutorialDemoConfig | null>(null);
   const [tutorialSection, setTutorialSection] = useState<TutorialSectionId>('overview');
@@ -123,7 +126,8 @@ export function useTeachingDemo({
         setLayout(isMobile ? PRESET_DUO_HORIZONTAL : PRESET_TRIO);
       }
 
-      // Explicitly clear any previous keyboard notes before configuring the scene
+      // Explicitly clear any previous keyboard notes and sequencer before configuring the scene
+      tuningStrum?.setIsStrumMode(false);
       midi.clearAllNotes();
       if (!effectiveDemo.requiresKeyboard) {
         midi.closeKeyboard();
@@ -312,17 +316,25 @@ export function useTeachingDemo({
 
       const effectiveKeyboardConfig = customOverride?.keyboardConfig ?? effectiveDemo.keyboardConfig;
       if (effectiveDemo.requiresKeyboard && effectiveKeyboardConfig) {
-        const { tuningPresetId, subsetId, latchedMidiNotes, rhythmPhaseMode } = effectiveKeyboardConfig;
+        const { tuningPresetId, subsetId, latchedMidiNotes, rhythmPhaseMode, autoPlay } = effectiveKeyboardConfig;
+        const polarityD = baseDemo.mode === 'static-place' ? (baseDemo.pitchD ?? baseDemo.rhythmD ?? -3.0) : (baseDemo.rhythmD ?? 4.0);
         const presetCfg = createDefaultMidiTuningConfig(tuningPresetId);
         if (subsetId) presetCfg.subsetId = subsetId;
         if (rhythmPhaseMode) presetCfg.rhythmPhaseMode = rhythmPhaseMode;
         midi.setMidiTuning(presetCfg);
         midi.openKeyboard();
-        if (!midi.isMidiHoldActive) {
-          midi.toggleMidiHold();
-        }
-        for (const note of latchedMidiNotes) {
-          midi.virtualNoteOn(note, 0.85, baseDemo.rhythmD ?? 4.0);
+        if (autoPlay && tuningStrum) {
+          tuningStrum.setIsStrumMode(true);
+          if (!tuningStrum.isSequencing) {
+            tuningStrum.toggleSequencer();
+          }
+        } else {
+          if (!midi.isMidiHoldActive && latchedMidiNotes.length > 0) {
+            midi.toggleMidiHold();
+          }
+          for (const note of latchedMidiNotes) {
+            midi.virtualNoteOn(note, 0.85, polarityD);
+          }
         }
       }
 
@@ -348,6 +360,7 @@ export function useTeachingDemo({
       handleTogglePlay,
       setIsInfoOpen,
       resetRoundTrip,
+      tuningStrum,
     ]
   );
 
@@ -365,6 +378,7 @@ export function useTeachingDemo({
 
   const handleReturnToTutorial = useCallback(() => {
     if (activeDemo?.requiresKeyboard) {
+      tuningStrum?.setIsStrumMode(false);
       midi.clearAllNotes();
     }
     if (isPlaying) {
@@ -374,7 +388,7 @@ export function useTeachingDemo({
     }
     setActiveDemo(null);
     setIsInfoOpen(true);
-  }, [activeDemo, midi, isPlaying, handleTogglePlay, isOscillating, toggleOscillating, setIsInfoOpen]);
+  }, [activeDemo, tuningStrum, midi, isPlaying, handleTogglePlay, isOscillating, toggleOscillating, setIsInfoOpen]);
 
   const handleDismissDemoToast = useCallback(() => {
     setActiveDemo(null);

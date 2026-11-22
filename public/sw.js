@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ppt-spectrum-v1';
+const CACHE_NAME = 'ppt-spectrum-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

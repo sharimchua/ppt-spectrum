@@ -503,7 +503,12 @@ export function tuningDegreeToMapping(
   if (polarity === 'rhythm') {
     d = config.rhythmAnchorBand - Math.log2(fullMultiplier);
   } else {
-    const rootFreq = midiToFreq(rootMidi, a4Hz);
+    const rootFreq =
+      config.rootFrequencyHz !== undefined &&
+      Number.isFinite(config.rootFrequencyHz) &&
+      config.rootFrequencyHz > 0
+        ? config.rootFrequencyHz
+        : midiToFreq(rootMidi, a4Hz);
     d = freqToD(rootFreq * fullMultiplier, tplHz);
   }
 

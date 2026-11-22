@@ -324,13 +324,12 @@ export const UnderTheHoodSection: React.FC<UnderTheHoodSectionProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
           <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">
-            <strong className="text-purple-300">Prime Family Tuning Matrix:</strong>
+            <strong className="text-purple-300">Prime Family Matrix &amp; 4 Playable Surfaces:</strong>
             <p className="text-stone-300 leading-relaxed">
               Press <kbd className="font-mono text-purple-300">Shift+T</kbd> to switch between <strong>5-Limit Just (Qui)</strong>,{' '}
-              <strong>Pythagorean (Tri)</strong>, <strong>7-Limit (Sep)</strong>, <strong>12-TET</strong>,{' '}
-              <strong>DuTri Closure</strong> (alternating ~102¢ / ~96¢ steps built purely from 2 and 3), and{' '}
-              <strong>PPT Native</strong> (with <span className="font-mono">Fi</span> at the exact √2 halfway point)—or mix prime
-              families per interval!
+              <strong>3-Limit Just (Tri)</strong>, <strong>7-Limit (Sep)</strong>, <strong>12-TET</strong>,{' '}
+              <strong>DuTri Closure</strong>, and <strong>PPT Native</strong>—or switch the keyboard (<kbd className="font-mono text-purple-300">K</kbd>) between{' '}
+              <strong>Piano</strong>, <strong>Scale Strip</strong>, <strong>Isomorphic Lattice</strong>, and <strong>Guitar Fretboard</strong> (explored in detail in Section 4 below).
             </p>
           </div>
           <div className="rounded-lg border border-stone-800 bg-stone-950/60 p-3 space-y-1">

@@ -201,6 +201,8 @@ export function buildScaleStripPads(
   const all = resolveTuningDegrees(midiTuning);
   const degrees = config.showInactive ? all : all.filter((d) => d.active);
   if (degrees.length === 0) return [];
+  const periodRatio = resolveSystemSpec(midiTuning).periodRatio ?? 2.0;
+  const periodCents = Math.log2(periodRatio) * 1200;
   const octaves = degrees.length > 14 ? 1 : config.octaves;
   const pads: SurfacePad[] = [];
 
@@ -209,8 +211,8 @@ export function buildScaleStripPads(
       const deg = degrees[i];
       const idx = oct * degrees.length + i;
       const midiId = baseIdOffset + idx;
-      const mapping = tuningDegreeToRelativeMapping(deg, oct, midiId, currentFundamentalD, tplHz);
-      const cents = deg.cents + oct * 1200;
+      const mapping = tuningDegreeToRelativeMapping(deg, oct, midiId, currentFundamentalD, tplHz, periodRatio);
+      const cents = deg.cents + oct * periodCents;
       pads.push({
         id: `strip-${idx}`,
         midiId,
@@ -253,9 +255,9 @@ export function buildIsomorphicGrid(
   const xStep = is31 ? preset.x31 : preset.x12;
   const yStep = is31 ? preset.y31 : preset.y12;
   const rootMidi = currentFundamentalD >= 0 ? midiTuning.rhythmRootMidi : midiTuning.pitchRootMidi;
-  const centerCol = Math.floor(isoConfig.cols / 2);
-  const centerRow = Math.floor(isoConfig.rows / 2);
-  const baseMidi = rootMidi - centerCol * xStep - centerRow * yStep;
+  const centreCol = Math.floor(isoConfig.cols / 2);
+  const centreRow = Math.floor(isoConfig.rows / 2);
+  const baseMidi = rootMidi - centreCol * xStep - centreRow * yStep;
 
   const activeDegrees = resolveTuningDegrees(midiTuning).filter((d) => d.active);
   const activeCentsMod = activeDegrees.map((deg) => ((deg.cents % 1200) + 1200) % 1200);

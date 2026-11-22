@@ -13,7 +13,7 @@ import { COUPLING_DEMOS } from './coupling-demos';
 import { KEYBOARD_CADENCE_DEMOS } from './keyboard-cadence-demos';
 import { TUNING_SYSTEM_DEMOS } from './tuning-demos';
 
-export type TutorialSectionId = 'overview' | 'concepts' | 'tuning' | 'hood' | 'customise';
+export type TutorialSectionId = 'overview' | 'concepts' | 'hood' | 'tuning' | 'customise';
 
 export type TutorialDemoId =
   | 'hemiola-sweep'
@@ -40,7 +40,12 @@ export type TutorialDemoId =
   | 'pythagorean-pentatonic-demo'
   | 'pythagorean-heptatonic-dissonance'
   | '31edo-meantone-demo'
-  | '31edo-septimal-demo';
+  | '31edo-septimal-demo'
+  | 'surface-scale-autoplay-demo'
+  | 'surface-isomorphic-demo'
+  | 'surface-guitar-demo';
+
+export type DemoSurfaceMode = 'piano' | 'scale-strip' | 'isomorphic' | 'guitar';
 
 export interface KeyboardDemoConfig {
   tuningPresetId: Exclude<MidiTuningPresetId, 'custom'>;
@@ -48,6 +53,8 @@ export interface KeyboardDemoConfig {
   latchedMidiNotes: number[];
   showIntervals?: boolean;
   rhythmPhaseMode?: MidiPhaseMode;
+  surfaceMode?: DemoSurfaceMode;
+  autoPlay?: boolean;
 }
 
 export interface DemoPartialSpec {

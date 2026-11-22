@@ -24,6 +24,14 @@ describe('Alternate Instrument Surfaces', () => {
     const just5 = buildScaleStripPads(createDefaultMidiTuningConfig('5-limit'), -3.0, 440, 25.8);
     expect(just5[4].subLabel).toBe('5:4');
     expect(just5[4].d).toBeCloseTo(-3.0 - Math.log2(5 / 4), 5);
+
+    // Non-octave Bohlen-Pierce (3:1 Tritave) uses periodRatio = 3.0 across multi-period Scale Strip
+    const bpPads = buildScaleStripPads(createDefaultMidiTuningConfig('bohlen-pierce'), -2.0, 440, 25.8, {
+      octaves: 2,
+      showInactive: true,
+    });
+    expect(bpPads.length).toBe(26);
+    expect(bpPads[0].d - bpPads[13].d).toBeCloseTo(Math.log2(3), 4);
   });
 
   it('builds 2D Isomorphic Grid with 31-EDO and Wicki-Hayden support', () => {
