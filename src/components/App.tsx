@@ -28,6 +28,7 @@ import { useMidi } from './hooks/useMidi';
 import { useEnvelopes } from './hooks/useEnvelopes';
 import { useLibraryBundles } from './hooks/useLibraryBundles';
 import { useTuningStrum } from './hooks/useTuningStrum';
+import { useStageBridge, isStageEmbedded } from './hooks/useStageBridge';
 import { getFocusedSpanView } from '../core/scene-ops';
 
 export const App: React.FC = () => {
@@ -44,9 +45,10 @@ export const App: React.FC = () => {
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState<boolean>(false);
   const [radialMenuAnchor, setRadialMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
-  // Check if intro primer modal should be shown on launch
+  // Check if intro primer modal should be shown on launch (suppressed inside Stage embed)
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
+    if (isStageEmbedded()) return false;
     return localStorage.getItem(STORAGE_KEY_DONT_SHOW_INTRO) !== 'true';
   });
 
@@ -91,10 +93,11 @@ export const App: React.FC = () => {
   // Audio transport and note triggering
   const {
     isPlaying,
+    setIsPlaying,
     getViewportCenter,
-    handleNoteOn,
-    handleNoteOff,
-    handleTriggerNote,
+    handleNoteOn: rawHandleNoteOn,
+    handleNoteOff: rawHandleNoteOff,
+    handleTriggerNote: rawHandleTriggerNote,
     handleTogglePlay: rawHandleTogglePlay,
   } = useTransport({ coordinator, audioEngine, sceneRef });
 
@@ -117,21 +120,21 @@ export const App: React.FC = () => {
 
   // Musical bookmarks and continuum sweep oscillation
   const {
-    bookmarks, setBookmarks, isOscillating, setIsOscillating, toggleOscillating,
+    bookmarks, setBookmarks, isOscillating, setIsOscillating, toggleOscillating: rawToggleOscillating,
     hasCompletedRoundTrip, resetRoundTrip, handleJumpBookmarkA, handleJumpBookmarkB,
     handleSetBookmarkA, handleSetBookmarkB, setBookmarkFromCurrent,
   } = useBookmarks({ sceneRef, setPrimaryDSmooth, coordinator, setPrimaryD: handleUpdatePlacementD });
 
+  const {
+    handleNoteOn, handleNoteOff, handleTriggerNote, toggleOscillating, handleTogglePlay,
+  } = useStageBridge({
+    scene, isPlaying, isOscillating, audioEngine, coordinator, midi,
+    updateScene, setPrimaryDSmooth, setIsPlaying, setIsOscillating,
+    rawHandleNoteOn, rawHandleNoteOff, rawHandleTriggerNote, rawToggleOscillating, rawHandleTogglePlay,
+  });
+
   isOscillatingRef.current = isOscillating;
   setIsOscillatingRef.current = setIsOscillating;
-
-  // Pausing transport turns off sweep oscillation if active
-  const handleTogglePlay = useCallback(async () => {
-    if (isPlaying && isOscillatingRef.current && setIsOscillatingRef.current) {
-      setIsOscillatingRef.current(false);
-    }
-    await rawHandleTogglePlay();
-  }, [isPlaying, rawHandleTogglePlay]);
 
   const stopAutoPlayRef = useRef<() => void>(() => {});
   const handlePanicClear = useCallback(() => {
@@ -143,63 +146,26 @@ export const App: React.FC = () => {
 
   // Modular layout tree state and operations
   const {
-    layout,
-    setLayout,
-    customLayout,
-    canDelete,
-    handleSplitCell,
-    handleRemoveCell,
-    handleDuplicateCell,
-    handleAddCell,
-    handleUpdateCell,
-    handleResetLayout,
-    handleShareLayout,
-    handleNudgeCellFlex,
-    handleEqualiseCellFlex,
+    layout, setLayout, customLayout, canDelete,
+    handleSplitCell, handleRemoveCell, handleDuplicateCell, handleAddCell, handleUpdateCell,
+    handleResetLayout, handleShareLayout, handleNudgeCellFlex, handleEqualiseCellFlex,
   } = useLayoutState();
 
   // Shape library, presets, and session history stack
   const {
-    activeShape,
-    handleSelectPreset,
-    handleUpdateActiveShape,
-    handleDuplicateShape,
-    handleDeleteUserShape,
-    handleCreateShape,
-    handleCaptureShape,
-    historyBack,
-    historyForward,
+    activeShape, handleSelectPreset, handleUpdateActiveShape, handleDuplicateShape,
+    handleDeleteUserShape, handleCreateShape, handleCaptureShape, historyBack, historyForward,
   } = useShapeLibrary({ scene, updateScene, coordinator, getViewportCenter });
 
   // Filters state management and HUD edit state
   const {
-    isFiltersOpen,
-    openFilters,
-    closeFilters,
-    toggleFiltersOpen,
-    isFilterEditMode,
-    setIsFilterEditMode,
-    filterControlParam,
-    setFilterControlParam,
-    handleUpdateFilterCentreD,
-    handleUpdateFilterParams,
-    handleEnterFilterEditMode,
-    handleCycleFilterMode,
-    toggleFilter,
-    toggleFilterEditMode,
-    updateFilterState,
-    addFilterCondition,
-    updateFilterCondition,
-    removeFilterCondition,
-    moveFilterCondition,
-    focusCondition,
-    allFilters,
-    handleSelectFilter,
-    handleForkFilter,
-    handleDuplicateFilter,
-    handleDeleteFilter,
-    handleCreateNewFilter,
-    handleRenameFilter,
+    isFiltersOpen, openFilters, closeFilters, toggleFiltersOpen,
+    isFilterEditMode, setIsFilterEditMode, filterControlParam, setFilterControlParam,
+    handleUpdateFilterCentreD, handleUpdateFilterParams, handleEnterFilterEditMode, handleCycleFilterMode,
+    toggleFilter, toggleFilterEditMode, updateFilterState, addFilterCondition, updateFilterCondition,
+    removeFilterCondition, moveFilterCondition, focusCondition, allFilters,
+    handleSelectFilter, handleForkFilter, handleDuplicateFilter, handleDeleteFilter,
+    handleCreateNewFilter, handleRenameFilter,
   } = useFilters({ scene, updateScene, updateSceneFast });
 
   const tuningStrum = useTuningStrum({ scene, midi });

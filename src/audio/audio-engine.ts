@@ -234,6 +234,7 @@ export class AudioEngine {
   private masterLimiterNode: DynamicsCompressorNode | null = null;
   private isUnlocked: boolean = false;
   private isMutedForFocus: boolean = false;
+  private isStageMode: boolean = false;
   private isPlaying: boolean = false;
   private isKeyDownLocal: boolean = false;
   private isAuditioningLocal: boolean = false;
@@ -784,8 +785,33 @@ export class AudioEngine {
     });
   }
 
+  public setStageMode(enabled: boolean): void {
+    this.isStageMode = enabled;
+    if (enabled) {
+      this.isMutedForFocus = false;
+      this.applyMasterGain();
+      this.syncSceneToWorklet();
+    }
+  }
+
+  public getIsStageMode(): boolean {
+    return this.isStageMode;
+  }
+
+  public getIsMutedForFocus(): boolean {
+    return this.isMutedForFocus;
+  }
+
+  public getAudioState(): 'running' | 'suspended' | 'closed' {
+    if (!this.ctx) return 'suspended';
+    const state = this.ctx.state as string;
+    if (state === 'running') return 'running';
+    if (state === 'closed') return 'closed';
+    return 'suspended';
+  }
+
   private handleFocusChange(focused: boolean): void {
-    if (!this.scene.cosmetics.focusModeEnabled) {
+    if (this.isStageMode || !this.scene.cosmetics.focusModeEnabled) {
       this.isMutedForFocus = false;
       this.applyMasterGain();
       this.syncSceneToWorklet();

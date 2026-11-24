@@ -38,6 +38,8 @@ export class MidiManager {
   private stateChangeCallbacks: Set<(state: MidiDeviceState) => void> = new Set();
 
   private focusModeEnabled: boolean = true;
+  private isStageMode: boolean = false;
+  private isSuppressed: boolean = false;
   private isManuallyDisconnected: boolean = false;
   private heldMidiNotes: Set<number> = new Set();
   private sustainPedalDown: boolean = false;
@@ -58,6 +60,7 @@ export class MidiManager {
   };
 
   private handleFocusChange = () => {
+    if (this.isStageMode) return;
     const focused = this.isWindowFocused();
     if (!focused && this.focusModeEnabled) {
       this.releaseAllHeldNotes();
@@ -143,6 +146,17 @@ export class MidiManager {
 
   public setFocusMode(enabled: boolean): void {
     this.focusModeEnabled = enabled;
+  }
+
+  public setStageMode(enabled: boolean): void {
+    this.isStageMode = enabled;
+  }
+
+  public setSuppressed(suppressed: boolean): void {
+    this.isSuppressed = suppressed;
+    if (suppressed) {
+      this.releaseAllHeldNotes();
+    }
   }
 
   public getFocusMode(): boolean {
@@ -283,7 +297,10 @@ export class MidiManager {
   }
 
   private handleMidiMessage(event: MIDIMessageEvent): void {
-    if (this.focusModeEnabled && !this.isWindowFocused()) {
+    if (this.isSuppressed) {
+      return;
+    }
+    if (this.focusModeEnabled && !this.isStageMode && !this.isWindowFocused()) {
       return;
     }
 
@@ -305,7 +322,7 @@ export class MidiManager {
   }
 
   public triggerSustain(isDown: boolean): void {
-    if (this.focusModeEnabled && !this.isWindowFocused() && isDown) {
+    if (this.focusModeEnabled && !this.isStageMode && !this.isWindowFocused() && isDown) {
       return;
     }
     if (this.sustainPedalDown === isDown) return;
@@ -316,7 +333,7 @@ export class MidiManager {
   }
 
   public triggerNoteOn(midi: number, velocity: number = 0.8): void {
-    if (this.focusModeEnabled && !this.isWindowFocused()) {
+    if (this.focusModeEnabled && !this.isStageMode && !this.isWindowFocused()) {
       return;
     }
     this.heldMidiNotes.add(midi);

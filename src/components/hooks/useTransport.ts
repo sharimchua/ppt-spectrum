@@ -16,6 +16,7 @@ export interface UseTransportOptions {
 
 export interface UseTransportResult {
   isPlaying: boolean;
+  setIsPlaying: (playing: boolean) => void;
   getViewportCenter: () => { cx: number; cy: number };
   handleNoteOn: (shapeId?: string) => void;
   handleNoteOff: (shapeId?: string) => void;
@@ -73,6 +74,7 @@ export function useTransport({
 
   return {
     isPlaying,
+    setIsPlaying,
     getViewportCenter,
     handleNoteOn,
     handleNoteOff,

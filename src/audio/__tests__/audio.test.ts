@@ -161,4 +161,17 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     expect(crossPayload[0].containerSpec?.mode).toBe('shape');
     expect(crossPayload[0].containerSpec?.globalStreams?.length).toBeGreaterThan(0);
   });
+
+  it('prevents focus-blur muting when Stage mode is enabled', () => {
+    AudioEngine.resetInstanceForTesting();
+    const engine = AudioEngine.getInstance(DEFAULT_SCENE);
+    engine.setStageMode(true);
+    expect(engine.getIsStageMode()).toBe(true);
+    (engine as unknown as { handleFocusChange: (focused: boolean) => void }).handleFocusChange(false);
+    expect(engine.getIsMutedForFocus()).toBe(false);
+
+    engine.setStageMode(false);
+    (engine as unknown as { handleFocusChange: (focused: boolean) => void }).handleFocusChange(false);
+    expect(engine.getIsMutedForFocus()).toBe(true);
+  });
 });

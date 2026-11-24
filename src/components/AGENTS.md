@@ -54,6 +54,7 @@ The `src/components` domain contains all React 18 UI components, the 4-layer vie
 - `src/components/keyboard/IntervalBandsStrip.tsx` — Stacked Harmonic-Geometry-style interval ratio & frequency distance bands above the keybed.
 - `src/components/LibraryShareModal.tsx` — Curated Shape+Filter+Envelope bundles, `?bundle=` slug sharing, and non-destructive library set import/export.
 - `src/components/TutorialReturnToast.tsx` — Dismissible, context-aware floating banner displayed during guided live demos with regime narration, sweep Pause/Resume toggle, and one-click return to the active tutorial section.
+- `src/components/hooks/useStageBridge.ts` — `midlifemuso-stage-v1` `postMessage` bridge for embedded Stage sessions (audio unlock, MIDI relay, scene/transport synchronisation, and focus-mute bypass).
 
 ### Tutorial & Theory Documentation (`src/components/info-modal/`)
 
