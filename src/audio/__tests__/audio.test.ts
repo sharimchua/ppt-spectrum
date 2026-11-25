@@ -174,4 +174,53 @@ describe('AudioEngine Payload Generation & Band Filter Attenuation', () => {
     (engine as unknown as { handleFocusChange: (focused: boolean) => void }).handleFocusChange(false);
     expect(engine.getIsMutedForFocus()).toBe(true);
   });
+
+  it('resolves unlock() promptly even when AudioContext.resume() never settles (iOS Safari fallback)', async () => {
+    AudioEngine.resetInstanceForTesting();
+    const origWindow = (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = {
+      AudioContext: class MockSuspendedAudioContext {
+        state = 'suspended';
+        currentTime = 0;
+        sampleRate = 48000;
+        destination = {};
+        createBuffer() {
+          return {};
+        }
+        createBufferSource() {
+          return { buffer: null, connect() {}, start() {} };
+        }
+        createGain() {
+          return { gain: { setValueAtTime() {}, cancelScheduledValues() {}, setTargetAtTime() {} }, connect() {} };
+        }
+        createDynamicsCompressor() {
+          return {
+            threshold: { setValueAtTime() {} },
+            knee: { setValueAtTime() {} },
+            ratio: { setValueAtTime() {} },
+            attack: { setValueAtTime() {} },
+            release: { setValueAtTime() {} },
+            connect() {},
+          };
+        }
+        resume() {
+          return new Promise<void>(() => {});
+        }
+        close() {
+          return Promise.resolve();
+        }
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    };
+    try {
+      const engine = AudioEngine.getInstance(DEFAULT_SCENE);
+      const ok = await engine.unlock();
+      expect(ok).toBe(true);
+      expect(engine.getAudioState()).toBe('suspended');
+    } finally {
+      AudioEngine.resetInstanceForTesting();
+      (globalThis as { window?: unknown }).window = origWindow;
+    }
+  });
 });

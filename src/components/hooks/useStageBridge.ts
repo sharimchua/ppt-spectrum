@@ -4,9 +4,16 @@ import { AudioEngine } from '../../audio/audio-engine';
 import { midiManagerInstance } from '../../audio/midi-manager';
 import { RenderCoordinator } from '../../renderers/render-coordinator';
 import { UseMidiResult } from './useMidi';
+import {
+  STAGE_PROTOCOL,
+  getInitialStageRole,
+  isStageEmbedded,
+  mountAudioPromptPill,
+  pickSyncableScene,
+  postStageMessage,
+} from './stage-bridge-helpers';
 
-const STAGE_PROTOCOL = 'midlifemuso-stage-v1';
-const APP_ID = 'spectrum';
+export { isStageEmbedded };
 
 interface StageBridgeOptions {
   scene: Scene;
@@ -37,37 +44,6 @@ export interface StageBridgeApi {
   handleTogglePlay: () => Promise<void>;
 }
 
-export function isStageEmbedded(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return (
-      window.parent !== window &&
-      new URLSearchParams(window.location.search).get('stage') === '1'
-    );
-  } catch {
-    return false;
-  }
-}
-
-function postToParent(msg: Record<string, unknown>): void {
-  if (typeof window === 'undefined' || window.parent === window) return;
-  window.parent.postMessage({ protocol: STAGE_PROTOCOL, appId: APP_ID, ...msg }, '*');
-}
-
-function pickSyncableScene(scene: Scene): Partial<Scene> & { isPlaying?: boolean } {
-  return {
-    shapes: scene.shapes,
-    placements: scene.placements,
-    filter: scene.filter,
-    filters: scene.filters,
-    envelope: scene.envelope,
-    envelopes: scene.envelopes,
-    anchors: scene.anchors,
-    lenses: scene.lenses,
-    audio: scene.audio,
-  };
-}
-
 export function useStageBridge({
   scene,
   isPlaying,
@@ -87,7 +63,11 @@ export function useStageBridge({
 }: StageBridgeOptions): StageBridgeApi {
   const embedded = isStageEmbedded();
   const isApplyingRemoteRef = useRef<boolean>(false);
-  const lastSentJsonRef = useRef<string>('');
+  const roleRef = useRef<'teacher' | 'student'>(getInitialStageRole());
+  // Seed with initial state so newly mounted student iframes never overwrite teacher state on mount
+  const lastSentJsonRef = useRef<string>(
+    JSON.stringify({ ...pickSyncableScene(scene), isPlaying, isOscillating })
+  );
   const throttleTimerRef = useRef<number | null>(null);
   const lastDPostRef = useRef<number>(0);
 
@@ -121,10 +101,59 @@ export function useStageBridge({
 
     audioEngine.setStageMode(true);
     midiManagerInstance.setStageMode(true);
-    postToParent({
+
+    const pushCurrentState = () => {
+      const cur = latestRef.current;
+      const payload = {
+        ...pickSyncableScene(cur.scene),
+        isPlaying: cur.isPlaying,
+        isOscillating: cur.isOscillating,
+      };
+      lastSentJsonRef.current = JSON.stringify(payload);
+      postStageMessage({ type: 'APP_STATE_UPDATE', state: payload });
+    };
+
+    const handleGestureUnlock = () => {
+      const cur = latestRef.current;
+      if (cur.audioEngine.getAudioState() === 'running') {
+        prompt.hide();
+        return;
+      }
+      void cur.audioEngine.unlock().then(() => {
+        const st = cur.audioEngine.getAudioState();
+        postStageMessage({ type: 'STAGE_AUDIO_STATE', audioState: st });
+        if (st === 'running') {
+          prompt.hide();
+        }
+      });
+    };
+
+    const prompt = mountAudioPromptPill(handleGestureUnlock);
+
+    audioEngine.onAudioStateChange = (audioState) => {
+      postStageMessage({ type: 'STAGE_AUDIO_STATE', audioState });
+      if (audioState === 'running') {
+        prompt.hide();
+      }
+    };
+
+    const ensureAudioPromptIfNeeded = () => {
+      if (latestRef.current.audioEngine.getAudioState() !== 'running') {
+        prompt.show();
+      }
+    };
+
+    postStageMessage({
       type: 'STAGE_READY',
       audioState: audioEngine.getAudioState(),
     });
+
+    const onPointerUnlock = () => {
+      if (latestRef.current.audioEngine.getAudioState() !== 'running') {
+        handleGestureUnlock();
+      }
+    };
+    window.addEventListener('pointerdown', onPointerUnlock, true);
 
     const handleMessage = (event: MessageEvent) => {
       const data = event.data as Record<string, unknown> | null;
@@ -133,15 +162,28 @@ export function useStageBridge({
 
       switch (data.type) {
         case 'STAGE_INIT': {
+          roleRef.current = data.role === 'teacher' ? 'teacher' : 'student';
           midiManagerInstance.setSuppressed(Boolean(data.suppressLocalMidi));
+          if (roleRef.current === 'teacher') {
+            pushCurrentState();
+          }
+          break;
+        }
+        case 'STAGE_REQUEST_STATE': {
+          if (roleRef.current === 'teacher') {
+            pushCurrentState();
+          }
           break;
         }
         case 'STAGE_UNLOCK_AUDIO': {
           void cur.audioEngine.unlock().then(() => {
-            postToParent({
-              type: 'STAGE_AUDIO_STATE',
-              audioState: cur.audioEngine.getAudioState(),
-            });
+            const audioState = cur.audioEngine.getAudioState();
+            postStageMessage({ type: 'STAGE_AUDIO_STATE', audioState });
+            if (audioState !== 'running') {
+              prompt.show();
+            } else {
+              prompt.hide();
+            }
           });
           break;
         }
@@ -151,6 +193,7 @@ export function useStageBridge({
           if (ev === 'noteOn' && typeof data.midi === 'number') {
             const vel = typeof data.velocity === 'number' ? data.velocity : 0.85;
             cur.midi.virtualNoteOn(data.midi, vel);
+            ensureAudioPromptIfNeeded();
           } else if (ev === 'noteOff' && typeof data.midi === 'number') {
             cur.midi.virtualNoteOff(data.midi);
           } else if (ev === 'sustain' && typeof data.isDown === 'boolean') {
@@ -168,22 +211,31 @@ export function useStageBridge({
           if (!st || typeof st !== 'object') break;
 
           isApplyingRemoteRef.current = true;
-          cur.updateScene((prev) => ({
-            ...prev,
-            shapes: st.shapes ?? prev.shapes,
-            placements: st.placements ?? prev.placements,
-            filter: st.filter ?? prev.filter,
-            filters: st.filters ?? prev.filters,
-            envelope: st.envelope ?? prev.envelope,
-            envelopes: st.envelopes ?? prev.envelopes,
-            anchors: st.anchors ?? prev.anchors,
-            lenses: st.lenses ?? prev.lenses,
-            audio: st.audio ?? prev.audio,
-          }));
+          cur.updateScene((prev) => {
+            const merged: Scene = {
+              ...prev,
+              shapes: st.shapes ?? prev.shapes,
+              placements: st.placements ?? prev.placements,
+              filter: st.filter ?? prev.filter,
+              filters: st.filters ?? prev.filters,
+              envelope: st.envelope ?? prev.envelope,
+              envelopes: st.envelopes ?? prev.envelopes,
+              anchors: st.anchors ?? prev.anchors,
+              lenses: st.lenses ?? prev.lenses,
+              audio: st.audio ?? prev.audio,
+            };
+            lastSentJsonRef.current = JSON.stringify({
+              ...pickSyncableScene(merged),
+              isPlaying: typeof st.isPlaying === 'boolean' ? st.isPlaying : cur.isPlaying,
+              isOscillating:
+                typeof st.isOscillating === 'boolean' ? st.isOscillating : cur.isOscillating,
+            });
+            return merged;
+          });
 
           if (typeof st.isPlaying === 'boolean' && st.isPlaying !== cur.isPlaying) {
             if (st.isPlaying) {
-              void cur.audioEngine.play();
+              void cur.audioEngine.play().then(() => ensureAudioPromptIfNeeded());
               cur.setIsPlaying(true);
             } else {
               cur.audioEngine.pause();
@@ -196,7 +248,7 @@ export function useStageBridge({
 
           window.setTimeout(() => {
             isApplyingRemoteRef.current = false;
-          }, 50);
+          }, 60);
           break;
         }
         case 'REMOTE_ACTION': {
@@ -206,13 +258,16 @@ export function useStageBridge({
           if (action === 'SET_PRIMARY_D' && typeof payload?.d === 'number') {
             cur.setPrimaryDSmooth(payload.d, true);
           } else if (action === 'TRANSPORT_PLAY') {
-            void cur.audioEngine.play().then(() => {
-              postToParent({
-                type: 'STAGE_AUDIO_STATE',
-                audioState: cur.audioEngine.getAudioState(),
-              });
-            });
             cur.setIsPlaying(true);
+            void cur.audioEngine.play().then(() => {
+              const audioState = cur.audioEngine.getAudioState();
+              postStageMessage({ type: 'STAGE_AUDIO_STATE', audioState });
+              if (audioState !== 'running') {
+                prompt.show();
+              } else {
+                prompt.hide();
+              }
+            });
           } else if (action === 'TRANSPORT_PAUSE') {
             cur.audioEngine.pause();
             cur.setIsPlaying(false);
@@ -220,13 +275,13 @@ export function useStageBridge({
             void cur.audioEngine.triggerNote(
               typeof payload?.shapeId === 'string' ? payload.shapeId : undefined,
               cur.scene
-            );
+            ).then(() => ensureAudioPromptIfNeeded());
             cur.coordinator.triggerNoteStrike();
           } else if (action === 'NOTE_ON') {
             void cur.audioEngine.noteOn(
               typeof payload?.shapeId === 'string' ? payload.shapeId : undefined,
               cur.scene
-            );
+            ).then(() => ensureAudioPromptIfNeeded());
             cur.coordinator.triggerNoteStrike();
           } else if (action === 'NOTE_OFF') {
             cur.audioEngine.noteOff(
@@ -237,7 +292,7 @@ export function useStageBridge({
           }
           window.setTimeout(() => {
             isApplyingRemoteRef.current = false;
-          }, 20);
+          }, 25);
           break;
         }
       }
@@ -246,6 +301,9 @@ export function useStageBridge({
     window.addEventListener('message', handleMessage);
     return () => {
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('pointerdown', onPointerUnlock, true);
+      prompt.destroy();
+      audioEngine.onAudioStateChange = undefined;
       audioEngine.setStageMode(false);
       midiManagerInstance.setStageMode(false);
       midiManagerInstance.setSuppressed(false);
@@ -271,7 +329,7 @@ export function useStageBridge({
       throttleTimerRef.current = null;
       if (isApplyingRemoteRef.current) return;
       lastSentJsonRef.current = encoded;
-      postToParent({ type: 'APP_STATE_UPDATE', state: payload });
+      postStageMessage({ type: 'APP_STATE_UPDATE', state: payload });
     }, 120);
 
     return () => {
@@ -285,7 +343,7 @@ export function useStageBridge({
   const broadcastAction = useCallback(
     (action: string, payload?: unknown) => {
       if (!embedded || isApplyingRemoteRef.current) return;
-      postToParent({ type: 'APP_ACTION', action, payload });
+      postStageMessage({ type: 'APP_ACTION', action, payload });
     },
     [embedded]
   );
@@ -296,7 +354,7 @@ export function useStageBridge({
       const now = performance.now();
       if (now - lastDPostRef.current < 33) return;
       lastDPostRef.current = now;
-      postToParent({ type: 'APP_ACTION', action: 'SET_PRIMARY_D', payload: { d } });
+      postStageMessage({ type: 'APP_ACTION', action: 'SET_PRIMARY_D', payload: { d } });
     },
     [embedded]
   );

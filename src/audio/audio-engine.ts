@@ -248,6 +248,7 @@ export class AudioEngine {
   private latestTelemetry: AudioTelemetryData | null = null;
   private latestTelemetryTime: number = 0;
   private lastAppliedMasterGain: number | null = null;
+  public onAudioStateChange?: (state: 'running' | 'suspended' | 'closed') => void;
 
   constructor(initialScene: Scene) {
     if (AudioEngine.instance) {
@@ -413,6 +414,13 @@ export class AudioEngine {
         } catch {
           this.ctx = new AudioContextClass();
         }
+        this.ctx.onstatechange = () => {
+          if (this.ctx?.state === 'running') {
+            this.applyMasterGain();
+            this.syncSceneToWorklet();
+          }
+          this.onAudioStateChange?.(this.getAudioState());
+        };
       }
 
       // CRITICAL FOR iOS SAFARI: Trigger silent buffer AND start resume() SYNCHRONOUSLY
@@ -430,7 +438,7 @@ export class AudioEngine {
       const stateStr = this.ctx.state as string;
       const resumePromise =
         stateStr === 'suspended' || stateStr === 'interrupted'
-          ? this.ctx.resume()
+          ? this.resumeContextBounded(this.ctx, 180)
           : Promise.resolve();
 
       await resumePromise;
@@ -487,17 +495,31 @@ export class AudioEngine {
       // Ensure context didn't re-suspend while awaiting module compilation on iOS
       const postState = this.ctx.state as string;
       if (postState === 'suspended' || postState === 'interrupted') {
-        await this.ctx.resume();
+        await this.resumeContextBounded(this.ctx, 180);
       }
 
       this.isUnlocked = true;
       this.applyMasterGain();
       this.syncSceneToWorklet();
+      this.onAudioStateChange?.(this.getAudioState());
       return true;
     } catch (e) {
       console.warn('[AudioEngine] Failed to unlock audio context, enabling visual playback fallback:', e);
       this.isUnlocked = true;
       return true;
+    }
+  }
+
+  private async resumeContextBounded(ctx: AudioContext, timeoutMs: number = 180): Promise<void> {
+    try {
+      await Promise.race([
+        ctx.resume().catch(() => {}),
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, timeoutMs);
+        }),
+      ]);
+    } catch {
+      // Ignore suspended context errors when autoplay is blocked
     }
   }
 
