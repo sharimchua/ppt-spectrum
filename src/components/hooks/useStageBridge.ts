@@ -6,6 +6,7 @@ import { RenderCoordinator } from '../../renderers/render-coordinator';
 import { UseMidiResult } from './useMidi';
 import {
   STAGE_PROTOCOL,
+  applyStageEcoMode,
   getInitialStageRole,
   isStageEmbedded,
   mountAudioPromptPill,
@@ -164,9 +165,14 @@ export function useStageBridge({
         case 'STAGE_INIT': {
           roleRef.current = data.role === 'teacher' ? 'teacher' : 'student';
           midiManagerInstance.setSuppressed(Boolean(data.suppressLocalMidi));
+          if (typeof data.ecoMode === 'boolean') applyStageEcoMode(cur.updateScene, data.ecoMode);
           if (roleRef.current === 'teacher') {
             pushCurrentState();
           }
+          break;
+        }
+        case 'STAGE_ECO_MODE': {
+          if (typeof data.ecoMode === 'boolean') applyStageEcoMode(cur.updateScene, data.ecoMode);
           break;
         }
         case 'STAGE_REQUEST_STATE': {

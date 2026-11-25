@@ -3,7 +3,7 @@ import { dToFreq } from '../core/axis';
 import { LensLabelMode } from '../core/layout-models';
 import { CosmeticsEngine } from './cosmetics';
 import { WebGLPostProcessingPipeline, PostProcessingLight, PostProcessingShockwave } from './webgl-post-processing';
-import { isMobileTouchDevice, getMaxParticlesForProfile } from './performance-profile';
+import { getMaxParticlesForProfile } from './performance-profile';
 import { buildPolyphonicMidiScene } from './midi-polyphony-utils';
 
 export interface CachedRect {
@@ -46,7 +46,9 @@ export class RenderCoordinator {
   private heldMidiNotes: HeldMidiNote[] = [];
   private isRunning: boolean = false;
   private animId: number | null = null;
+  private idleTimerId: number | null = null;
   private lastFrameTime: number = performance.now();
+  private lastActivityTime: number = performance.now();
 
   private effectsCanvas: HTMLCanvasElement | null = null;
   private effectsCtx: CanvasRenderingContext2D | null = null;
@@ -70,7 +72,6 @@ export class RenderCoordinator {
   private throttledProfile: PerformanceProfile | null = null;
   private isFocused: boolean = true;
   private edgeGlowAlpha: number = 0;
-  private idleFrameToggle: boolean = false;
   private shockwaveBuffer: PostProcessingShockwave[] = [];
 
   // Cached DOM Rects to eliminate per-frame layout reflow
@@ -124,6 +125,7 @@ export class RenderCoordinator {
   public invalidateRectCaches(): void {
     this.cachedPpRect = null;
     this.cachedLensRects.clear();
+    this.wakeLoop();
   }
 
   public registerLens(
@@ -163,6 +165,19 @@ export class RenderCoordinator {
 
   public triggerNoteStrike(): void {
     this.internalNoteAge = 0;
+    this.wakeLoop();
+  }
+
+  public wakeLoop(): void {
+    this.lastActivityTime = performance.now();
+    if (!this.isRunning) return;
+    if (this.idleTimerId !== null) {
+      clearTimeout(this.idleTimerId);
+      this.idleTimerId = null;
+      if (this.animId === null && typeof requestAnimationFrame !== 'undefined') {
+        this.animId = requestAnimationFrame(this.loop);
+      }
+    }
   }
 
   public setScene(scene: Scene): void {
@@ -176,6 +191,7 @@ export class RenderCoordinator {
     if (bgChanged) {
       this.renderBackground();
     }
+    this.wakeLoop();
   }
 
   public getEffectivePerformanceProfile(): PerformanceProfile {
@@ -186,11 +202,16 @@ export class RenderCoordinator {
     if (this.isRunning) return;
     this.isRunning = true;
     this.lastFrameTime = performance.now();
+    this.lastActivityTime = this.lastFrameTime;
     this.loop();
   }
 
   public stop(): void {
     this.isRunning = false;
+    if (this.idleTimerId !== null) {
+      clearTimeout(this.idleTimerId);
+      this.idleTimerId = null;
+    }
     if (this.animId !== null) {
       cancelAnimationFrame(this.animId);
       this.animId = null;
@@ -199,6 +220,7 @@ export class RenderCoordinator {
 
   public setHeldMidiNotes(notes: HeldMidiNote[]): void {
     this.heldMidiNotes = notes;
+    this.wakeLoop();
   }
 
   private loop = (): void => {
@@ -206,26 +228,17 @@ export class RenderCoordinator {
     const now = performance.now();
     const elapsedMs = now - this.lastFrameTime;
 
-    // On mobile touch devices in Eco/None mode when idle, halve refresh rate (~30 FPS) to keep battery cool;
-    // otherwise pace naturally to VSync so WebGL (preserveDrawingBuffer: false) never skips a compositor frame.
-    const isMobile = isMobileTouchDevice();
-    const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
-    const hasActiveShockwaves = this.cosmeticsEngine.getActiveShockwaves().length > 0;
     const effectiveProfile = this.getEffectivePerformanceProfile();
-    const isMobileIdle =
-      isMobile &&
-      !isAudioActive &&
-      !hasActiveShockwaves &&
-      (effectiveProfile === 'eco' || effectiveProfile === 'none');
+    const isEcoOrNone = effectiveProfile === 'eco' || effectiveProfile === 'none';
+    const isAudioActive = this.isAudioActiveProvider ? this.isAudioActiveProvider() : false;
+    if (isAudioActive) {
+      this.lastActivityTime = now;
+    }
 
-    if (isMobileIdle) {
-      this.idleFrameToggle = !this.idleFrameToggle;
-      if (this.idleFrameToggle && elapsedMs < 30.0) {
-        this.animId = requestAnimationFrame(this.loop);
-        return;
-      }
-    } else {
-      this.idleFrameToggle = false;
+    // Cap 120 Hz ProMotion panels to 60 FPS in Eco/None mode during active playback
+    if (isEcoOrNone && this.idleTimerId === null && elapsedMs > 0 && elapsedMs < 15.5) {
+      this.animId = requestAnimationFrame(this.loop);
+      return;
     }
 
     const dtMs = Math.min(100, elapsedMs);
@@ -237,7 +250,7 @@ export class RenderCoordinator {
       const renderCostMs = performance.now() - renderStart;
 
       // Frame-time governor: measure actual CPU/GPU render execution time (not intentional idle sleep interval!)
-      // so idle 30 FPS power-saving never false-triggers the governor into toggling effects off and on.
+      // so idle power-saving never false-triggers the governor into toggling effects off and on.
       if (renderCostMs > 18.0) {
         this.consecutiveSlowFrames++;
         if (this.consecutiveSlowFrames > 60 && this.getEffectivePerformanceProfile() === 'max') {
@@ -248,6 +261,24 @@ export class RenderCoordinator {
       } else {
         this.consecutiveSlowFrames = Math.max(0, this.consecutiveSlowFrames - 1);
       }
+    }
+
+    const hasActiveVisuals =
+      isAudioActive ||
+      this.cosmeticsEngine.getActiveShockwaves().length > 0 ||
+      this.heldMidiNotes.length > 0 ||
+      this.cosmeticsEngine.hasActiveParticles();
+
+    // True idle sleep in Eco/None mode (~4 FPS timer instead of continuous 30–120 FPS rAF spins)
+    if (isEcoOrNone && !hasActiveVisuals && now - this.lastActivityTime > 1500) {
+      this.animId = null;
+      this.idleTimerId = window.setTimeout(() => {
+        this.idleTimerId = null;
+        if (this.isRunning) {
+          this.animId = requestAnimationFrame(this.loop);
+        }
+      }, 250);
+      return;
     }
 
     this.animId = requestAnimationFrame(this.loop);

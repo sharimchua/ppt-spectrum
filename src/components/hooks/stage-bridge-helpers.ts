@@ -41,6 +41,24 @@ export function pickSyncableScene(scene: Scene): Partial<Scene> {
   };
 }
 
+export function applyStageEcoMode(
+  updateScene: (updater: Scene | ((prev: Scene) => Scene)) => void,
+  ecoMode: boolean
+): void {
+  const nextProfile = ecoMode ? 'eco' : 'balanced';
+  updateScene((prev) =>
+    prev.cosmetics.performanceProfile === nextProfile
+      ? prev
+      : {
+          ...prev,
+          cosmetics: {
+            ...prev.cosmetics,
+            performanceProfile: nextProfile,
+          },
+        }
+  );
+}
+
 export function mountAudioPromptPill(onTap: () => void): {
   show: () => void;
   hide: () => void;

@@ -262,6 +262,10 @@ export class CosmeticsEngine {
     return this.shockwaves;
   }
 
+  public hasActiveParticles(): boolean {
+    return this.particles.length > 0 || this.shockwaves.length > 0 || this.ghosts.length > 0;
+  }
+
   public update(dtMs: number): void {
     const dtFactor = Math.min(2.5, dtMs / 16.667);
 
